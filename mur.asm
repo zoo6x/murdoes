@@ -12,16 +12,38 @@
 	.equ	rhere, rdi
 	.equ	rparam, r12
 	.equ	rnext, r13
+	.equ	rlatest, r14
 
 .macro	next
 	jmp	rnext
 .endm
 
+	latest	= 0
+
+.macro	word	name
+\name\()_name:
+	.byte	strlen
+	str = .
+	.ascii	"\name"
+	strlen = . - str
+	.align	16
+\name\()_nfa:
+	.quad	\name\()_name
+\name\()_lfa:
+	.quad	latest
+\name\():
+	latest = .
+.endm
+
+# Initialization
 _start:
 	xor	rtop, rtop
 	xor	rstate, rstate
+	lea	rlatest, last
 	lea	rpc, qword ptr [$cold]
 	lea	rnext, qword ptr [_next]
+
+# Interpreter
 _next:
 	lodsq
 	jmp	[rwork + rstate * 8]
@@ -40,13 +62,12 @@ _exec:
 # Words
 .p2align	4, 0x90
 
-.align 16
-exit:
+
+word	exit
 	.quad	_exit, 0
 	.quad	_noop, 0
 
-.align	16
-noop:
+word	noop
 	.quad	_noop, 0
 	.quad	_noop, 0
 _noop:
@@ -54,8 +75,7 @@ _noop:
 
 	
 
-.align 16
-print:
+word	print
 	.quad	_call, _print
 	.quad	_noop, 0
 _print:
@@ -79,8 +99,7 @@ _print:
 	pop	rax
 	next
 
-.align	16
-bye:
+word	bye
 	.quad	_call, _bye
 	.quad	_noop, 0	
 _bye:
@@ -88,8 +107,7 @@ _bye:
 	mov	rax, 60
 	syscall
 
-.align	16
-word1:
+word	word1
 	.quad	_exec, $word1	# interpret
 	.quad 	_noop, 0	# compile
 $word1:
@@ -98,8 +116,7 @@ $word1:
 	.quad	word2
 	.quad	exit	
 			
-.align	16
-word2:
+word	word2
 	.quad	_exec, $word2
 	.quad	_noop, 0
 $word2:
@@ -107,8 +124,10 @@ $word2:
 	.quad	exit
 
 # Cold start
-.align	16
+word	cold
 $cold:
 	.quad	word1
 	.quad	word2
 	.quad	bye
+
+	.equ	last, latest
