@@ -49,6 +49,7 @@ _next:
 	jmp	[rwork + rstate * 8]
 _call:
 	# rwork = word header 
+	push	rnext
 	jmp	[rwork + rstate * 8 + 8]	
 _exit:
 	pop	rpc
@@ -71,7 +72,7 @@ word	noop
 	.quad	_noop, 0
 	.quad	_noop, 0
 _noop:
-	next
+	ret
 
 	
 
@@ -97,7 +98,7 @@ _print:
 	pop	rsi
 	pop	rdx
 	pop	rax
-	next
+	ret
 
 word	bye
 	.quad	_call, _bye
