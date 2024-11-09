@@ -4,22 +4,21 @@
 
 .text
 
-	.equ	rwork, rax
+	.equ	rwork, rax	# Points to XT in code words. Needs not be preserved
 	.equ	rtop, rcx
 	.equ	rstate, rbx
-	.equ	rtmp, rdx
-	.equ	rpc, rsi
+	.equ	rtmp, rdx	# Needs no be preserved
+	.equ	rpc, rsi	# Do no change! LODSx instructions are used
 	.equ	rhere, rdi
 	.equ	rparam, r12
 	.equ	rnext, r13
 	.equ	rlatest, r14
-
-.macro	next
-	jmp	rnext
-.endm
+	.equ	rstack, rbp
+	.equ	rstack0, r15
 
 	latest	= 0
 
+# Word definition
 .macro	word	name, fname
 	.align	16
 \name\()_name:
@@ -40,6 +39,16 @@
 	latest = .
 .endm
 
+# Data stack access
+.macro	load	reg, i
+	mov	\reg, qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)]
+.endm
+
+.macro	store	regval, i
+	mov	qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)], \regval
+.endm
+
+
 # Initialization
 _start:
 	xor	rtop, rtop
@@ -47,6 +56,8 @@ _start:
 	lea	rlatest, last
 	lea	rpc, qword ptr [$cold]
 	lea	rnext, qword ptr [_next]
+	lea	rstack0, [rsp - 0x1000]
+	xor	rstack, rstack
 
 # Interpreter
 _next:
@@ -78,7 +89,22 @@ word	noop
 _noop:
 	ret
 
-	
+word	dup
+	.quad	_call, _dup
+	.quad	_noop, 0
+_dup:
+	store	rtop, 1
+	dec	rstack
+	ret
+
+word	lit
+	.quad	_call, _lit
+	.quad	_noop, 0
+_lit:
+	call	_dup
+	lodsq
+	mov	rtop, rax
+	ret
 
 word	print, "."
 	.quad	_call, _print
@@ -168,6 +194,8 @@ $word2:
 word	cold
 $cold:
 	.quad	words
+	.quad	lit, 0xa
+	.quad	print
 	.quad	word1
 	.quad	word2
 	.quad	bye
