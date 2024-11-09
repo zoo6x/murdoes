@@ -106,10 +106,11 @@ _lit:
 	mov	rtop, rax
 	ret
 
-word	print, "."
-	.quad	_call, _print
+word	emit
+	.quad	_call, _emit
 	.quad	_noop, 0
-_print:
+_emit:
+	push	rtop
 	push	rax
 	push	rdx
 	push	rsi
@@ -128,13 +129,14 @@ _print:
 	pop	rsi
 	pop	rdx
 	pop	rax
+	pop	rtop
 	ret
 
 word	words
 	.quad	_call, _words
 	.quad	_noop, 0
 _words:
-	push	rcx
+	push	rtop
 	push	rsi
 	push	rdi
 
@@ -144,7 +146,7 @@ _words:
 	test	rtmp, rtmp
 	jz	Lexit
 
-	push	rtmp	# current word
+	push	rtmp			# current word
 
 	mov	rwork, [rtmp - 16]	# NFA
 	movzx	rtmp, byte ptr [rwork]
@@ -154,7 +156,7 @@ _words:
 	syscall
 
 	mov	rtop, 0x20
-	call	_print
+	call	_emit
 
 	pop	rtmp
 	mov	rtmp, [rtmp - 8]	# LFA
@@ -163,7 +165,7 @@ _words:
 	Lexit:
 	pop	rdi
 	pop	rsi
-	pop	rcx
+	pop	rtop
 	ret
 
 word	bye
@@ -178,8 +180,8 @@ word	word1
 	.quad	_exec, $word1	# interpret
 	.quad 	_noop, 0	# compile
 $word1:
-	.quad	print
-	.quad	print
+	.quad	emit
+	.quad	emit
 	.quad	word2
 	.quad	exit	
 			
@@ -187,7 +189,7 @@ word	word2
 	.quad	_exec, $word2
 	.quad	_noop, 0
 $word2:
-	.quad	print
+	.quad	emit
 	.quad	exit
 
 # Cold start
@@ -195,7 +197,7 @@ word	cold
 $cold:
 	.quad	words
 	.quad	lit, 0xa
-	.quad	print
+	.quad	emit
 	.quad	word1
 	.quad	word2
 	.quad	bye
