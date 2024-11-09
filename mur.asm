@@ -111,25 +111,51 @@ word	emit
 	.quad	_noop, 0
 _emit:
 	push	rtop
-	push	rax
+	push	rwork
 	push	rdx
 	push	rsi
 	push	rdi
 	
-	mov	rax, rtop
+	mov	rwork, rtop
 	push	rax
-	mov	rdx, 0x8
-	mov	rsi, rsp
-	mov	rax, 0x1
-	mov 	rdi, 0x1
+	mov	rdx, 0x8	# count
+	mov	rsi, rsp	# buffer
+	mov 	rdi, 0x1	# stdout
+	mov	rax, 0x1	# sys_write
 	syscall
-	pop	rax
+	pop	rwork
+
+	pop	rdi
+	pop	rsi
+	pop	rdx
+	pop	rwork
+	pop	rtop
+	ret
+
+word	read
+	.quad	_call, _read
+	.quad	_noop, 0
+_read:
+	call	_dup
+
+	push	rax
+	push	rdx
+	push	rsi
+	push	rdi
+
+	xor	rwork, rwork
+	push	rwork
+	mov	rdx, 0x1	# count
+	mov	rsi, rsp	# buffer
+	mov 	rdi, 0x1	# stdin
+	mov	rax, 0x0	# sys_read
+	syscall
+	pop	rtop
 
 	pop	rdi
 	pop	rsi
 	pop	rdx
 	pop	rax
-	pop	rtop
 	ret
 
 word	words
@@ -198,6 +224,7 @@ $cold:
 	.quad	words
 	.quad	lit, 0xa
 	.quad	emit
+	.quad	read, emit
 	.quad	word1
 	.quad	word2
 	.quad	bye
