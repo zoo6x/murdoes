@@ -20,13 +20,18 @@
 
 	latest	= 0
 
-.macro	word	name
-\name\()_name:
-	.byte	strlen
-	str = .
-	.ascii	"\name"
-	strlen = . - str
+.macro	word	name, fname
 	.align	16
+\name\()_name:
+	.byte	\name\()_strend - \name\()_str
+\name\()_str:
+.ifc \fname,
+	.ascii	"\name"
+.else
+	.ascii	"\fname"
+.endif
+\name\()_strend:
+	.p2align	4, 0x00
 \name\()_nfa:
 	.quad	\name\()_name
 \name\()_lfa:
@@ -63,7 +68,6 @@ _exec:
 # Words
 .p2align	4, 0x90
 
-
 word	exit
 	.quad	_exit, 0
 	.quad	_noop, 0
@@ -76,7 +80,7 @@ _noop:
 
 	
 
-word	print
+word	print, "."
 	.quad	_call, _print
 	.quad	_noop, 0
 _print:
@@ -85,7 +89,7 @@ _print:
 	push	rsi
 	push	rdi
 	
-	mov	rax, 0x41
+	mov	rax, rtop
 	push	rax
 	mov	rdx, 0x8
 	mov	rsi, rsp
@@ -98,6 +102,42 @@ _print:
 	pop	rsi
 	pop	rdx
 	pop	rax
+	ret
+
+word	words
+	.quad	_call, _words
+	.quad	_noop, 0
+_words:
+	push	rcx
+	push	rsi
+	push	rdi
+
+	mov	rtmp, rlatest
+
+	Lloop:
+	test	rtmp, rtmp
+	jz	Lexit
+
+	push	rtmp	# current word
+
+	mov	rwork, [rtmp - 16]	# NFA
+	movzx	rtmp, byte ptr [rwork]
+	lea	rsi, [rwork + 1]
+	mov	rax, 1
+	mov	rdi, 1
+	syscall
+
+	mov	rtop, 0x20
+	call	_print
+
+	pop	rtmp
+	mov	rtmp, [rtmp - 8]	# LFA
+	jmp	Lloop
+
+	Lexit:
+	pop	rdi
+	pop	rsi
+	pop	rcx
 	ret
 
 word	bye
@@ -127,6 +167,7 @@ $word2:
 # Cold start
 word	cold
 $cold:
+	.quad	words
 	.quad	word1
 	.quad	word2
 	.quad	bye
