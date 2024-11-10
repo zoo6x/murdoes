@@ -4,6 +4,7 @@
 
 .text
 
+	# Beore changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc.
 	.equ	rwork, rax	# Points to XT in code words. Needs not be preserved
 	.equ	rtop, rcx
 	.equ	rstate, rbx
@@ -561,6 +562,50 @@ _number:
 
 	9:
 	pop	rsi
+	ret
+
+# . ( n -- )
+# Print number on the top of the stack (hexadecimal)
+word	dot, "."
+	.codeword
+_dot:
+	mov	rtmp, 16
+
+	1:
+	rol	rtop, 4
+	test	rtop, 0xf
+	jnz	3f
+	dec	rtmp
+	jnz	1b
+
+	call	_drop
+	mov	rtop, 0x30
+	call	_emit
+	jmp	9f
+
+	3:
+	mov	al, cl
+	and	al, 0xf
+	cmp	al, 0x9
+	jbe	4f
+	add	al, 0x61 - 0x30 - 0xa
+	4:
+	add	al, 0x30
+	push	rtop
+	push	rwork
+	call	_dup
+	movzx	rtop, al
+	call	_emit
+	pop	rwork
+	pop	rtop
+	rol	rtop, 4
+	dec	rtmp
+	jnz	3b
+	call	_drop
+
+	9:
+	call	_bl
+	call	_emit
 	ret
 
 # (QUIT) ( -- )
