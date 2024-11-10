@@ -269,9 +269,27 @@ _words:
 	pop	rsi
 	pop	rtop
 	ret
+# BL ( -- c )
+# Returns blank character code
+word	bl
+	.codeword
+_bl:
+	call	_dup
+	mov	rtop, 0x20
+	ret
+
+# , ( v -- )
+# Reserve space for one cell in the data space and store value in the pace
+word	comma, ","
+	.codeword
+_comma:
+	mov	rax, rtop
+	stosq
+	call	_drop
+	ret
 
 # C, ( c -- )
-# Reserve space for one character in the data space and store char in the space.
+# Reserve space for one character in the data space and store char in the space
 word	c_comma, "c,"
 	.codeword
 _c_comma:
@@ -292,13 +310,17 @@ _count:
 	movzx	rtop, byte ptr [rtop]
 	ret
 
-# WORD ( -- c-addr )
-# Reads blank-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
+# WORD ( c -- c-addr )
+# Reads char-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
 word	word
 	.codeword
 _word:
 	call	_align
 	mov	rtmp, rhere
+	push	rbx
+
+	mov	rbx, rtop
+	call	_drop
 
 	xor	al, al
 	stosb
@@ -306,7 +328,7 @@ _word:
 	push	rtmp
 	call	_read
 	pop	rtmp
-	cmp	rtop, 0x20
+	cmp	rtop, rbx
 	je	2f
 	cmp	rtop, 0xa
 	je	2f
@@ -325,6 +347,7 @@ _word:
 
 	mov	rtop, rhere
 
+	pop	rbx
 	ret
 
 # FIND ( -- xt | 0 )
@@ -372,6 +395,7 @@ _find:
 word	quit_, "(quit)"
 	.codeword
 _quit_:
+	call	_bl
 	call	_word
 	call	_drop
 	call	_find
