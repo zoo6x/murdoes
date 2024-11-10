@@ -108,7 +108,7 @@ word	exit
 word	noop
 	reserve_cfa 16
 _noop:
-	ret
+	jmp	rnext
 
 # HERE ( -- a )
 # Address of the first byte of data-space (might be unaligned)
