@@ -121,6 +121,16 @@ _lit:
 	mov	rtop, rax
 	ret
 
+# JUMP ( -- )
+# Changes PC by compliled offset (in cells)
+word	jump
+	.quad	_call, _jump
+	.quad	_noop, 0
+_jump:
+	lodsq
+	lea	rpc, [rpc + rwork * 8]
+	ret
+
 # ALIGN
 # Aligns HERE to 16-byte boundary
 word	align
@@ -356,12 +366,12 @@ _find:
 	pop	rsi
 	ret
 
-# QUIT ( -- )
-# Interpret loop
-word	quit
-	.quad	_call, _quit
+# (QUIT) ( -- )
+# Read one word from input stream and interpret it
+word	quit_, "(quit)"
+	.quad	_call, _quit_
 	.quad	_noop, 0
-_quit:
+_quit_:
 	call	_word
 	call	_drop
 	call	_find
@@ -373,9 +383,17 @@ _quit:
 	jmp	_doxt
 
 	2:
-	# TODO: interpret number?
 	call	_drop
 	ret
+
+# QUIT
+# Interpret loop
+word	quit
+	.quad	_exec, _quit
+	.quad	_noop, 0
+_quit:
+	.quad	quit_
+	.quad	jump, -3
 
 # BYE
 # Returns to OS
@@ -416,8 +434,9 @@ $cold:
 	.quad	lit, 0x34
 	.quad	lit, 0x33
 	.quad	emit
-	.quad	emit
+	.quad	lit, 0x3e, emit
 	.quad	quit
+	#.quad	jump, -6
 	.quad	quit
 	.quad	word1
 	.quad	word2
