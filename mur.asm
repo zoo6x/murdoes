@@ -30,9 +30,7 @@
 .endif
 \name\()_strend:
 	.p2align	4, 0x00
-\name\()_nfa:
 	.quad	\name\()_name
-\name\()_lfa:
 	.quad	latest
 \name\():
 	latest = .
@@ -200,17 +198,17 @@ _type:
 
 	mov	rtmp, rtop	# count
 	load	rsi, 1		# buffer
-	inc	rstack
-	inc	rstack	
 	mov	rax, 0x1
 	mov	rdi, 0x1
 	syscall
 
 	pop	rdi
 	pop	rsi
+	
+	call	_drop
+	call	_drop
 
 	ret
-
 
 # WORDS
 # Prints all defined words to stdout
@@ -333,6 +331,7 @@ _find:
 
 	mov	rwork, [rtmp - 16]	# NFA
 	movzx	rcx, byte ptr [rwork]
+	inc	rcx
 	mov	rdi, rwork
 	rep	cmpsb
 	mov	rtop, rtmp
@@ -345,6 +344,13 @@ _find:
 	mov	rtop, 0
 
 	9:
+	call	_dup
+	mov	rtop, rwork
+	call	_count
+	#call	_type
+	call	_drop
+	call	_drop
+
 	pop	rbx
 	pop	rdi
 	pop	rsi
@@ -363,9 +369,11 @@ _quit:
 	jz	2f
 	mov	rwork, rtop
 	call	_drop
-	push	quit
+
 	jmp	_doxt
+
 	2:
+	# TODO: interpret number?
 	call	_drop
 	ret
 
@@ -384,6 +392,7 @@ word	word1
 	.quad	_exec, $word1	# interpret
 	.quad 	_noop, 0	# compile
 $word1:
+	.quad	lit, 0x41, emit
 	.quad	word2
 	.quad	exit	
 			
@@ -391,6 +400,7 @@ word	word2
 	.quad	_exec, $word2
 	.quad	_noop, 0
 $word2:
+	.quad	lit, 0x42, emit
 	.quad	exit
 
 # COLD
@@ -402,6 +412,9 @@ $cold:
 	.quad	lit, 0x38
 	.quad	lit, 0x37
 	.quad	lit, 0x36
+	.quad	lit, 0x35
+	.quad	lit, 0x34
+	.quad	lit, 0x33
 	.quad	emit
 	.quad	emit
 	.quad	quit
