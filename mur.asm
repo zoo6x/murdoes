@@ -17,35 +17,6 @@
 
 	latest	= 0
 
-# Word definition
-.macro	word	name, fname
-	.align	16
-\name\()_name:
-	.byte	\name\()_strend - \name\()_str
-\name\()_str:
-.ifc \fname,
-	.ascii	"\name"
-.else
-	.ascii	"\fname"
-.endif
-\name\()_strend:
-	.p2align	4, 0x00
-	.quad	\name\()_name
-	.quad	latest
-\name\():
-	latest = .
-.endm
-
-# Data stack access
-.macro	load	reg, i
-	mov	\reg, qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)]
-.endm
-
-.macro	store	regval, i
-	mov	qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)], \regval
-.endm
-
-
 # Initialization
 _start:
 	xor	rtop, rtop
@@ -74,6 +45,35 @@ _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 + 8]
 	jmp	_next
+
+# Word definition
+.macro	word	name, fname
+	.align	16
+\name\()_name:
+	.byte	\name\()_strend - \name\()_str
+\name\()_str:
+.ifc \fname,
+	.ascii	"\name"
+.else
+	.ascii	"\fname"
+.endif
+\name\()_strend:
+	.p2align	4, 0x00
+	.quad	\name\()_name
+	.quad	latest
+\name\():
+	latest = .
+.endm
+
+# Data stack access
+.macro	load	reg, i
+	mov	\reg, qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)]
+.endm
+
+.macro	store	regval, i
+	mov	qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)], \regval
+.endm
+
 
 # Words
 .p2align	4, 0x90
@@ -380,6 +380,7 @@ _quit_:
 	mov	rwork, rtop
 	call	_drop
 
+	pop	rtmp
 	jmp	_doxt
 
 	2:
@@ -436,8 +437,7 @@ $cold:
 	.quad	emit
 	.quad	lit, 0x3e, emit
 	.quad	quit
-	#.quad	jump, -6
-	.quad	quit
+	.quad	lit, 0x21, emit
 	.quad	word1
 	.quad	word2
 	.quad	bye
