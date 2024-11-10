@@ -133,7 +133,7 @@ _align:
 	and	rhere, -16
 	ret
 
-# EMIT ( c -- c )
+# EMIT ( c -- )
 # Prints a character to stdout
 word	emit
 	.quad	_call, _emit
@@ -147,7 +147,7 @@ _emit:
 	
 	mov	rwork, rtop
 	push	rax
-	mov	rdx, 0x8	# count
+	mov	rdx, 0x1	# count
 	mov	rsi, rsp	# buffer
 	mov 	rdi, 0x1	# stdout
 	mov	rax, 0x1	# sys_write
@@ -159,6 +159,9 @@ _emit:
 	pop	rdx
 	pop	rwork
 	pop	rtop
+	
+	call	_drop
+
 	ret
 
 # READ ( -- c )
@@ -169,8 +172,6 @@ word	read
 _read:
 	call	_dup
 
-	push	rax
-	push	rdx
 	push	rsi
 	push	rdi
 
@@ -185,8 +186,6 @@ _read:
 
 	pop	rdi
 	pop	rsi
-	pop	rdx
-	pop	rax
 	ret
 
 word	parse
@@ -259,6 +258,7 @@ word	c_comma, "c,"
 _c_comma:
 	mov	rax, rtop
 	stosb
+	call	_drop
 	ret
 
 # COUNT ( c-addr -- c-addr' u )
@@ -269,6 +269,7 @@ word	count
 _count:
 	call	_dup
 	mov	rwork, rtop
+	inc	rwork
 	store	rwork, 1
 	movzx	rtop, byte ptr [rtop]
 	ret
@@ -279,19 +280,22 @@ word	word
 	.quad	_call, _word
 	.quad	_noop, 0
 _word:
-	mov	rtmp, rhere
 	call	_align
+	mov	rtmp, rhere
 
 	xor	al, al
 	stosb
 	1:
+	push	rtmp
 	call	_read
+	pop	rtmp
 	cmp	rtop, 0x20
 	je	2f
 	cmp	rtop, 0xa
 	je	2f
 	mov	rax, rtop
 	stosb
+	call	_drop
 	jmp	1b
 
 	2:
@@ -302,7 +306,6 @@ _word:
 
 	mov	rhere, rtmp
 
-	call	_dup
 	mov	rtop, rhere
 
 	ret
@@ -363,6 +366,7 @@ _quit:
 	push	quit
 	jmp	_doxt
 	2:
+	call	_drop
 	ret
 
 # BYE
@@ -380,8 +384,6 @@ word	word1
 	.quad	_exec, $word1	# interpret
 	.quad 	_noop, 0	# compile
 $word1:
-	.quad	emit
-	.quad	emit
 	.quad	word2
 	.quad	exit	
 			
@@ -389,7 +391,6 @@ word	word2
 	.quad	_exec, $word2
 	.quad	_noop, 0
 $word2:
-	.quad	emit
 	.quad	exit
 
 # COLD
@@ -399,7 +400,11 @@ $cold:
 	#.quad	words
 	.quad	lit, 0x39
 	.quad	lit, 0x38
+	.quad	lit, 0x37
+	.quad	lit, 0x36
 	.quad	emit
+	.quad	emit
+	.quad	quit
 	.quad	quit
 	.quad	word1
 	.quad	word2
