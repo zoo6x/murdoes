@@ -516,6 +516,53 @@ _find:
 	pop	rsi
 	ret
 
+# NUMBER ( c-addr -- n -1 | 0 )
+# Parses string as a number (in HEX base)
+word	number
+	.codeword
+_number:
+	push	rsi
+	mov	rsi, rtop
+	movzx	rcx, byte ptr [rtop]
+	test	rcx, rcx
+	jz	6f
+
+	xor	rtmp, rtmp
+	xor	rwork, rwork
+	inc	rsi
+	1:
+	lodsb
+	cmp	al, 0x30
+	jb	6f
+	cmp	al, 0x39
+	jbe	3f
+	or	al, 0x20
+	cmp	al, 0x61
+	jb	6f
+	cmp	al, 0x66
+	ja	6f
+	sub	al, 0x61 - 10
+	jmp	4f
+	3:
+	sub	al, 0x30
+	4:
+	shl	rtmp, 4
+	add	rtmp, rwork
+	dec	rcx
+	jnz	1b
+
+	mov	rtop, rtmp
+	call	_dup
+	mov	rtop, -1
+	jmp	9f
+
+	6:
+	mov	rtop, 0
+
+	9:
+	pop	rsi
+	ret
+
 # (QUIT) ( -- )
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
@@ -535,6 +582,18 @@ _quit_:
 
 	2:
 	call	_drop
+	call	_here
+	call	_number
+	test	rtop, rtop
+	jz	6f
+
+	call	_drop
+	jmp	9f
+
+	6:
+	# TODO: ABORT
+	call	_drop
+	9:
 	ret
 
 # QUIT
