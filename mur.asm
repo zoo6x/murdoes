@@ -451,7 +451,7 @@ word	codeword
 	.forthword
 $codeword:
 	.quad	lit, _call
-	.quad	lit, 0
+	.quad	here
 	.quad	lit, 0
 	.quad	latest
 	.quad	does
