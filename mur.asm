@@ -7,10 +7,9 @@
 	.equ	rwork, rax	# Points to XT in code words. Needs not be preserved
 	.equ	rtop, rcx
 	.equ	rstate, rbx
-	.equ	rtmp, rdx	# Needs no be preserved
+	.equ	rtmp, rdx	# Needs not be preserved
 	.equ	rpc, rsi	# Do no change! LODSx instructions are used
 	.equ	rhere, rdi	# Do not change! STOSx instructions are used
-	.equ	rparam, r12
 	.equ	rnext, r13
 	.equ	rlatest, r14
 	.equ	rstack, rbp
@@ -63,6 +62,7 @@ _start:
 # Interpreter
 _next:
 	lodsq
+_doxt:
 	jmp	[rwork + rstate * 8]
 _call:
 	# rwork = word header 
@@ -197,6 +197,7 @@ word	parse
 	.quad	_noop, 0
 _type:
 	push	rsi
+	push	rdi
 
 	mov	rtmp, rtop	# count
 	load	rsi, 1		# buffer
@@ -206,6 +207,7 @@ _type:
 	mov	rdi, 0x1
 	syscall
 
+	pop	rdi
 	pop	rsi
 
 	ret
@@ -280,6 +282,8 @@ _word:
 	mov	rtmp, rhere
 	call	_align
 
+	xor	al, al
+	stosb
 	1:
 	call	_read
 	cmp	rtop, 0x20
@@ -293,6 +297,7 @@ _word:
 	2:
 	mov	rwork, rhere
 	sub	rwork, rtmp
+	dec	rwork
 	mov	byte ptr [rtmp], al	
 
 	mov	rhere, rtmp
@@ -312,20 +317,22 @@ _find:
 
 	push	rsi
 	push	rdi
+	push	rbx
 
 	mov	rtmp, rlatest
+	mov	rbx, rhere
 
 	1:
 	test	rtmp, rtmp
 	jz	6f
 
-	mov	rsi, rhere
+	mov	rsi, rbx
 
 	mov	rwork, [rtmp - 16]	# NFA
 	movzx	rcx, byte ptr [rwork]
 	mov	rdi, rwork
 	rep	cmpsb
-	mov	rtop, rwork
+	mov	rtop, rtmp
 	je	9f
 
 	mov	rtmp, [rtmp - 8]	# LFA
@@ -335,6 +342,7 @@ _find:
 	mov	rtop, 0
 
 	9:
+	pop	rbx
 	pop	rdi
 	pop	rsi
 	ret
@@ -346,14 +354,14 @@ word	quit
 	.quad	_noop, 0
 _quit:
 	call	_word
-	call	_count
+	call	_drop
 	call	_find
 	test	rtop, rtop
 	jz	2f
 	mov	rwork, rtop
 	call	_drop
-	call	_exec
-	jmp	_quit				
+	push	quit
+	jmp	_doxt
 	2:
 	ret
 
@@ -389,8 +397,9 @@ $word2:
 word	cold
 $cold:
 	#.quad	words
-	#.quad	lit, 0xa
-	#.quad	emit
+	.quad	lit, 0x39
+	.quad	lit, 0x38
+	.quad	emit
 	.quad	quit
 	.quad	word1
 	.quad	word2
