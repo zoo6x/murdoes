@@ -34,14 +34,12 @@ _next:
 _doxt:
 	jmp	[rwork + rstate * 8]
 _call:
-	# rwork = word header 
 	push	rnext
 	jmp	[rwork + rstate * 8 + 8]	
 _exit:
 	pop	rpc
 	jmp	_next
 _exec:
-	# rwork = word header 
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 + 8]
 	jmp	_next
@@ -59,10 +57,31 @@ _exec:
 .endif
 \name\()_strend:
 	.p2align	4, 0x00
-	.quad	\name\()_name
-	.quad	latest
+	.quad	\name\()_name	# NFA
+	.quad	latest		# LFA
 \name\():
 	latest = .
+	latest_name = _\name
+.endm
+
+.macro	reserve_cfa reserve=15
+	# Execution semantics can be either code or Forth word
+	# Compilation semantics inside Forth words is the same: compile adress of XT
+	# Semantics for other states does nothing by default
+	.rept \reserve
+	.quad	_noop, 0
+	.endr
+.endm
+
+.macro	.codeword
+	.quad	_call, latest_name
+	reserve_cfa
+.endm
+
+.macro	.forthword
+	.quad	_exec, 0f
+	reserve_cfa
+	0:
 .endm
 
 # Data stack access
@@ -82,20 +101,21 @@ _exec:
 # Exit current Forth word and return the the caller
 word	exit
 	.quad	_exit, 0
-	.quad	_noop, 0
+	reserve_cfa
 
 # NOOP
 # No operation
 word	noop
-	.quad	_noop, 0
-	.quad	_noop, 0
+	reserve_cfa 16
 _noop:
 	ret
 
+# HERE ( -- a )
+# Address of the first byte of data-space (might be unaligned)
+
 # DUP ( a -- a a )
 word	dup
-	.quad	_call, _dup
-	.quad	_noop, 0
+	.codeword
 _dup:
 	store	rtop, 1
 	dec	rstack
@@ -103,8 +123,7 @@ _dup:
 
 # DROP ( a -- )
 word	drop
-	.quad	_call, _drop
-	.quad	_noop, 0
+	.codeword
 _drop:
 	inc	rstack
 	load	rtop, 1
@@ -113,8 +132,7 @@ _drop:
 # LIT ( -- n )
 # Pushes compiled literal onto data stack
 word	lit
-	.quad	_call, _lit
-	.quad	_noop, 0
+	.codeword
 _lit:
 	call	_dup
 	lodsq
@@ -124,8 +142,7 @@ _lit:
 # JUMP ( -- )
 # Changes PC by compliled offset (in cells)
 word	jump
-	.quad	_call, _jump
-	.quad	_noop, 0
+	.codeword
 _jump:
 	lodsq
 	lea	rpc, [rpc + rwork * 8]
@@ -134,8 +151,7 @@ _jump:
 # ALIGN
 # Aligns HERE to 16-byte boundary
 word	align
-	.quad	_call, _align
-	.quad	_noop, 0
+	.codeword
 _align:
 	add	rhere, 0xf
 	and	rhere, -16
@@ -144,8 +160,7 @@ _align:
 # EMIT ( c -- )
 # Prints a character to stdout
 word	emit
-	.quad	_call, _emit
-	.quad	_noop, 0
+	.codeword
 _emit:
 	push	rtop
 	push	rwork
@@ -175,8 +190,7 @@ _emit:
 # READ ( -- c )
 # Reads a character from stdin
 word	read
-	.quad	_call, _read
-	.quad	_noop, 0
+	.codeword
 _read:
 	call	_dup
 
@@ -196,12 +210,10 @@ _read:
 	pop	rsi
 	ret
 
-word	parse
-
 # TYPE ( c-addr u -- )
 # Print string to stdout
-	.quad	_call, _type
-	.quad	_noop, 0
+word	type
+	.codeword
 _type:
 	push	rsi
 	push	rdi
@@ -223,8 +235,7 @@ _type:
 # WORDS
 # Prints all defined words to stdout
 word	words
-	.quad	_call, _words
-	.quad	_noop, 0
+	.codeword
 _words:
 	push	rtop
 	push	rsi
@@ -245,6 +256,7 @@ _words:
 	mov	rax, 1			# sys_write
 	syscall
 
+	call	_dup
 	mov	rtop, 0x20
 	call	_emit
 
@@ -261,8 +273,7 @@ _words:
 # C, ( c -- )
 # Reserve space for one character in the data space and store char in the space.
 word	c_comma, "c,"
-	.quad	_call, _c_comma
-	.quad	_noop, 0
+	.codeword
 _c_comma:
 	mov	rax, rtop
 	stosb
@@ -272,8 +283,7 @@ _c_comma:
 # COUNT ( c-addr -- c-addr' u )
 # Converts address to byte-counted string into string address and count
 word	count
-	.quad	_call, _count
-	.quad	_noop, 0
+	.codeword
 _count:
 	call	_dup
 	mov	rwork, rtop
@@ -283,10 +293,9 @@ _count:
 	ret
 
 # WORD ( -- c-addr )
-# Reads blank-separated word from stdin, places it as a byte-counted string at HERE
+# Reads blank-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
 word	word
-	.quad	_call, _word
-	.quad	_noop, 0
+	.codeword
 _word:
 	call	_align
 	mov	rtmp, rhere
@@ -321,8 +330,7 @@ _word:
 # FIND ( -- xt | 0 )
 # Searches for word name, placed at HERE, in the vocabulary
 word	find
-	.quad	_call, _find
-	.quad	_noop, 0
+	.codeword
 _find:
 	call	_dup
 
@@ -354,13 +362,6 @@ _find:
 	mov	rtop, 0
 
 	9:
-	call	_dup
-	mov	rtop, rwork
-	call	_count
-	#call	_type
-	call	_drop
-	call	_drop
-
 	pop	rbx
 	pop	rdi
 	pop	rsi
@@ -369,8 +370,7 @@ _find:
 # (QUIT) ( -- )
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
-	.quad	_call, _quit_
-	.quad	_noop, 0
+	.codeword
 _quit_:
 	call	_word
 	call	_drop
@@ -390,8 +390,7 @@ _quit_:
 # QUIT
 # Interpret loop
 word	quit
-	.quad	_exec, _quit
-	.quad	_noop, 0
+	.forthword
 _quit:
 	.quad	quit_
 	.quad	jump, -3
@@ -399,8 +398,7 @@ _quit:
 # BYE
 # Returns to OS
 word	bye
-	.quad	_call, _bye
-	.quad	_noop, 0	
+	.codeword
 _bye:
 	mov	rdi, 42
 
@@ -408,16 +406,14 @@ _bye:
 	syscall
 
 word	word1
-	.quad	_exec, $word1	# interpret
-	.quad 	_noop, 0	# compile
+	.forthword
 $word1:
 	.quad	lit, 0x41, emit
 	.quad	word2
 	.quad	exit	
 			
 word	word2
-	.quad	_exec, $word2
-	.quad	_noop, 0
+	.forthword
 $word2:
 	.quad	lit, 0x42, emit
 	.quad	exit
@@ -425,6 +421,7 @@ $word2:
 # COLD
 # Cold start (in fact, just a test word that runs first)
 word	cold
+	.forthword
 $cold:
 	#.quad	words
 	.quad	lit, 0x39
