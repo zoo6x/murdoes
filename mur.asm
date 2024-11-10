@@ -15,14 +15,14 @@
 	.equ	rstack, rbp
 	.equ	rstack0, r15
 
-	latest	= 0
+	latest_word	= 0
 
 # Initialization
 _start:
 	xor	rtop, rtop
 	xor	rstate, rstate
 	lea	rlatest, last
-	lea	rhere, here
+	lea	rhere, here0
 	lea	rpc, qword ptr [$cold]
 	lea	rnext, qword ptr [_next]
 	lea	rstack0, [rsp - 0x1000]
@@ -47,20 +47,20 @@ _exec:
 # Word definition
 .macro	word	name, fname
 	.align	16
-\name\()_name:
+\name\()_str0:
 	.byte	\name\()_strend - \name\()_str
 \name\()_str:
-.ifc \fname,
+.ifc "\fname",""
 	.ascii	"\name"
 .else
 	.ascii	"\fname"
 .endif
 \name\()_strend:
 	.p2align	4, 0x00
-	.quad	\name\()_name	# NFA
-	.quad	latest		# LFA
+	.quad	\name\()_str0	# NFA
+	.quad	latest_word	# LFA
 \name\():
-	latest = .
+	latest_word = .
 	latest_name = _\name
 .endm
 
@@ -332,6 +332,8 @@ _word:
 	je	2f
 	cmp	rtop, 0xa
 	je	2f
+	cmp	rtop, 0x9
+	je	2f
 	mov	rax, rtop
 	stosb
 	call	_drop
@@ -406,6 +408,73 @@ _head:
 
 	9:
 	ret
+
+# LATEST ( -- xt )
+# Returns the latest defined word
+word	latest
+	.codeword
+_latest:
+	call	_dup
+	mov	rtop, rlatest
+	ret
+
+# HERE ( -- a )
+# Returns address of the first available byte of the code space
+word	here
+	.codeword
+_here:
+	call	_dup
+	mov	rtop, rhere
+	ret
+
+# DOES ( code param state xt -- )
+# Sets semantics for a word defined by XT for given state to a given code:param pair
+word	does
+	.codeword
+_does:
+	mov	rtmp, rtop
+	call	_drop
+	mov	rwork, rtop
+	call	_drop
+
+	mov	qword ptr [rtmp + rwork * 8 + 8], rtop
+	call	_drop
+	mov	qword ptr [rtmp + rwork * 8], rtop
+	call	_drop
+
+	ret
+
+# CODEWORD ( xt -- )
+# Specifies execution semantics for a word specified by XT as a code word
+word	codeword
+	.forthword
+$codeword:
+	.quad	lit, _call
+	.quad	lit, 0
+	.quad	lit, 0
+	.quad	latest
+	.quad	does
+	.quad	exit
+
+# FORTHWORD ( xt -- )
+# Specifies execution semantics for a word specified by XT as a forth word with threaded code following at HERE
+word	forthword
+	.forthword
+$forthword:
+	.quad	lit, _exec
+	.quad	here
+	.quad	lit, 0
+	.quad	latest
+	.quad	does
+	.quad	exit
+
+# : ( "<name>" -- )
+word	colon, ":"
+	.forthword
+_colon:
+	.quad	head
+	.quad	forthword
+	.quad	exit
 
 # FIND ( -- xt | 0 )
 # Searches for word name, placed at HERE, in the vocabulary
@@ -521,9 +590,9 @@ $cold:
 	.quad	bye
 
 # LATEST
-	.equ	last, latest
+	.equ	last, latest_word
 .align	16
-here:
+here0:
 	.rep	0x4000
 	.quad	0
 	.endr
