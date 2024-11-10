@@ -303,14 +303,14 @@ _c_comma:
 word	count
 	.codeword
 _count:
-	call	_dup
 	mov	rwork, rtop
 	inc	rwork
 	store	rwork, 1
+	dec	rstack
 	movzx	rtop, byte ptr [rtop]
 	ret
 
-# WORD ( c -- c-addr )
+# WORD ( c "<chars>ccc<char>" -- c-addr )
 # Reads char-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
 word	word
 	.codeword
@@ -348,6 +348,63 @@ _word:
 	mov	rtop, rhere
 
 	pop	rbx
+	ret
+
+# HEAD ( "<name>" -- )
+# Reads word name from input stream and creates default header
+word	head
+	.codeword
+_head:
+	call	_bl		# ( bl )
+	call	_word		# ( here ) 
+	call	_dup		# ( here here )
+	call	_count		# ( here here+1 count ) 
+	test	rtop, rtop
+	jz	6f
+
+	call	_drop
+	call	_drop
+	# TODO: ASSERT(rtop == rhere)
+	cmp	rhere, rtop
+	jz 0f
+	int3
+
+	0:
+	movzx	rax, byte ptr [rtop] # name
+	add	rhere, rax
+	add	rhere, 0xf
+	and	rhere, -16
+
+	mov	qword ptr [rhere], rtop		# NFA
+	add	rhere, 8
+	mov	qword ptr [rhere], rlatest	# LFA
+	add	rhere, 8
+
+	mov	rwork, rhere	# XT
+	mov	rlatest, rhere
+
+	mov	rcx, 16
+	lea	rtmp, qword ptr [_noop]
+
+	1:
+	mov	qword ptr [rhere], rtmp
+	add	rhere, 8
+	mov	qword ptr [rhere], 0
+	add	rhere, 8
+	dec	rcx
+	jnz	1b
+
+	call	_drop
+	#mov	rtop, rwork 
+	jmp	9f
+
+	6:
+	# TODO: ABORT
+	call	_drop
+	call	_drop
+	call	_drop
+
+	9:
 	ret
 
 # FIND ( -- xt | 0 )
@@ -467,4 +524,6 @@ $cold:
 	.equ	last, latest
 .align	16
 here:
-
+	.rep	0x4000
+	.quad	0
+	.endr
