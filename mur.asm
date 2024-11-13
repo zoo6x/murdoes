@@ -105,9 +105,6 @@ word	exit
 	.quad	_exit, 0
 	reserve_cfa
 
-# HERE ( -- a )
-# Address of the first byte of data-space (might be unaligned)
-
 # DUP ( a -- a a )
 word	dup
 	.codeword
