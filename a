@@ -1,0 +1,3 @@
+as amur.asm -g -am -amhls=mur.lst -o mur.o
+ld mur.o -N -o mur
+
