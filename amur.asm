@@ -13,8 +13,8 @@
 	rnext	.req	lr
 	rlatest	.req	x14
 	rstack	.req	x7
-	rrstack	.req	x8
-	rstack0	.req	x15
+	# w8 is used in syscall ABI
+	rrstack	.req	x9
 
 	latest_word	= 0
 
@@ -27,9 +27,8 @@ _start:
 	adr	rhere, here0
 	adr	rpc, $cold
 	adr	rnext, _next
-	add	rstack0, sp, #-0x1000
+	add	rstack, sp, #-0x1000
 	add	rrstack, sp, #-0x2000
-	mov	rstack, xzr
 
 # Interpreter
 _next:
@@ -39,14 +38,94 @@ _doxt:
 	ldp	rtmp, rtmp2, [rtmp]
 	br	rtmp
 _call:
-	blr	rtmp2 
+	br	rtmp2 
 _exit:
-	ldr	rpc, [rstack, #-8]!
+	ldr	rpc, [rrstack, #-8]!
 	b	_next
 _exec:
-	str	rpc, [rstack], #-8
+	str	rpc, [rrstack], #-8
 	mov	rpc, rtmp2
+_noop:
 	b	_next
+
+# Word definition
+.macro	word	name, fname
+	.align	16
+\name\()_str0:
+	.byte	\name\()_strend - \name\()_str
+\name\()_str:
+.ifc "\fname",""
+	.ascii	"\name"
+.else
+	.ascii	"\fname"
+.endif
+\name\()_strend:
+	.p2align	4, 0x00
+	.quad	\name\()_str0
+	.quad	latest_word
+\name\():
+	latest_word = .
+	latest_name = _\name
+.endm
+
+.macro	reserve_cfa reserve=15
+	# Execution semantics can be either code or Forth word
+	# Compilation semantics inside Forth words is the same: compile adress of XT
+	# Semantics for other states does nothing by default
+	.rept \reserve
+	.quad	_noop, 0
+	.endr
+.endm
+
+.macro	.codeword
+	.quad	_call, latest_name
+	reserve_cfa
+.endm
+
+.macro	.forthword
+	.quad	_exec, 0f
+	reserve_cfa
+	0:
+.endm
+
+.macro	dup_
+	str	rtop, [rstack], #-8
+.endm
+
+.macro	drop_
+	ldr	rtop, [rstack, #8]!
+.endm
+
+.p2align	4
+
+# EXIT
+# Exit current Forth word and return the the caller
+word	exit
+	.quad	_exit, 0
+	reserve_cfa
+
+# DUP ( a -- a a )
+word	dup
+	.codeword
+_dup:
+	dup_
+	ret
+
+# DROP ( a -- )
+word	drop
+	.codeword
+_drop:
+	drop_
+	ret
+
+# LIT ( -- n )
+# Pushes compiled literal onto data stack
+word	lit
+	.codeword
+_lit:
+	dup_
+	ldr	rtop, [rpc], #8
+	ret
 
 # BYE
 # Exit to OS
@@ -64,11 +143,14 @@ bye:
 	latest_name = _bye
 	.quad	_call, _bye
 _bye:
-	mov	x0, #42
+	mov	x0, rtop
 	mov	w8, #93
 	svc	#0
 
 $cold:
+	.quad	lit, 43
+	.quad	dup
+	.quad	drop
 	.quad	bye
 
 # LATEST
