@@ -40,7 +40,7 @@ _doxt:
 _call:
 	br	rtmp2 
 _exit:
-	ldr	rpc, [rrstack, #-8]!
+	ldr	rpc, [rrstack, #8]!
 	b	_next
 _exec:
 	str	rpc, [rrstack], #-8
@@ -147,8 +147,23 @@ _bye:
 	mov	w8, #93
 	svc	#0
 
-$cold:
+# Test words
+word	word1
+	.forthword
+word1$:
+	.quad	lit, 42
+	.quad	word2
+	.quad	exit
+
+word	word2
+	.forthword
+word2$:
+	.quad	drop
 	.quad	lit, 43
+	.quad	exit
+
+$cold:
+	.quad	word1
 	.quad	dup
 	.quad	drop
 	.quad	bye
