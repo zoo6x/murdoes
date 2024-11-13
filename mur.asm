@@ -43,6 +43,7 @@ _exit:
 _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 + 8]
+_noop:
 	jmp	_next
 
 # Word definition
@@ -103,13 +104,6 @@ _exec:
 word	exit
 	.quad	_exit, 0
 	reserve_cfa
-
-# NOOP
-# No operation
-word	noop
-	reserve_cfa 16
-_noop:
-	jmp	rnext
 
 # HERE ( -- a )
 # Address of the first byte of data-space (might be unaligned)
