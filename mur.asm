@@ -193,7 +193,7 @@ _read:
 	push	rwork
 	mov	rdx, 0x1	# count
 	mov	rsi, rsp	# buffer
-	mov 	rdi, 0x1	# stdin
+	mov 	rdi, 0x0	# stdin
 	mov	rax, 0x0	# sys_read
 	syscall
 	pop	rtop
