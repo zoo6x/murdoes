@@ -5,6 +5,7 @@
 
 .text
 	rwork	.req	x0
+	rworkw	.req	w0
 	rtop	.req	x1
 	rtopw	.req	w1
 	rstate	.req	x2
@@ -13,10 +14,10 @@
 	rpc	.req	x5
 	rhere	.req	x6
 	rnext	.req	lr
-	rlatest	.req	x14
 	rstack	.req	x7
 	# w8 is used in syscall ABI
 	rrstack	.req	x9
+	rlatest	.req	x10
 
 	latest_word	= 0
 
@@ -56,7 +57,7 @@ _noop:
 
 # Word definition
 .macro	word	name, fname
-	.align	16
+	.align	4
 \name\()_str0:
 	.byte	\name\()_strend - \name\()_str
 \name\()_str:
@@ -139,7 +140,7 @@ word	jump
 	.codeword
 _jump:
 	ldr	rwork, [rpc], 8
-	add	rpc, xzr, rwork, lsl 3
+	add	rpc, rpc, rwork, lsl 3
 	ret
 
 # ALIGN
@@ -156,8 +157,7 @@ _align:
 word	emit
 	.codeword
 _emit:
-	stp	x0, x1, [sp, -16]!
-	stp	x2, x8, [sp, -16]!
+	stp	x0, x2, [sp, -16]!
 
 	dup_
 	mov	x2, 0x1
@@ -169,8 +169,7 @@ _emit:
 	drop_
 	drop_
 	
-	ldp	x2, x8, [sp], 16
-	ldp	x0, x1, [sp], 16
+	ldp	x0, x2, [sp], 16
 
 	ret
 
@@ -179,7 +178,6 @@ _emit:
 word	read
 	.codeword
 _read:
-	stp	x0, x1, [sp, -16]!
 	stp	x2, x8, [sp, -16]!
 
 	dup_
@@ -188,12 +186,11 @@ _read:
 	mov 	x0, 0x0
 	mov	w8, 0x3f
 	svc	0
-	drop_
+	mov	rwork, 0
+	ldrb	rworkw, [rstack]
+	mov	rtop, rwork
 
 	ldp	x2, x8, [sp], 16
-	ldp	x0, x1, [sp], 16
-
-	ldr	rtop, [rstack, -8]
 
 	ret
 
@@ -295,6 +292,138 @@ _count:
 	mov	rtop, rtmp
 	ret
 
+# WORD ( c "<chars>ccc<char>" -- c-addr )
+# Reads char-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
+word	word
+	.codeword
+_word:
+	stp	xzr, lr, [sp, -16]!
+
+	bl	_align
+	mov	rtmp, rhere
+
+	mov	rtmp2, rtop
+	drop_
+
+	strb	wzr, [rhere], 1
+	1:
+	bl	_read
+	cmp	rtop, rtmp2
+	b.eq	2f
+	cmp	rtop, 0xa
+	b.eq	2f
+	cmp	rtop, 0x9
+	b.eq	2f
+	strb	rtopw, [rhere], 1
+	drop_
+	b	1b
+
+	2:
+	sub	rwork, rhere, rtmp
+	sub	rwork, rwork, 1
+	strb	rworkw, [rtmp]
+
+	mov	rhere, rtmp
+
+	mov	rtop, rhere
+
+	ldp	xzr, lr, [sp], 16
+	ret
+
+# FIND ( -- xt | 0 )
+# Searches for word name, placed at HERE, in the vocabulary
+word	find
+	.codeword
+_find:
+	stp	x11, x12, [sp, -16]!
+	stp	x13, x14, [sp, -16]!
+
+	dup_
+
+	mov	rtmp, rlatest		/* XT */
+	mov	rtmp2, rhere
+	mov	x12, 0			/* counter */
+
+	1:
+	mov	rtop, rtmp
+	ands	xzr, rtmp, rtmp
+	b.eq	6f
+
+	mov	x11, rtmp2
+
+	ldr	rwork, [rtmp, -16]	/* NFA */
+	ldrb	w12, [rwork]
+	add	x12, x12, 1
+
+	2:
+	ldrb	w13, [x11]
+	ldrb	w14, [rwork]
+	add	x11, x11, 1
+	add	rwork, rwork, 1
+	cmp	w13, w14
+	b.ne	4f
+	subs	x12, x12, 1
+	b.eq	9f
+	b	2b
+
+	4:
+	ldr	rtmp, [rtmp, -8]	/* LFA */
+	b	1b
+
+	6:
+
+	9:
+	ldp	x13, x14, [sp], 16
+	ldp	x11, x12, [sp], 16
+	ret
+
+# (QUIT) ( -- )
+# Read one word from input stream and interpret it
+word	quit_, "(quit)"
+	.codeword
+_quit_:
+	stp	xzr, lr, [sp, -16]!
+
+	bl	_bl
+	bl	_word
+	drop_
+	bl	_find
+	ands	xzr, rtop, rtop
+	b.eq	2f
+	mov	rwork, rtop
+	drop_
+
+	ldp	xzr, lr, [sp], 16
+	b	_doxt
+
+	2:
+	/*
+	call	_drop
+	call	_here
+	call	_number
+	test	rtop, rtop
+	jz	6f
+
+	call	_drop
+	jmp	9f
+	*/
+	6:
+	# TODO: ABORT
+	drop_
+	9:
+
+	ldp	xzr, lr, [sp], 16
+
+	ret
+
+# QUIT
+# Interpret loop
+word	quit
+	.forthword
+_quit:
+	.quad	quit_
+	.quad	jump, -3
+
 # BYE
 # Exit to OS
 word	bye
@@ -324,7 +453,22 @@ word2$:
 	.quad	exit
 
 $cold:
-	.quad	words
+	.quad	lit, 0x39
+	.quad	lit, 0x38
+	.quad	lit, 0x37
+	.quad	lit, 0x36
+	.quad	lit, 0x35
+	.quad	lit, 0x34
+	.quad	lit, 0x33
+	.quad	lit, 42, emit
+	.quad	emit, emit, emit
+	.quad	read, read
+	.quad	emit, emit
+
+	.quad	bl, emit
+	.quad	lit, 43, emit
+	.quad	lit, 0x3e, emit
+	.quad	quit
 	.quad	word1
 	.quad	dup
 	.quad	drop
