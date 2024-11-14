@@ -27,23 +27,23 @@ _start:
 	adr	rhere, here0
 	adr	rpc, $cold
 	adr	rnext, _next
-	add	rstack, sp, #-0x1000
-	add	rrstack, sp, #-0x2000
+	add	rstack, sp, -0x1000
+	add	rrstack, sp, -0x2000
 
 # Interpreter
 _next:
-	ldr	rwork, [rpc], #8
+	ldr	rwork, [rpc], 8
 _doxt:
-	add	rtmp, rwork, rstate, lsl #3
+	add	rtmp, rwork, rstate, lsl 3
 	ldp	rtmp, rtmp2, [rtmp]
 	br	rtmp
 _call:
 	br	rtmp2 
 _exit:
-	ldr	rpc, [rrstack, #8]!
+	ldr	rpc, [rrstack, 8]!
 	b	_next
 _exec:
-	str	rpc, [rrstack], #-8
+	str	rpc, [rrstack], -8
 	mov	rpc, rtmp2
 _noop:
 	b	_next
@@ -89,11 +89,11 @@ _noop:
 .endm
 
 .macro	dup_
-	str	rtop, [rstack], #-8
+	str	rtop, [rstack], -8
 .endm
 
 .macro	drop_
-	ldr	rtop, [rstack, #8]!
+	ldr	rtop, [rstack, 8]!
 .endm
 
 .p2align	4
@@ -124,8 +124,50 @@ word	lit
 	.codeword
 _lit:
 	dup_
-	ldr	rtop, [rpc], #8
+	ldr	rtop, [rpc], 8
 	ret
+
+# JUMP ( -- )
+# Changes PC by compliled offset (in cells)
+word	jump
+	.codeword
+_jump:
+	ldr	rwork, [rpc], 8
+	add	rpc, xzr, rwork, lsl 3
+	ret
+
+# ALIGN
+# Aligns HERE to 16-byte boundary
+word	align
+	.codeword
+_align:
+	add	rhere, rhere, 0xf
+	and	rhere, rhere, -16
+	ret
+
+# EMIT ( c -- )
+# Prints a character to stdout
+word	emit
+	.codeword
+_emit:
+	stp	x0, x1, [sp, -16]!
+	stp	x2, x8, [sp, -16]!
+
+	dup_
+	mov	x2, 0x1
+	add	x1, rstack, 8
+	mov 	x0, 0x1
+	mov	w8, 0x40
+	svc	0
+
+	drop_
+	drop_
+	
+	ldp	x2, x8, [sp], 16
+	ldp	x0, x1, [sp], 16
+
+	ret
+
 
 # BYE
 # Exit to OS
@@ -144,14 +186,15 @@ bye:
 	.quad	_call, _bye
 _bye:
 	mov	x0, rtop
-	mov	w8, #93
-	svc	#0
+	mov	w8, 93
+	svc	0
 
 # Test words
 word	word1
 	.forthword
 word1$:
 	.quad	lit, 42
+	.quad	emit
 	.quad	word2
 	.quad	exit
 
@@ -160,6 +203,7 @@ word	word2
 word2$:
 	.quad	drop
 	.quad	lit, 43
+	.quad	emit
 	.quad	exit
 
 $cold:
