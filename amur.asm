@@ -171,19 +171,8 @@ _emit:
 
 # BYE
 # Exit to OS
-.align	4
-_bye_str0:
-	.byte	_bye_strend - _bye_str
-_bye_str:
-	.ascii	"bye"
-_bye_strend:
-	.p2align	4, 0x00
-	.quad	_bye_str0
-	.quad	latest_word
-bye:
-	latest_word = .
-	latest_name = _bye
-	.quad	_call, _bye
+word	bye
+	.codeword
 _bye:
 	mov	x0, rtop
 	mov	w8, 93
