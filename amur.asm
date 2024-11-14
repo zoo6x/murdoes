@@ -6,6 +6,7 @@
 .text
 	rwork	.req	x0
 	rtop	.req	x1
+	rtopw	.req	w1
 	rstate	.req	x2
 	rtmp	.req	x3
 	rtmp2	.req	x4
@@ -27,8 +28,10 @@ _start:
 	movz	rlatest, #:abs_g2:last
 	movk	rlatest, #:abs_g1_nc:last
 	movk	rlatest, #:abs_g0_nc:last
-	adr	rhere, here0
-	adr	rpc, $cold
+	adrp	rhere, here0
+	add	rhere, rhere, :lo12:here0
+	adrp	rpc, $cold
+	add	rpc, rpc, :lo12:$cold
 	adr	rnext, _next
 	add	rstack, sp, -0x1000
 	add	rrstack, sp, -0x2000
@@ -50,8 +53,6 @@ _exec:
 	mov	rpc, rtmp2
 _noop:
 	b	_next
-
-
 
 # Word definition
 .macro	word	name, fname
@@ -252,6 +253,46 @@ _words:
 	ldp	x8, lr, [sp], 16
 	ldp	x1, x2, [sp], 16
 
+	ret
+
+# BL ( -- c )
+# Returns blank character code
+word	bl
+	.codeword
+_bl:
+	dup_
+	mov	rtop, 0x20
+	ret
+
+# , ( v -- )
+# Reserve space for one cell in the data space and store value in the pace
+word	comma, ","
+	.codeword
+_comma:
+	str	rtop, [rhere], 8
+	drop_
+	ret
+
+# C, ( c -- )
+# Reserve space for one character in the data space and store char in the space
+word	c_comma, "c,"
+	.codeword
+_c_comma:
+	strb	rtopw, [rhere], 1
+	drop_
+	ret
+
+# COUNT ( c-addr -- c-addr' u )
+# Converts address to byte-counted string into string address and count
+word	count
+	.codeword
+_count:
+	mov	rwork, rtop
+	add	rwork, rwork, 1
+	ldrsb	rtmp, [rtop]
+	mov	rtop, rwork
+	dup_
+	mov	rtop, rtmp
 	ret
 
 # BYE

@@ -297,6 +297,7 @@ word	count
 	.codeword
 _count:
 	mov	rwork, rtop
+	#TODO: Looks wrong, seems to damage 2nd element in the stack
 	inc	rwork
 	store	rwork, 1
 	dec	rstack
