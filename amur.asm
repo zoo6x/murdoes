@@ -1,4 +1,5 @@
 # Forth for AArch64
+# Syscalls: https://arm64.syscall.sh/
 
 	.global	_start
 
@@ -168,6 +169,29 @@ _emit:
 
 	ret
 
+# READ ( -- c )
+# Read a character from stdin
+word	read
+	.codeword
+_read:
+	stp	x0, x1, [sp, -16]!
+	stp	x2, x8, [sp, -16]!
+
+	dup_
+	mov	x2, 0x1
+	add	x1, rstack, 0
+	mov 	x0, 0x0
+	mov	w8, 0x3f
+	svc	0
+	drop_
+
+	ldp	x2, x8, [sp], 16
+	ldp	x0, x1, [sp], 16
+
+	ldr	rtop, [rstack, -8]
+
+	ret
+
 
 # BYE
 # Exit to OS
@@ -183,6 +207,8 @@ word	word1
 	.forthword
 word1$:
 	.quad	lit, 42
+	.quad	emit
+	.quad	read
 	.quad	emit
 	.quad	word2
 	.quad	exit
