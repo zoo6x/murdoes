@@ -261,6 +261,7 @@ _words:
 	pop	rsi
 	pop	rtop
 	ret
+
 # BL ( -- c )
 # Returns blank character code
 word	bl
