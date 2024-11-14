@@ -24,7 +24,9 @@ _start:
 	mov	rwork, xzr
 	mov	rtop, xzr
 	mov	rstate, xzr
-	mov	rlatest, last
+	movz	rlatest, #:abs_g2:last
+	movk	rlatest, #:abs_g1_nc:last
+	movk	rlatest, #:abs_g0_nc:last
 	adr	rhere, here0
 	adr	rpc, $cold
 	adr	rnext, _next
@@ -48,6 +50,8 @@ _exec:
 	mov	rpc, rtmp2
 _noop:
 	b	_next
+
+
 
 # Word definition
 .macro	word	name, fname
@@ -192,6 +196,63 @@ _read:
 
 	ret
 
+# TYPE ( c-addr u -- )
+# Print string to stdout
+word	type
+	.codeword
+_type:
+	stp	x2, x8, [sp, -16]!
+
+	dup_
+	mov	x2, rtop
+	drop_
+	mov	x1, rtop
+	mov 	x0, 0x1
+	mov	w8, 0x40
+	svc	0
+
+	drop_
+
+	ldp	x2, x8, [sp], 16
+
+	ret
+
+# WORDS
+# Prints all defined words to stdout
+word	words
+	.codeword
+_words:
+	stp	x1, x2, [sp, -16]!
+	stp	x8, lr, [sp, -16]!
+
+	mov	rtmp, rlatest
+
+	1:
+	ands	xzr, rtmp, rtmp
+	b.eq	9f
+
+	mov	rtmp2, rtmp
+
+	ldr	rwork, [rtmp, -16]	/* NFA */
+	ldrsb	x2, [rwork]		/* count */
+	add	x1, rwork, 1		/* buffer */
+	mov	x0, 1			/* stdout */
+	mov	w8, 0x40		/* sys_write */
+	svc	0
+
+	dup_
+	mov	rtop, 0x20
+	bl	_emit
+
+	mov	rtmp, rtmp2
+	ldr	rtmp, [rtmp, -8]	/* LFA */
+	b	1b
+
+	9:
+	ldp	x8, lr, [sp], 16
+	ldp	x1, x2, [sp], 16
+
+	ret
 
 # BYE
 # Exit to OS
@@ -222,13 +283,14 @@ word2$:
 	.quad	exit
 
 $cold:
+	.quad	words
 	.quad	word1
 	.quad	dup
 	.quad	drop
 	.quad	bye
 
 # LATEST
-	.equ	last, 0
+	.equ	last, latest_word
 #latest_word
 .align	4
 here0:
