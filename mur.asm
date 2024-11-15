@@ -391,7 +391,6 @@ _head:
 	jnz	1b
 
 	call	_drop
-	#mov	rtop, rwork 
 	jmp	9f
 
 	6:
