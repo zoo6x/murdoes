@@ -26,13 +26,9 @@ _start:
 	mov	rwork, xzr
 	mov	rtop, xzr
 	mov	rstate, xzr
-	movz	rlatest, #:abs_g2:last
-	movk	rlatest, #:abs_g1_nc:last
-	movk	rlatest, #:abs_g0_nc:last
-	adrp	rhere, here0
-	add	rhere, rhere, :lo12:here0
-	adrp	rpc, $cold
-	add	rpc, rpc, :lo12:$cold
+	adr	rlatest, last
+	adr	rhere, here0
+	adr	rpc, $cold
 	adr	rnext, _next
 	add	rstack, sp, -0x1000
 	add	rrstack, sp, -0x2000
