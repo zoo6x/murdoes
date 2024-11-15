@@ -182,7 +182,6 @@ _read:
 	mov 	x0, 0x0
 	mov	w8, 0x3f
 	svc	0
-	mov	rwork, 0
 	ldrb	rworkw, [rstack]
 	mov	rtop, rwork
 
@@ -326,6 +325,136 @@ _word:
 	ldp	xzr, lr, [sp], 16
 	ret
 
+# HEAD ( "<name>" -- )
+# Reads word name from input stream and creates default header
+word	head
+	.codeword
+_head:
+	stp	xzr, lr, [sp, -16]!
+
+	bl	_bl		/* ( bl ) */
+	bl	_word		/* ( here ) */
+	dup_			/* ( here here ) */
+	bl	_count		/* ( here here+1 count ) */
+	ands	xzr, rtop, rtop
+	b.eq	6f
+
+	drop_
+	drop_
+	# TODO: ASSERT(rtop == rhere)
+	cmp	rhere, rtop
+	b.eq	0f
+	brk	42
+
+	0:
+	ldrb	rworkw, [rtop]			/* name */
+	add	rhere, rhere, rwork
+	add	rhere, rhere, 0xf
+	and	rhere, rhere, -16
+
+	str	rtop, [rhere]			/* NFA */
+	add	rhere, rhere, 8
+	str	rlatest, [rhere]		/* LFA */
+	add	rhere, rhere, 8
+
+	mov	rwork, rhere			/* XT */
+	mov	rlatest, rhere
+
+	mov	rtmp2, 16
+	adr	rtmp, _noop
+
+	1:
+	str	rtmp, [rhere]
+	add	rhere, rhere, 8
+	str	xzr, [rhere]
+	add	rhere, rhere, 8
+	sub	rtmp2, rtmp2, 1
+	b.ne	1b
+
+	drop_
+	#mov	rtop, rwork 
+	b	9f
+
+	6:
+	# TODO: ABORT
+	drop_
+	drop_
+	drop_
+
+	9:
+	ldp	xzr, lr, [sp], 16
+	ret
+
+# LATEST ( -- xt )
+# Returns the latest defined word
+word	latest
+	.codeword
+_latest:
+	dup_
+	mov	rtop, rlatest
+	ret
+
+# HERE ( -- a )
+# Returns address of the first available byte of the code space
+word	here
+	.codeword
+_here:
+	dup_
+	mov	rtop, rhere
+	ret
+
+# DOES ( code param state xt -- )
+# Sets semantics for a word defined by XT for given state to a given code:param pair
+word	does
+	.codeword
+_does:
+	mov	rtmp, rtop
+	drop_
+	mov	rwork, rtop
+	drop_
+
+	add	rtmp2, rtmp, rwork, lsl 3
+	add	rtmp2, rtmp2, 8
+	str	rtop, [rtmp2]
+	drop_
+	add	rtmp2, rtmp, rwork, lsl 3
+	str	rtop, [rtmp2]
+	drop_
+
+	ret
+
+# CODEWORD ( xt -- )
+# Specifies execution semantics for a word specified by XT as a code word
+word	codeword
+	.forthword
+$codeword:
+	.quad	lit, _call
+	.quad	here
+	.quad	lit, 0
+	.quad	latest
+	.quad	does
+	.quad	exit
+
+# FORTHWORD ( xt -- )
+# Specifies execution semantics for a word specified by XT as a forth word with threaded code following at HERE
+word	forthword
+	.forthword
+$forthword:
+	.quad	lit, _exec
+	.quad	here
+	.quad	lit, 0
+	.quad	latest
+	.quad	does
+	.quad	exit
+
+# : ( "<name>" -- )
+word	colon, ":"
+	.forthword
+_colon:
+	.quad	head
+	.quad	forthword
+	.quad	exit
+
 # FIND ( -- xt | 0 )
 # Searches for word name, placed at HERE, in the vocabulary
 word	find
@@ -338,7 +467,6 @@ _find:
 
 	mov	rtmp, rlatest		/* XT */
 	mov	rtmp2, rhere
-	mov	x12, 0			/* counter */
 
 	1:
 	mov	rtop, rtmp
