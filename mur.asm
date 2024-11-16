@@ -28,8 +28,12 @@ _start:
 	lea	rnext, qword ptr [_next]
 	lea	rstack0, [rsp - 0x1000]
 	xor	rstack, rstack
+	push	rpc
 
-# Interpreter
+# Address Interpreter
+_exit:
+	pop	rpc
+_noop:
 _next:
 	lodsq
 _doxt:
@@ -37,13 +41,9 @@ _doxt:
 _call:
 	push	rnext
 	jmp	[rwork + rstate * 8 + 8]	
-_exit:
-	pop	rpc
-	jmp	_next
 _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 + 8]
-_noop:
 	jmp	_next
 
 # Word definition
@@ -346,11 +346,11 @@ _word:
 	pop	rbx
 	ret
 
-# HEAD ( "<name>" -- )
-# Reads word name from input stream and creates default header
-word	head
+# HEADER ( "<name>" -- ) : ( -- )
+# Reads word name from input stream and creates a default header for the new word. The new word does nothing
+word	header
 	.codeword
-_head:
+_header:
 	call	_bl		# ( bl )
 	call	_word		# ( here ) 
 	call	_dup		# ( here here )
@@ -461,11 +461,20 @@ $forthword:
 	.quad	does
 	.quad	exit
 
+# :: ( "<name>" -- )
+# Synonym for HEADER
+word	coloncolon, "::"
+	.forthword
+_coloncolon:
+	.quad	header
+	.quad	exit
+
 # : ( "<name>" -- )
+# Creates a Forth word
 word	colon, ":"
 	.forthword
 _colon:
-	.quad	head
+	.quad	header
 	.quad	forthword
 	.quad	exit
 
