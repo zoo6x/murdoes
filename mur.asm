@@ -1,24 +1,32 @@
 .intel_syntax	noprefix
 
+# TODO: https://wiki.osdev.org/X86-64_Instruction_Encoding
+# https://www.complang.tuwien.ac.at/forth/fth79std/FORTH-79.TXT
+# https://www.complang.tuwien.ac.at/forth/fth83std/FORTH83.TXT
+# https://forth-standard.org/standard/words
+
 	.globl _start
 
 .text
+	.equ	STATES, 16	/* Number of possible address interpreter states */
+	.equ	INTERPRETING, 0
+	.equ	COMPILING, -2
 
-	# Beore changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc.
-	.equ	rwork, rax	# Points to XT in code words. Needs not be preserved
+	/* Before changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc. */
+	/* TODO: define low byte aliases for needed address interpreter regsters */
+	.equ	rwork, rax	/* Points to XT in code words. Needs not be preserved */
 	.equ	rtop, rcx
 	.equ	rstate, rbx
-	.equ	rtmp, rdx	# Needs not be preserved
-	.equ	rpc, rsi	# Do no change! LODSx instructions are used
-	.equ	rhere, rdi	# Do not change! STOSx instructions are used
+	.equ	rtmp, rdx	/* Needs not be preserved */
+	.equ	rpc, rsi	/* Do not change! LODSx instructions are used */
+	.equ	rhere, rdi	/* Do not change! STOSx instructions are used */
 	.equ	rnext, r13
 	.equ	rlatest, r14
 	.equ	rstack, rbp
 	.equ	rstack0, r15
 
-	latest_word	= 0
-
 # Initialization
+
 _start:
 	xor	rtop, rtop
 	xor	rstate, rstate
@@ -26,28 +34,44 @@ _start:
 	lea	rhere, here0
 	lea	rpc, qword ptr [_cold]
 	lea	rnext, qword ptr [_next]
+	/* TODO: In "hardened" version map stacks to separate pages, with gaps between them */
 	lea	rstack0, [rsp - 0x1000]
 	xor	rstack, rstack
 	push	rpc
 
 # Address Interpreter
+
 _exit:
 	pop	rpc
 _noop:
 _next:
 	lodsq
 _doxt:
-	jmp	[rwork + rstate * 8]
+	jmp	[rwork + rstate * 8 - 16]
+_code:
 _call:
 	push	rnext
-	jmp	[rwork + rstate * 8 + 8]	
+	jmp	[rwork + rstate * 8 - 16 + 8]	
+_forth:
 _exec:
 	push	rpc
-	mov	rpc, [rwork + rstate * 8 + 8]
+	mov	rpc, [rwork + rstate * 8 - 16 + 8]
 	jmp	_next
 
 # Word definition
-.macro	word	name, fname
+
+	latest_word	= 0
+
+.macro	reserve_cfa does, reserve=(STATES - 1)
+	# Execution semantics can be either code or Forth word
+	# Compilation semantics inside Forth words is the same: compile adress of XT
+	# Semantics for other states does nothing by default
+	.rept \reserve
+	.quad	_noop, 0
+	.endr
+.endm
+
+.macro	word	name, fname, does=code, param
 	.align	16
 \name\()_str0:
 	.byte	\name\()_strend - \name\()_str
@@ -59,31 +83,37 @@ _exec:
 .endif
 \name\()_strend:
 	.p2align	4, 0x00
-	.quad	\name\()_str0	# NFA
-	.quad	latest_word	# LFA
+	.quad	\name\()_str0	/* NFA */
+	.quad	latest_word	/* LFA */
+
+	reserve_cfa
+	
+	.quad	_\does
+.ifc	"\param",""
+	.quad	\name
+.else
+	.quad	\param
+.endif
+
+
 	# TODO: Add a "canary"/hash to make sure an XT is actually an XT
 \name\():
 	latest_word = .
 	latest_name = _\name
 .endm
 
-.macro	reserve_cfa reserve=15
-	# Execution semantics can be either code or Forth word
-	# Compilation semantics inside Forth words is the same: compile adress of XT
-	# Semantics for other states does nothing by default
-	.rept \reserve
-	.quad	_noop, 0
-	.endr
-.endm
-
 .macro	.codeword
+	/*
 	.quad	_call, latest_name
 	reserve_cfa
+	*/
 .endm
 
 .macro	.forthword
+	/*
 	.quad	_exec, latest_name
 	reserve_cfa
+	*/
 .endm
 
 # Data stack access
@@ -101,9 +131,7 @@ _exec:
 
 # EXIT
 # Exit current Forth word and return the the caller
-word	exit
-	.quad	_exit, 0
-	reserve_cfa
+word	exit,, exit, 0
 
 # DUP ( a -- a a )
 word	dup
@@ -239,13 +267,13 @@ _words:
 	test	rtmp, rtmp
 	jz	9f
 
-	push	rtmp			# current word
+	push	rtmp					# current word
 
-	mov	rwork, [rtmp - 16]	# NFA
-	movzx	rtmp, byte ptr [rwork]	# count
-	lea	rsi, [rwork + 1]	# buffer
-	mov	rdi, 1			# stdout
-	mov	rax, 1			# sys_write
+	mov	rwork, [rtmp - STATES * 16 - 16]	# NFA
+	movzx	rtmp, byte ptr [rwork]			# count
+	lea	rsi, [rwork + 1]			# buffer
+	mov	rdi, 1					# stdout
+	mov	rax, 1					# sys_write
 	syscall
 
 	call	_dup
@@ -253,7 +281,7 @@ _words:
 	call	_emit
 
 	pop	rtmp
-	mov	rtmp, [rtmp - 8]	# LFA
+	mov	rtmp, [rtmp - STATES * 16 - 8]		# LFA
 	jmp	1b
 
 	9:
@@ -264,9 +292,9 @@ _words:
 
 # BL ( -- c )
 # Returns blank character code
-word	bl
+word	bl_, "bl"
 	.codeword
-_bl:
+_bl_:
 	call	_dup
 	mov	rtop, 0x20
 	ret
@@ -306,7 +334,7 @@ _count:
 
 # WORD ( c "<chars>ccc<char>" -- c-addr )
 # Reads char-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
-word	word
+word	word,, code, _word
 	.codeword
 _word:
 	call	_align
@@ -351,7 +379,7 @@ _word:
 word	header
 	.codeword
 _header:
-	call	_bl		# ( bl )
+	call	_bl_		# ( bl )
 	call	_word		# ( here ) 
 	call	_dup		# ( here here )
 	call	_count		# ( here here+1 count ) 
@@ -362,7 +390,7 @@ _header:
 	call	_drop
 	# TODO: ASSERT(rtop == rhere)
 	cmp	rhere, rtop
-	jz 0f
+	jz	0f
 	int3
 
 	0:
@@ -376,9 +404,6 @@ _header:
 	mov	qword ptr [rhere], rlatest	# LFA
 	add	rhere, 8
 
-	mov	rwork, rhere	# XT
-	mov	rlatest, rhere
-
 	mov	rcx, 16
 	lea	rtmp, qword ptr [_noop]
 
@@ -391,6 +416,9 @@ _header:
 	jnz	1b
 
 	call	_drop
+
+	mov	rlatest, rhere	# XT
+
 	jmp	9f
 
 	6:
@@ -425,24 +453,23 @@ _here:
 word	does
 	.codeword
 _does:
-	mov	rtmp, rtop
-	call	_drop
 	mov	rwork, rtop
 	call	_drop
-
-	mov	qword ptr [rtmp + rwork * 8 + 8], rtop
+	mov	rtmp, rtop
 	call	_drop
-	mov	qword ptr [rtmp + rwork * 8], rtop
+
+	mov	qword ptr [rwork + rtmp * 8 - 16 + 8], rtop
+	call	_drop
+	mov	qword ptr [rwork + rtmp * 8 - 16], rtop
 	call	_drop
 
 	ret
 
 # CODEWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a code word
-word	codeword
-	.forthword
+word	codeword,, forth
 _codeword:
-	.quad	lit, _call
+	.quad	lit, _code
 	.quad	here
 	.quad	lit, 0
 	.quad	latest
@@ -451,8 +478,7 @@ _codeword:
 
 # FORTHWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a forth word with threaded code following at HERE
-word	forthword
-	.forthword
+word	forthword,, forth
 _forthword:
 	.quad	lit, _exec
 	.quad	here
@@ -463,7 +489,7 @@ _forthword:
 
 # :: ( "<name>" -- )
 # Synonym for HEADER
-word	coloncolon, "::"
+word	coloncolon, "::", forth
 	.forthword
 _coloncolon:
 	.quad	header
@@ -471,7 +497,7 @@ _coloncolon:
 
 # : ( "<name>" -- )
 # Creates a Forth word
-word	colon, ":"
+word	colon, ":", forth
 	.forthword
 _colon:
 	.quad	header
@@ -498,7 +524,7 @@ _find:
 
 	mov	rsi, rbx
 
-	mov	rwork, [rtmp - 16]	# NFA
+	mov	rwork, [rtmp - STATES * 16 - 16]	# NFA
 	movzx	rcx, byte ptr [rwork]
 	inc	rcx
 	mov	rdi, rwork
@@ -506,7 +532,7 @@ _find:
 	mov	rtop, rtmp
 	je	9f
 
-	mov	rtmp, [rtmp - 8]	# LFA
+	mov	rtmp, [rtmp - STATES * 16 - 8]		# LFA
 	jmp	1b
 
 	6:
@@ -605,7 +631,7 @@ _dot:
 	call	_drop
 
 	9:
-	call	_bl
+	call	_bl_
 	call	_emit
 	ret
 
@@ -614,7 +640,7 @@ _dot:
 word	quit_, "(quit)"
 	.codeword
 _quit_:
-	call	_bl
+	call	_bl_
 	call	_word
 	call	_drop
 	call	_find
@@ -644,8 +670,7 @@ _quit_:
 
 # QUIT
 # Interpret loop
-word	quit
-	.forthword
+word	quit,, forth
 _quit:
 	.quad	quit_
 	.quad	jump, -3
@@ -660,25 +685,22 @@ _bye:
 	mov	rax, 60
 	syscall
 
-word	word1
-	.forthword
+word	word1,, forth
 _word1:
 	.quad	lit, 0x41, emit
 	.quad	word2
 	.quad	exit	
 			
-word	word2
-	.forthword
+word	word2,, forth
 _word2:
 	.quad	lit, 0x42, emit
 	.quad	exit
 
 # COLD
 # Cold start (in fact, just a test word that runs first)
-word	cold
-	.forthword
+word	cold,, forth
 _cold:
-	#.quad	words
+	#.quad	_bl_, _word
 	.quad	lit, 0x39
 	.quad	lit, 0x38
 	.quad	lit, 0x37
