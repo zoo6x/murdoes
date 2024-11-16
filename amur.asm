@@ -11,11 +11,13 @@
 	rstate	.req	x2
 	rtmp	.req	x3
 	rtmp2	.req	x4
+	rtmp2w	.req	w4
 	rpc	.req	x5
 	rhere	.req	x6
 	rnext	.req	lr
 	rstack	.req	x7
-	# w8 is used in syscall ABI
+	rtmp3	.req	x8
+	rtmp3w	.req	w8
 	rrstack	.req	x9
 	rlatest	.req	x10
 
@@ -501,6 +503,96 @@ _find:
 	ldp	x11, x12, [sp], 16
 	ret
 
+# NUMBER ( c-addr -- n -1 | 0 )
+# Parses string as a number (in HEX base)
+word	number
+	.codeword
+_number:
+	mov	rtmp3, rtop
+	ldrb	rtmp2w, [rtop]
+	tst	rtmp2, rtmp2
+	b.eq	6f
+
+	mov	rtmp, 0
+	add	rtmp3, rtmp3, 1
+	1:
+	ldrb	rworkw, [rtmp3], 1
+	cmp	rworkw, 0x30
+	b.lo	6f
+	cmp	rworkw, 0x39
+	b.ls	3f
+	orr	rworkw, rworkw, 0x20
+	cmp	rworkw, 0x61
+	b.lo	6f
+	cmp	rworkw, 0x66
+	b.hi	6f
+	sub	rworkw, rworkw, 0x61 - 10
+	b	4f
+	3:
+	sub	rworkw, rworkw, 0x30
+	4:
+	lsl	rtmp, rtmp, 4
+	add	rtmp, rtmp, rwork
+	subs	rtmp2, rtmp2, 1
+	b.ne	1b
+
+	mov	rtop, rtmp
+	dup_
+	mov	rtop, -1
+	b	9f
+
+	6:
+	mov	rtop, 0
+
+	9:
+	ret
+
+# . ( n -- )
+# Print number on the top of the stack (hexadecimal)
+word	dot, "."
+	.codeword
+_dot:
+/*
+	mov	rtmp, 16
+
+	1:
+	rol	rtop, 4
+	test	rtop, 0xf
+	jnz	3f
+	dec	rtmp
+	jnz	1b
+
+	call	_drop
+	mov	rtop, 0x30
+	call	_emit
+	jmp	9f
+
+	3:
+	mov	al, cl
+	and	al, 0xf
+	cmp	al, 0x9
+	jbe	4f
+	add	al, 0x61 - 0x30 - 0xa
+	4:
+	add	al, 0x30
+	push	rtop
+	push	rwork
+	call	_dup
+	movzx	rtop, al
+	call	_emit
+	pop	rwork
+	pop	rtop
+	rol	rtop, 4
+	dec	rtmp
+	jnz	3b
+	call	_drop
+
+	9:
+	call	_bl
+	call	_emit
+	*/
+	ret
+
 # (QUIT) ( -- )
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
@@ -512,7 +604,7 @@ _quit_:
 	bl	_word
 	drop_
 	bl	_find
-	ands	xzr, rtop, rtop
+	tst	rtop, rtop
 	b.eq	2f
 	mov	rwork, rtop
 	drop_
@@ -521,16 +613,16 @@ _quit_:
 	b	_doxt
 
 	2:
-	/*
-	call	_drop
-	call	_here
-	call	_number
-	test	rtop, rtop
-	jz	6f
 
-	call	_drop
-	jmp	9f
-	*/
+	drop_
+	bl	_here
+	bl	_number
+	tst	rtop, rtop
+	b.eq	6f
+
+	drop_
+	b	9f
+
 	6:
 	# TODO: ABORT
 	drop_
