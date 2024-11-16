@@ -102,20 +102,6 @@ _exec:
 	latest_name = _\name
 .endm
 
-.macro	.codeword
-	/*
-	.quad	_call, latest_name
-	reserve_cfa
-	*/
-.endm
-
-.macro	.forthword
-	/*
-	.quad	_exec, latest_name
-	reserve_cfa
-	*/
-.endm
-
 # Data stack access
 .macro	load	reg, i
 	mov	\reg, qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)]
@@ -135,7 +121,6 @@ word	exit,, exit, 0
 
 # DUP ( a -- a a )
 word	dup
-	.codeword
 _dup:
 	store	rtop, 1
 	dec	rstack
@@ -143,7 +128,6 @@ _dup:
 
 # DROP ( a -- )
 word	drop
-	.codeword
 _drop:
 	inc	rstack
 	load	rtop, 1
@@ -152,7 +136,6 @@ _drop:
 # LIT ( -- n )
 # Pushes compiled literal onto data stack
 word	lit
-	.codeword
 _lit:
 	call	_dup
 	lodsq
@@ -162,7 +145,6 @@ _lit:
 # JUMP ( -- )
 # Changes PC by compliled offset (in cells)
 word	jump
-	.codeword
 _jump:
 	lodsq
 	lea	rpc, [rpc + rwork * 8]
@@ -171,7 +153,6 @@ _jump:
 # ALIGN
 # Aligns HERE to 16-byte boundary
 word	align
-	.codeword
 _align:
 	add	rhere, 0xf
 	and	rhere, -16
@@ -180,7 +161,6 @@ _align:
 # EMIT ( c -- )
 # Prints a character to stdout
 word	emit
-	.codeword
 _emit:
 	push	rtop
 	push	rwork
@@ -210,7 +190,6 @@ _emit:
 # READ ( -- c )
 # Reads a character from stdin
 word	read
-	.codeword
 _read:
 	call	_dup
 
@@ -233,7 +212,6 @@ _read:
 # TYPE ( c-addr u -- )
 # Print string to stdout
 word	type
-	.codeword
 _type:
 	push	rsi
 	push	rdi
@@ -255,7 +233,6 @@ _type:
 # WORDS
 # Prints all defined words to stdout
 word	words
-	.codeword
 _words:
 	push	rtop
 	push	rsi
@@ -293,7 +270,6 @@ _words:
 # BL ( -- c )
 # Returns blank character code
 word	bl_, "bl"
-	.codeword
 _bl_:
 	call	_dup
 	mov	rtop, 0x20
@@ -302,7 +278,6 @@ _bl_:
 # , ( v -- )
 # Reserve space for one cell in the data space and store value in the pace
 word	comma, ","
-	.codeword
 _comma:
 	mov	rax, rtop
 	stosq
@@ -312,7 +287,6 @@ _comma:
 # C, ( c -- )
 # Reserve space for one character in the data space and store char in the space
 word	c_comma, "c,"
-	.codeword
 _c_comma:
 	mov	rax, rtop
 	stosb
@@ -322,7 +296,6 @@ _c_comma:
 # COUNT ( c-addr -- c-addr' u )
 # Converts address to byte-counted string into string address and count
 word	count
-	.codeword
 _count:
 	mov	rwork, rtop
 	#TODO: Looks wrong, seems to damage 2nd element in the stack
@@ -335,7 +308,6 @@ _count:
 # WORD ( c "<chars>ccc<char>" -- c-addr )
 # Reads char-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
 word	word,, code, _word
-	.codeword
 _word:
 	call	_align
 	mov	rtmp, rhere
@@ -377,7 +349,6 @@ _word:
 # HEADER ( "<name>" -- ) : ( -- )
 # Reads word name from input stream and creates a default header for the new word. The new word does nothing
 word	header
-	.codeword
 _header:
 	call	_bl_		# ( bl )
 	call	_word		# ( here ) 
@@ -433,7 +404,6 @@ _header:
 # LATEST ( -- xt )
 # Returns the latest defined word
 word	latest
-	.codeword
 _latest:
 	call	_dup
 	mov	rtop, rlatest
@@ -442,7 +412,6 @@ _latest:
 # HERE ( -- a )
 # Returns address of the first available byte of the code space
 word	here
-	.codeword
 _here:
 	call	_dup
 	mov	rtop, rhere
@@ -451,7 +420,6 @@ _here:
 # DOES ( code param state xt -- )
 # Sets semantics for a word defined by XT for given state to a given code:param pair
 word	does
-	.codeword
 _does:
 	mov	rwork, rtop
 	call	_drop
@@ -490,7 +458,6 @@ _forthword:
 # :: ( "<name>" -- )
 # Synonym for HEADER
 word	coloncolon, "::", forth
-	.forthword
 _coloncolon:
 	.quad	header
 	.quad	exit
@@ -498,7 +465,6 @@ _coloncolon:
 # : ( "<name>" -- )
 # Creates a Forth word
 word	colon, ":", forth
-	.forthword
 _colon:
 	.quad	header
 	.quad	forthword
@@ -507,7 +473,6 @@ _colon:
 # FIND ( -- xt | 0 )
 # Searches for word name, placed at HERE, in the vocabulary
 word	find
-	.codeword
 _find:
 	call	_dup
 
@@ -547,7 +512,6 @@ _find:
 # NUMBER ( c-addr -- n -1 | 0 )
 # Parses string as a number (in HEX base)
 word	number
-	.codeword
 _number:
 	push	rsi
 	mov	rsi, rtop
@@ -594,7 +558,6 @@ _number:
 # . ( n -- )
 # Print number on the top of the stack (hexadecimal)
 word	dot, "."
-	.codeword
 _dot:
 	mov	rtmp, 16
 
@@ -638,7 +601,6 @@ _dot:
 # (QUIT) ( -- )
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
-	.codeword
 _quit_:
 	call	_bl_
 	call	_word
@@ -671,14 +633,12 @@ _quit_:
 # QUIT
 # Interpret loop
 word	quit,, forth
-_quit:
 	.quad	quit_
 	.quad	jump, -3
 
 # BYE
 # Returns to OS
 word	bye
-	.codeword
 _bye:
 	mov	rdi, 42
 
@@ -700,7 +660,6 @@ _word2:
 # Cold start (in fact, just a test word that runs first)
 word	cold,, forth
 _cold:
-	#.quad	_bl_, _word
 	.quad	lit, 0x39
 	.quad	lit, 0x38
 	.quad	lit, 0x37
