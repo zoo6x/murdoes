@@ -552,45 +552,53 @@ _number:
 word	dot, "."
 	.codeword
 _dot:
-/*
+	stp	xzr, lr, [sp, -16]!
+
 	mov	rtmp, 16
 
 	1:
-	rol	rtop, 4
-	test	rtop, 0xf
-	jnz	3f
-	dec	rtmp
-	jnz	1b
+	ror	rtmp3, rtop, 60
+	and	rtmp2, rtmp3, 0xf
+	lsl	rtop, rtop, 4
 
-	call	_drop
+	tst	rtmp2, 0xf
+	b.ne	3f
+	subs	rtmp, rtmp, 1
+	b.ne	1b
+
+	drop_
 	mov	rtop, 0x30
-	call	_emit
-	jmp	9f
+	bl	_emit
+	b	9f
 
 	3:
-	mov	al, cl
-	and	al, 0xf
-	cmp	al, 0x9
-	jbe	4f
-	add	al, 0x61 - 0x30 - 0xa
+	mov	rworkw, rtmp2w
+	cmp	rworkw, 0x9
+	b.ls	4f
+	add	rworkw, rworkw, 0x61 - 0x30 - 0xa
 	4:
-	add	al, 0x30
-	push	rtop
-	push	rwork
-	call	_dup
-	movzx	rtop, al
-	call	_emit
-	pop	rwork
-	pop	rtop
-	rol	rtop, 4
-	dec	rtmp
-	jnz	3b
-	call	_drop
+	add	rworkw, rworkw, 0x30
+	stp	rtop, rwork, [sp, -16]!
+	dup_
+	mov	rtop, 0
+	mov	rtopw, rworkw
+	bl	_emit
+
+	ldp	rtop, rwork, [sp], 16
+
+	ror	rtmp3, rtop, 60
+	and	rtmp2, rtmp3, 0xf
+	lsl	rtop, rtop, 4
+
+	subs	rtmp, rtmp, 1
+	b.ne	3b
+	drop_
 
 	9:
-	call	_bl
-	call	_emit
-	*/
+	bl	_bl
+	bl	_emit
+
+	ldp	xzr, lr, [sp], 16
 	ret
 
 # (QUIT) ( -- )
