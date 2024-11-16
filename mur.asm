@@ -24,7 +24,7 @@ _start:
 	xor	rstate, rstate
 	lea	rlatest, last
 	lea	rhere, here0
-	lea	rpc, qword ptr [$cold]
+	lea	rpc, qword ptr [_cold]
 	lea	rnext, qword ptr [_next]
 	lea	rstack0, [rsp - 0x1000]
 	xor	rstack, rstack
@@ -61,6 +61,7 @@ _exec:
 	.p2align	4, 0x00
 	.quad	\name\()_str0	# NFA
 	.quad	latest_word	# LFA
+	# TODO: Add a "canary"/hash to make sure an XT is actually an XT
 \name\():
 	latest_word = .
 	latest_name = _\name
@@ -81,9 +82,8 @@ _exec:
 .endm
 
 .macro	.forthword
-	.quad	_exec, 0f
+	.quad	_exec, latest_name
 	reserve_cfa
-	0:
 .endm
 
 # Data stack access
@@ -441,7 +441,7 @@ _does:
 # Specifies execution semantics for a word specified by XT as a code word
 word	codeword
 	.forthword
-$codeword:
+_codeword:
 	.quad	lit, _call
 	.quad	here
 	.quad	lit, 0
@@ -453,7 +453,7 @@ $codeword:
 # Specifies execution semantics for a word specified by XT as a forth word with threaded code following at HERE
 word	forthword
 	.forthword
-$forthword:
+_forthword:
 	.quad	lit, _exec
 	.quad	here
 	.quad	lit, 0
@@ -662,14 +662,14 @@ _bye:
 
 word	word1
 	.forthword
-$word1:
+_word1:
 	.quad	lit, 0x41, emit
 	.quad	word2
 	.quad	exit	
 			
 word	word2
 	.forthword
-$word2:
+_word2:
 	.quad	lit, 0x42, emit
 	.quad	exit
 
@@ -677,7 +677,7 @@ $word2:
 # Cold start (in fact, just a test word that runs first)
 word	cold
 	.forthword
-$cold:
+_cold:
 	#.quad	words
 	.quad	lit, 0x39
 	.quad	lit, 0x38
