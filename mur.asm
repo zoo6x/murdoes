@@ -54,6 +54,8 @@ _code:
 _call:
 	push	rnext
 	jmp	[rwork + rstate * 8 - 16 + 8]	
+_run:
+	mov	rstate, INTERPRETING
 _forth:
 _exec:
 	push	rpc
@@ -104,7 +106,11 @@ _tib:
 
 	# COMPILATION
 .ifc	"\immediate", "immediate"
-	.quad	_\does
+	.ifc "\does", "forth"
+		.quad	_run
+	.else
+		.quad	_\does
+	.endif
 	.ifc	"\param",""
 		.quad	\name
 	.else
@@ -169,12 +175,20 @@ _lit:
 	mov	rtop, rax
 	ret
 
-# JUMP ( -- )
-# Changes PC by compliled offset (in cells)
-word	jump
-_jump:
+# BRANCH ( -- )
+# Changes PC by compiled offset (in cells)
+word	branch
+_branch:
 	lodsq
 	lea	rpc, [rpc + rwork * 8]
+	ret
+
+# COMPILE ( -- )
+# Compiles the next address in the threaded code into current definition
+word	compile
+_compile:
+	lodsq
+	stosq
 	ret
 
 # ALIGN
@@ -496,7 +510,12 @@ word	codeword,,, forth
 _codeword:
 	.quad	lit, _code
 	.quad	here
+	.quad	lit, INTERPRETING
+	.quad	latest
+	.quad	does
+	.quad	lit, _comp
 	.quad	lit, 0
+	.quad	lit, COMPILING
 	.quad	latest
 	.quad	does
 	.quad	exit
@@ -507,7 +526,12 @@ word	forthword,,, forth
 _forthword:
 	.quad	lit, _exec
 	.quad	here
+	.quad	lit, INTERPRETING
+	.quad	latest
+	.quad	does
+	.quad	lit, _comp
 	.quad	lit, 0
+	.quad	lit, COMPILING
 	.quad	latest
 	.quad	does
 	.quad	exit
@@ -525,6 +549,16 @@ word	colon, ":",, forth
 _colon:
 	.quad	header
 	.quad	forthword
+	.quad	bracket_close
+	.quad	exit
+
+# ; ( -- )
+# Finished Forth definition
+word	semicolon, "\x3b", immediate, forth
+_semicolon:
+	.quad	compile
+	.quad	exit
+	.quad	bracket_open
 	.quad	exit
 
 # FIND ( -- xt | 0 )
@@ -702,7 +736,7 @@ _quit_:
 word	quit,,, forth
 	.quad	quit_
 	.quad	interpreting_
-	.quad	jump, -4
+	.quad	branch, -4
 
 # BYE
 # Returns to OS
@@ -713,34 +747,11 @@ _bye:
 	mov	rax, 60
 	syscall
 
-word	word1,,, forth
-_word1:
-	.quad	lit, 0x41, emit
-	.quad	word2
-	.quad	exit	
-			
-word	word2,,, forth
-_word2:
-	.quad	lit, 0x42, emit
-	.quad	exit
-
 # COLD
 # Cold start (in fact, just a test word that runs first)
 word	cold,,, forth
 _cold:
-	.quad	lit, 0x39
-	.quad	lit, 0x38
-	.quad	lit, 0x37
-	.quad	lit, 0x36
-	.quad	lit, 0x35
-	.quad	lit, 0x34
-	.quad	lit, 0x33
-	.quad	emit
-	.quad	lit, 0x3e, emit
 	.quad	quit
-	.quad	lit, 0x21, emit
-	.quad	word1
-	.quad	word2
 	.quad	bye
 
 # LATEST
