@@ -1,0 +1,1 @@
+with-readline ./moor
