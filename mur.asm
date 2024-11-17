@@ -39,11 +39,10 @@ _start:
 	xor	rstack, rstack
 	push	rpc
 
-# Address Interpreter
+# Address Interpreter and Compiler
 
 _exit:
 	pop	rpc
-_noop:
 _next:
 	lodsq
 _doxt:
@@ -56,22 +55,31 @@ _forth:
 _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 - 16 + 8]
-	jmp	_next
+	jmp	rnext
+_comp:
+	stosq
+	jmp	rnext
+_noop:
+	ret
+
+	.p2align	3, 0x90
+_state:
+	.quad	INTERPRETING
 
 # Word definition
 
 	latest_word	= 0
 
-.macro	reserve_cfa does, reserve=(STATES - 1)
+.macro	reserve_cfa does, reserve=(STATES - 2)
 	# Execution semantics can be either code or Forth word
 	# Compilation semantics inside Forth words is the same: compile adress of XT
 	# Semantics for other states does nothing by default
 	.rept \reserve
-	.quad	_noop, 0
+	.quad	_call, _noop
 	.endr
 .endm
 
-.macro	word	name, fname, does=code, param
+.macro	word	name, fname, immediate, does=code, param
 	.align	16
 \name\()_str0:
 	.byte	\name\()_strend - \name\()_str
@@ -87,7 +95,20 @@ _exec:
 	.quad	latest_word	/* LFA */
 
 	reserve_cfa
-	
+
+	# COMPILATION
+.ifc	"\immediate", "immediate"
+	.quad	_\does
+	.ifc	"\param",""
+		.quad	\name
+	.else
+		.quad	\param
+	.endif
+.else
+	.quad	_comp, 0
+.endif
+
+	# INTERPRETATION
 	.quad	_\does
 .ifc	"\param",""
 	.quad	\name
@@ -117,7 +138,7 @@ _exec:
 
 # EXIT
 # Exit current Forth word and return the the caller
-word	exit,, exit, 0
+word	exit,,, exit, 0
 
 # DUP ( a -- a a )
 word	dup
@@ -307,7 +328,7 @@ _count:
 
 # WORD ( c "<chars>ccc<char>" -- c-addr )
 # Reads char-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
-word	word,, code, _word
+word	word,,, code, _word
 _word:
 	call	_align
 	mov	rtmp, rhere
@@ -376,12 +397,13 @@ _header:
 	add	rhere, 8
 
 	mov	rcx, 16
-	lea	rtmp, qword ptr [_noop]
+	lea	rtmp, qword ptr [_call]
+	lea	rwork, qword ptr [_noop]
 
 	1:
 	mov	qword ptr [rhere], rtmp
 	add	rhere, 8
-	mov	qword ptr [rhere], 0
+	mov	qword ptr [rhere], rwork
 	add	rhere, 8
 	dec	rcx
 	jnz	1b
@@ -417,6 +439,27 @@ _here:
 	mov	rtop, rhere
 	ret
 
+# [ ( -- )
+# Switches text interpreter STATE to INTERPRETING
+word	bracket_open, "[", immediate
+_bracket_open:
+	mov	qword ptr [_state], INTERPRETING
+	ret
+
+# ] ( -- )
+# Switches text interpterer STATE to COMPILING
+word	bracket_close, "]"
+_bracket_close:
+	mov	qword ptr [_state], COMPILING
+	ret
+
+# (INTERPRETING)
+# Switches address interpreter state to INTERPRETING
+word	interpreting_, "(interpreting)", immediate
+_interpreting_:
+	mov	rstate, INTERPRETING
+	ret
+
 # DOES ( code param state xt -- )
 # Sets semantics for a word defined by XT for given state to a given code:param pair
 word	does
@@ -435,7 +478,7 @@ _does:
 
 # CODEWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a code word
-word	codeword,, forth
+word	codeword,,, forth
 _codeword:
 	.quad	lit, _code
 	.quad	here
@@ -446,7 +489,7 @@ _codeword:
 
 # FORTHWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a forth word with threaded code following at HERE
-word	forthword,, forth
+word	forthword,,, forth
 _forthword:
 	.quad	lit, _exec
 	.quad	here
@@ -457,14 +500,14 @@ _forthword:
 
 # :: ( "<name>" -- )
 # Synonym for HEADER
-word	coloncolon, "::", forth
+word	coloncolon, "::",, forth
 _coloncolon:
 	.quad	header
 	.quad	exit
 
 # : ( "<name>" -- )
 # Creates a Forth word
-word	colon, ":", forth
+word	colon, ":",, forth
 _colon:
 	.quad	header
 	.quad	forthword
@@ -568,7 +611,6 @@ _dot:
 	dec	rtmp
 	jnz	1b
 
-	call	_drop
 	mov	rtop, 0x30
 	call	_emit
 	jmp	9f
@@ -602,6 +644,13 @@ _dot:
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
 _quit_:
+	call	_dup
+	mov	rtop, rstack
+	call	_dot
+	call	_dup
+	mov	rtop, rsp
+	call	_dot
+
 	call	_bl_
 	call	_word
 	call	_drop
@@ -611,8 +660,19 @@ _quit_:
 	mov	rwork, rtop
 	call	_drop
 
+	#push	rstate
+	mov	rstate, qword ptr [_state]
+
+	#push	rnext
+	#lea	rnext, qword ptr [_quit_ret]
 	pop	rtmp
 	jmp	_doxt
+
+_quit_ret:
+	pop	rnext
+	pop	rstate
+
+	jmp	9f
 
 	2:
 	call	_drop
@@ -632,9 +692,10 @@ _quit_:
 
 # QUIT
 # Interpret loop
-word	quit,, forth
+word	quit,,, forth
 	.quad	quit_
-	.quad	jump, -3
+	.quad	interpreting_
+	.quad	jump, -4
 
 # BYE
 # Returns to OS
@@ -645,20 +706,20 @@ _bye:
 	mov	rax, 60
 	syscall
 
-word	word1,, forth
+word	word1,,, forth
 _word1:
 	.quad	lit, 0x41, emit
 	.quad	word2
 	.quad	exit	
 			
-word	word2,, forth
+word	word2,,, forth
 _word2:
 	.quad	lit, 0x42, emit
 	.quad	exit
 
 # COLD
 # Cold start (in fact, just a test word that runs first)
-word	cold,, forth
+word	cold,,, forth
 _cold:
 	.quad	lit, 0x39
 	.quad	lit, 0x38
