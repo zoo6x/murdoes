@@ -37,6 +37,9 @@ _start:
 	/* TODO: In "hardened" version map stacks to separate pages, with gaps between them */
 	lea	rstack0, [rsp - 0x1000]
 	xor	rstack, rstack
+	lea	rwork, [rsp - 0x2000]
+	mov	qword ptr [_tib], rwork
+	xor	rwork, rwork
 	push	rpc
 
 # Address Interpreter and Compiler
@@ -65,6 +68,9 @@ _noop:
 	.p2align	3, 0x90
 _state:
 	.quad	INTERPRETING
+
+_tib:
+	.quad	0
 
 # Word definition
 
@@ -327,16 +333,18 @@ _count:
 	ret
 
 # WORD ( c "<chars>ccc<char>" -- c-addr )
-# Reads char-separated word from stdin, places it as a byte-counted string at HERE, aligns HERE at 16 bytes before that
+# Reads char-separated word from stdin, places it as a byte-counted string at TIB
 word	word,,, code, _word
 _word:
-	call	_align
-	mov	rtmp, rhere
+	mov	rtmp, qword ptr [_tib]
 	push	rbx
 
 	mov	rbx, rtop
 	call	_drop
 
+	push	rdi
+	mov	rdi, rtmp
+	mov	rtmp, 0
 	xor	al, al
 	stosb
 	1:
@@ -351,18 +359,19 @@ _word:
 	je	2f
 	mov	rax, rtop
 	stosb
+	inc	rtmp
 	call	_drop
 	jmp	1b
 
 	2:
-	mov	rwork, rhere
-	sub	rwork, rtmp
-	dec	rwork
-	mov	byte ptr [rtmp], al	
+	pop	rdi
 
-	mov	rhere, rtmp
+	mov	al, dl
+	mov	rtmp, qword ptr [_tib]
+	push	rtmp
+	mov	byte ptr [rtmp], al
 
-	mov	rtop, rhere
+	pop	rtop
 
 	pop	rbx
 	ret
@@ -378,20 +387,25 @@ _header:
 	test	rtop, rtop
 	jz	6f
 
+	push	rsi
+	mov	rtmp, rtop	# count
+	inc	rtmp
+	mov	rsi, qword ptr [_tib]
+
 	call	_drop
 	call	_drop
-	# TODO: ASSERT(rtop == rhere)
-	cmp	rhere, rtop
-	jz	0f
-	int3
+	mov	rcx, rtmp
+	call	_align
+	mov	rwork, rhere
+	rep	movsb		# copy name from TIB to HERE
+
+	pop	rsi
 
 	0:
-	movzx	rax, byte ptr [rtop] # name
-	add	rhere, rax
-	add	rhere, 0xf
-	and	rhere, -16
+	add	rhere, rtmp
+	call	_align
 
-	mov	qword ptr [rhere], rtop		# NFA
+	mov	qword ptr [rhere], rwork	# NFA
 	add	rhere, 8
 	mov	qword ptr [rhere], rlatest	# LFA
 	add	rhere, 8
@@ -514,7 +528,7 @@ _colon:
 	.quad	exit
 
 # FIND ( -- xt | 0 )
-# Searches for word name, placed at HERE, in the vocabulary
+# Searches for word name, placed at TIB, in the vocabulary
 word	find
 _find:
 	call	_dup
@@ -524,7 +538,7 @@ _find:
 	push	rbx
 
 	mov	rtmp, rlatest
-	mov	rbx, rhere
+	mov	rbx, qword ptr [_tib]
 
 	1:
 	test	rtmp, rtmp
@@ -644,13 +658,14 @@ _dot:
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
 _quit_:
+	/*
 	call	_dup
 	mov	rtop, rstack
 	call	_dot
 	call	_dup
 	mov	rtop, rsp
 	call	_dot
-
+	*/
 	call	_bl_
 	call	_word
 	call	_drop
@@ -675,8 +690,7 @@ _quit_ret:
 	jmp	9f
 
 	2:
-	call	_drop
-	call	_here
+	mov	rtop, qword ptr [_tib]
 	call	_number
 	test	rtop, rtop
 	jz	6f
