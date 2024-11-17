@@ -696,6 +696,16 @@ _quit_ret:
 	jz	6f
 
 	call	_drop
+	# TODO: Explicit STATE check in NUMBER, move to compilation CFA
+	cmp	qword ptr [_state], COMPILING
+	jne	9f
+
+	lea	rax, qword ptr [lit]
+	stosq
+	mov	rax, rcx
+	stosq
+	call	_drop
+
 	jmp	9f
 
 	6:
