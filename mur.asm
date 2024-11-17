@@ -658,14 +658,6 @@ _dot:
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
 _quit_:
-	/*
-	call	_dup
-	mov	rtop, rstack
-	call	_dot
-	call	_dup
-	mov	rtop, rsp
-	call	_dot
-	*/
 	call	_bl_
 	call	_word
 	call	_drop
@@ -675,19 +667,10 @@ _quit_:
 	mov	rwork, rtop
 	call	_drop
 
-	#push	rstate
 	mov	rstate, qword ptr [_state]
 
-	#push	rnext
-	#lea	rnext, qword ptr [_quit_ret]
 	pop	rtmp
 	jmp	_doxt
-
-_quit_ret:
-	pop	rnext
-	pop	rstate
-
-	jmp	9f
 
 	2:
 	mov	rtop, qword ptr [_tib]
