@@ -138,6 +138,12 @@ _tib:
 # Words
 .p2align	4, 0x90
 
+# DUMMY
+# For breakpoints
+word	dummy
+_dummy:
+	ret
+
 # EXIT
 # Exit current Forth word and return the the caller
 word	exit,,, exit, 0
@@ -235,7 +241,11 @@ _read:
 	mov	rax, 0x0	# sys_read
 	syscall
 	pop	rtop
+	cmp	rtop, 0x0	# ^D
+	jne	9f
+	jmp	_bye
 
+	9:
 	pop	rdi
 	pop	rsi
 	ret
@@ -359,32 +369,52 @@ _word:
 	call	_drop
 	push	rtmp
 	call	_read
+.ifdef	DEBUG
+	call	_dup
+	call	_emit
+.endif
 	pop	rtmp
 	cmp	rtop, rbx
 	je	1b
 	cmp	rtop, 0xa
-	je	1b
-	jmp	3f
+	je	7f
+	cmp	rtop, 0x9
+	je	2f
+	jmp	5f
 
 	2:
-	push	rtmp
-	call	_read
-	pop	rtmp
-	cmp	rtop, rbx
-	je	5f
-	cmp	rtop, 0xa
-	je	5f
-	cmp	rtop, 0x9
-	je	5f
+	cmp	rbx, 0x20
+	je	1b
+	jmp	5f
 
 	3:
+	push	rtmp
+	call	_read
+.ifdef	DEBUG
+	call	_dup
+	call	_emit
+.endif
+	pop	rtmp
+	cmp	rtop, rbx
+	je	7f
+	cmp	rtop, 0xa
+	je	7f
+	cmp	rtop, 0x9
+	je	4f
+	jmp	5f
+
+	4:
+	cmp	rbx, 0x20
+	je	7f
+
+	5:
 	mov	rax, rtop
 	stosb
 	inc	rtmp
 	call	_drop
-	jmp	2b
+	jmp	3b
 
-	5:
+	7:
 	pop	rdi
 
 	mov	al, dl
@@ -522,7 +552,7 @@ _does:
 
 # CODEWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a code word
-word	codeword,,, forth
+word	codeword, "code",, forth
 _codeword:
 	.quad	lit, _code
 	.quad	here
@@ -712,7 +742,7 @@ _quit_:
 	call	_word
 	call	_count
 	or	rtop, rtop
-	jz	9f
+	jz	7f
 	call	_drop
 	call	_drop
 	call	_find
@@ -759,6 +789,10 @@ _quit_:
 	call	_type
 	jmp	_abort
 
+	7:
+	call	_drop
+	call	_drop
+
 	9:
 	ret
 _quit_errm1:
@@ -796,6 +830,17 @@ _qcsp_errm:
 	.byte _qcsp_errm$ - _qcsp_errm - 1
 	.ascii	"\r\n\x1b[31mERROR! \x1b[33m\x1b[7m Stack underflow \x1b[0m\r\n"
 _qcsp_errm$:
+
+# .\ ( "ccc<EOL>" -- )
+# Prints string till the end of line
+word	dot_comment, ".\\"
+_dot_comment:
+	call	_dup
+	mov	rtop, 0
+	call	_word
+	call	_count
+	call	type
+	ret
 
 # BYE
 # Returns to OS
