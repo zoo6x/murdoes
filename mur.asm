@@ -28,10 +28,11 @@
 # Initialization
 
 _start:
-	xor	rtop, rtop
-	xor	rstate, rstate
 	lea	rlatest, last
 	lea	rhere, here0
+_abort:
+	xor	rtop, rtop
+	xor	rstate, rstate
 	lea	rpc, qword ptr [_cold]
 	lea	rnext, qword ptr [_next]
 	/* TODO: In "hardened" version map stacks to separate pages, with gaps between them */
@@ -449,10 +450,10 @@ _header:
 	jmp	9f
 
 	6:
-	# TODO: ABORT
 	lea	rtop, qword ptr [_header_errm]
 	call	_count
 	call	_type
+	jmp	_abort
 
 	call	_drop
 	call	_drop
@@ -462,7 +463,7 @@ _header:
 
 _header_errm:
 	.byte _header_errm$ - _header_errm - 1
-	.ascii	"\r\n\x1b[31mERROR! \x1b[0m\x1b[7m\x1b[1m\x1b[33mRefusing to create word header with empty name\x1b[0m\r\n"
+	.ascii	"\r\n\x1b[31mERROR! \x1b[0m\x1b[7m\x1b[1m\x1b[33m Refusing to create word header with empty name \x1b[0m\r\n"
 _header_errm$:
 
 
@@ -745,7 +746,6 @@ _quit_:
 	jmp	9f
 
 	6:
-	# TODO: ABORT
 	lea	rtop, qword ptr [_quit_errm1]
 	call	_count
 	call	_type
@@ -757,6 +757,7 @@ _quit_:
 	lea	rtop, qword ptr [_quit_errm2]
 	call	_count
 	call	_type
+	jmp	_abort
 
 	9:
 	ret
@@ -774,14 +775,33 @@ _quit_errm2$:
 word	quit,,, forth
 	.quad	quit_
 	.quad	interpreting_
-	.quad	branch, -4
+	.quad	qcsp
+	.quad	branch, -5
+
+# ?CSP ( -- )
+# Aborts on stack underflow
+word	qcsp, "?csp"
+_qcsp:
+	cmp	rstack, 0
+	jle	9f
+
+	lea	rtop, qword ptr [_qcsp_errm]
+	call	_count
+	call	_type
+	jmp	_abort
+
+	9:
+	ret
+_qcsp_errm:
+	.byte _qcsp_errm$ - _qcsp_errm - 1
+	.ascii	"\r\n\x1b[31mERROR! \x1b[33m\x1b[7m Stack underflow \x1b[0m\r\n"
+_qcsp_errm$:
 
 # BYE
 # Returns to OS
 word	bye
 _bye:
 	mov	rdi, 42
-
 	mov	rax, 60
 	syscall
 
