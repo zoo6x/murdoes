@@ -295,6 +295,10 @@ _words:
 	pop	rdi
 	pop	rsi
 	pop	rtop
+
+	call	_dup
+	mov	rtop, 0xa
+	call	_emit
 	ret
 
 # BL ( -- c )
