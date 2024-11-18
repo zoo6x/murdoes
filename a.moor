@@ -1,0 +1,34 @@
+: _ drop ;
+: | dup ;
+
+: norm	1b emit 5b emit 30 emit 6d emit ;
+: blue	1b emit 5b emit 33 emit 34 emit 6d emit ;
+
+
+: \ 0 word _ ;
+: .\ 0 word count blue type norm 0a emit ;
+
+.\ Simple x64 Assembler
+here .
+: ` c, ;
+
+\ Register assignment. Should be changed if register aliases are changed
+: r0 01 ;	\ rcx = rtop
+: r1 02 ;	\ rdx = rtmp
+: r2 00 ;	\ rax = rwork
+: #1 0 ;	\ Offset of the second stack item
+: #2 8 ;	\ Offset of the third stack item
+
+: rex,	48 ` ;
+: rex1,	49 ` ;
+
+: ret,	c3 ` ;					\ ( -- )	ret
+: lsl,	rex, c1 ` e1 ` ` ;			\ ( n -- )	shl	r0, n
+: orr,	rex, 83 ` c9 ` ` ;			\ ( n -- )	or	r0, n
+:: lsl#3  code 	3 lsl, 	ret,			\ ( -- )	shl	r0, 3
+
+: load/store, rex1, ` lsl#3 44 orr, ef ` ` ;	\ ( ls r # -- ) mov	Rr <=> [S+#]
+: load,  89 load/store, ;			\ ( r # -- )	mov	Rr, [S+#]
+: store, 8b load/store, ;			\ ( r # -- )	mov	[S+#], Rr
+
+
