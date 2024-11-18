@@ -352,23 +352,38 @@ _word:
 	mov	rtmp, 0
 	xor	al, al
 	stosb
+
+	call	_dup
 	1:
+	call	_drop
 	push	rtmp
 	call	_read
 	pop	rtmp
 	cmp	rtop, rbx
-	je	2f
+	je	1b
 	cmp	rtop, 0xa
-	je	2f
+	je	1b
+	jmp	3f
+
+	2:
+	push	rtmp
+	call	_read
+	pop	rtmp
+	cmp	rtop, rbx
+	je	5f
+	cmp	rtop, 0xa
+	je	5f
 	cmp	rtop, 0x9
-	je	2f
+	je	5f
+
+	3:
 	mov	rax, rtop
 	stosb
 	inc	rtmp
 	call	_drop
-	jmp	1b
+	jmp	2b
 
-	2:
+	5:
 	pop	rdi
 
 	mov	al, dl
@@ -698,6 +713,7 @@ _quit_:
 	or	rtop, rtop
 	jz	9f
 	call	_drop
+	call	_drop
 	call	_find
 	test	rtop, rtop
 	jz	2f
@@ -733,9 +749,11 @@ _quit_:
 	lea	rtop, qword ptr [_quit_errm1]
 	call	_count
 	call	_type
+	call	_dup
 	mov	rtop, qword ptr [_tib]
 	call	_count
 	call	_type
+	call	_dup
 	lea	rtop, qword ptr [_quit_errm2]
 	call	_count
 	call	_type
