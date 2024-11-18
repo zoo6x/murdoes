@@ -128,22 +128,11 @@ _tib:
 	.quad	\param
 .endif
 
-
 	# TODO: Add a "canary"/hash to make sure an XT is actually an XT
 \name\():
 	latest_word = .
 	latest_name = _\name
 .endm
-
-# Data stack access
-.macro	load	reg, i
-	mov	\reg, qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)]
-.endm
-
-.macro	store	regval, i
-	mov	qword ptr [rstack0 + rstack * 8 + 8 * (\i - 1)], \regval
-.endm
-
 
 # Words
 .p2align	4, 0x90
@@ -155,7 +144,7 @@ word	exit,,, exit, 0
 # DUP ( a -- a a )
 word	dup
 _dup:
-	store	rtop, 1
+	mov	qword ptr [rstack0 + rstack * 8], rtop
 	dec	rstack
 	ret
 
@@ -163,7 +152,7 @@ _dup:
 word	drop
 _drop:
 	inc	rstack
-	load	rtop, 1
+	mov	rtop, qword ptr [rstack0 + rstack * 8]
 	ret
 
 # LIT ( -- n )
@@ -258,7 +247,8 @@ _type:
 	push	rdi
 
 	mov	rtmp, rtop	# count
-	load	rsi, 1		# buffer
+	call	_drop
+	mov	rsi, rtop
 	mov	rax, 0x1
 	mov	rdi, 0x1
 	syscall
@@ -266,7 +256,6 @@ _type:
 	pop	rdi
 	pop	rsi
 	
-	call	_drop
 	call	_drop
 
 	ret
@@ -339,11 +328,9 @@ _c_comma:
 word	count
 _count:
 	mov	rwork, rtop
-	#TODO: Looks wrong, seems to damage 2nd element in the stack
-	inc	rwork
-	store	rwork, 1
-	dec	rstack
-	movzx	rtop, byte ptr [rtop]
+	inc	rtop
+	call	_dup
+	movzx	rtop, byte ptr [rwork]
 	ret
 
 # WORD ( c "<chars>ccc<char>" -- c-addr )
@@ -444,12 +431,21 @@ _header:
 
 	6:
 	# TODO: ABORT
-	call	_drop
+	lea	rtop, qword ptr [_header_errm]
+	call	_count
+	call	_type
+
 	call	_drop
 	call	_drop
 
 	9:
 	ret
+
+_header_errm:
+	.byte _header_errm$ - _header_errm - 1
+	.ascii	"\r\n\x1b[31mERROR! \x1b[0m\x1b[7m\x1b[1m\x1b[33mRefusing to create word header with empty name\x1b[0m\r\n"
+_header_errm$:
+
 
 # LATEST ( -- xt )
 # Returns the latest defined word
@@ -694,6 +690,9 @@ word	quit_, "(quit)"
 _quit_:
 	call	_bl_
 	call	_word
+	call	_count
+	or	rtop, rtop
+	jz	9f
 	call	_drop
 	call	_find
 	test	rtop, rtop
@@ -727,9 +726,26 @@ _quit_:
 
 	6:
 	# TODO: ABORT
-	call	_drop
+	lea	rtop, qword ptr [_quit_errm1]
+	call	_count
+	call	_type
+	mov	rtop, qword ptr [_tib]
+	call	_count
+	call	_type
+	lea	rtop, qword ptr [_quit_errm2]
+	call	_count
+	call	_type
+
 	9:
 	ret
+_quit_errm1:
+	.byte _quit_errm1$ - _quit_errm1 - 1
+	.ascii	"\r\n\x1b[31mERROR! \x1b[0m\x1b[33mWord \x1b[1m\x1b[7m "
+_quit_errm1$:
+_quit_errm2:
+	.byte _quit_errm2$ - _quit_errm2 - 1
+	.ascii	" \x1b[27m\x1b[22m not found, or invalid hex number\x1b[0m\r\n"
+_quit_errm2$:
 
 # QUIT
 # Interpret loop
