@@ -4,31 +4,60 @@
 : norm	1b emit 5b emit 30 emit 6d emit ;
 : blue	1b emit 5b emit 33 emit 34 emit 6d emit ;
 
-
 : \ 0 word _ ;
 : .\ 0 word count blue type norm 0a emit ;
+: cr 0a emit ;
 
-.\ Simple x64 Assembler
-here .
 : ` c, ;
 
 \ Register assignment. Should be changed if register aliases are changed
 : r0 01 ;	\ rcx = rtop
 : r1 02 ;	\ rdx = rtmp
-: r2 00 ;	\ rax = rwork
-: #1 0 ;	\ Offset of the second stack item
-: #2 8 ;	\ Offset of the third stack item
+: #1 8 ;	\ Offset of the second stack item
+: #2 10 ;	\ Offset of the third stack item
 
 : rex,	48 ` ;
 : rex1,	49 ` ;
 
-: ret,	c3 ` ;					\ ( -- )	ret
-: lsl,	rex, c1 ` e1 ` ` ;			\ ( n -- )	shl	r0, n
-: orr,	rex, 83 ` c9 ` ` ;			\ ( n -- )	or	r0, n
-:: lsl#3  code 	3 lsl, 	ret,			\ ( -- )	shl	r0, 3
+: ret,	c3 ` ;							\ ( -- )		ret
 
-: load/store, rex1, ` lsl#3 44 orr, ef ` ` ;	\ ( ls r # -- ) mov	Rr <=> [S+#]
-: load,  89 load/store, ;			\ ( r # -- )	mov	Rr, [S+#]
-: store, 8b load/store, ;			\ ( r # -- )	mov	[S+#], Rr
+:: 1+	code rex, ff ` c1 ` ret,				\ ( n -- n+1)		inc	r0
+:: 1-	code rex, ff ` c9 ` ret,				\ ( n -- n-1)		dec	r0
+
+: shl1,    rex, c1 ` e2 ` ` ;					\ ( n -- )		shl	r0, n
+:: shl1#3  code	3 shl1,	ret,					\ ( -- )		shl	r1, 3
+
+: off,     rex, ff ` c5 ` ;					\ ( -- )		inc	rstack
+:: off     code off, ret,					\ ( a b -- b )
+
+: (load,   rex1, 8b ` ;
+: (store,  rex1, 89 ` ;
+: load),   ef ` ` ;
+: store),  ef ` ` ;
+: load1,   (load, 54 ` #1 load), ;					\ ( -- )		mov	r1, [S+8]
+:: load1   code load1, ret,
+
+: (or),    rex, 09 ` ;
+: or01,    (or), d1 ` ;						\ ( -- )		or	r0, r1
+:: or01    code or01, ret,
+: or,	   (or), c0 load1 shl1#3 or01 off load1 or01 off ` ;	\ ( rd rs -- )		or	Rd, Rs
+:: or	   code load1, r0 r1 or, off, ret,
+
+: (mov),   rex, 89 ` ;
+: mov,     (mov), c0 load1 shl1#3 or01 off load1 or01 off ` ;	\ ( rd rs -- )		mov	Rd, Rs
+
+: shl,     rex, d3 ` e0 or ` ;					\ ( rd -- )		shl	Rd, cl
+:: shl     code load1, r1 shl, r0 r1 mov, off, ret,		\ ( n u -- u<<n )	mov	r1, [S+8] ; shl r1, r0l ; mov r0, r1 ; inc rstack	
+
+: (add),   rex, 01 ` ;
+: add,     (add), 3 shl c0 or r0 or ` ;				\ ( rs -- )		add	r0, rs
+:: +       code load1, r1 add, off, ret,			\ ( n1 n2 -- n1+n2 )	mov	r1, [S+8] ; add r0, r1 ; inc rstack
+
+: load,    (load,  3 shl 44 or ` load), ; 			\ ( # rd -- )		mov	Rd, [S+#]
+: store,   (store, 3 shl 44 or ` store), ;		 	\ ( # rs -- )		mov	[S+#], Rs
+
+:: ><      code #1 r1 load, #1 r0 store, r0 r1 mov, ret,	\ ( a b -- b a )
+
+
 
 
