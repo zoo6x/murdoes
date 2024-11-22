@@ -842,6 +842,33 @@ _dot_comment:
 	call	type
 	ret
 
+# DUMP ( a u -- )
+# Prints hexadecimal bytes at address
+word	dump
+_dump:
+	mov	rtmp, rtop	# count
+	call	_drop
+	mov	rwork, rtop	# address
+
+	1:
+	test	rtmp, rtmp
+	jz	9f
+
+	call	_dup
+	movzx	rtop, byte ptr [rwork]
+	push	rwork
+	push	rtmp
+	call	_dot
+	pop	rtmp
+	pop	rwork
+	dec	rtmp
+	inc	rwork
+	jmp	1b
+
+	9:
+	call	_drop
+	ret
+
 # BYE
 # Returns to OS
 word	bye
