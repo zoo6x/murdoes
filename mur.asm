@@ -200,6 +200,20 @@ _branch:
 	lea	rpc, [rpc + rwork * 8]
 	ret
 
+# ?BRANCH ( -- )
+# Changes PC by compiled offset (in cells) if top element is not zero
+word	qbranch, "?branch"
+_qbranch:
+	lodsq
+	test	rtop, rtop
+	jz	9f
+
+	lea	rpc, [rpc + rwork * 8]
+
+	9:
+	call	_drop
+	ret
+
 # COMPILE ( -- )
 # Compiles the next address in the threaded code into current definition
 word	compile
@@ -974,8 +988,6 @@ _bye:
 # Cold start (in fact, just a test word that runs first)
 word	cold,,, forth
 _cold:
-	.quad	lit, 42
-	.quad	emit
 	.quad	quit
 	.quad	bye
 
