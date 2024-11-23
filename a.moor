@@ -71,10 +71,18 @@
 
 :: !       code #1 r1 load, rex, 89 ` 11 ` off, off, ret,	\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack
 
-create aaa 12345 ,
-aaa .. here .. aaa 8 dump
-aaa @ ..
-98765 aaa !
-aaa @ ..
+\ Variables and constants
+: var , does> ;
+: val , does> @ ;
+
+:: a 12345 var
+:: b 98765 val
+
+a | . @ .
+b | . a !
+a | . @ .
+
+
+
 
 
