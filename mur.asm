@@ -11,6 +11,7 @@
 	.equ	STATES, 16	/* Number of possible address interpreter states */
 	.equ	INTERPRETING, 0
 	.equ	COMPILING, -2
+	.equ	DECOMPILING, -4
 
 	/* Before changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc. */
 	/* TODO: define low byte aliases for needed address interpreter regsters */
@@ -87,7 +88,7 @@ _tib:
 
 	latest_word	= 0
 
-.macro	reserve_cfa does, reserve=(STATES - 2)
+.macro	reserve_cfa does, reserve=(STATES - 3)
 	# Execution semantics can be either code or Forth word
 	# Compilation semantics inside Forth words is the same: compile adress of XT
 	# Semantics for other states does nothing by default
@@ -112,6 +113,15 @@ _tib:
 	.quad	latest_word	/* LFA */
 
 	reserve_cfa
+
+	# DECOMPILATION
+.ifc "\does", "forth"
+	.quad	_decomp
+	.quad	0
+.else
+	.quad	_call
+	.quad	_decomp2
+.endif
 
 	# COMPILATION
 .ifc	"\immediate", "immediate"
@@ -346,6 +356,59 @@ _words:
 	mov	rtop, 0xa
 	call	_emit
 	ret
+
+# SEE ( -- )
+# Sets STATE to DECOMPILING
+word	see
+_see:
+	mov	qword ptr [_state], DECOMPILING
+	ret
+
+# DECOMP ( -- )
+# Decompile XT being currently interpreted
+_decomp:
+	cmp	qword ptr [_decompiling], 1
+	je	1f
+	push	rpc
+	mov	rpc, rwork # [rwork + rstate * 8 - 16 + 8]
+	mov	qword ptr [_decompiling], 1
+	jmp	7f
+	1:
+	call	_dup
+	mov	rtop, rpc
+	sub	rtop, 8
+	push	rwork
+	call	_dot
+	pop	rwork
+	mov	rtop, rwork
+	call	_dup
+	call	_dot
+	call	_dup
+	mov	rtop, [rtop - STATES * 16 - 16]	# NFA
+	call	_count
+	call	_type
+	mov	rtop, 0xa
+	call	_emit
+	7:
+	jmp	rnext
+_decomp2:	
+	call	_dup
+	mov	rtop, rpc
+	sub	rtop, 8
+	push	rwork
+	call	_dot
+	pop	rwork
+	mov	rtop, rwork
+	call	_dup
+	call	_dot
+	call	_dup
+	mov	rtop, [rtop - STATES * 16 - 16]	# NFA
+	call	_count
+	call	_type
+	mov	rtop, 0xa
+	call	_emit
+	ret
+_decompiling:	.quad	0
 
 # BL ( -- c )
 # Returns blank character code
@@ -621,6 +684,12 @@ _codeword:
 	.quad	latest
 	.quad	does
 
+	.quad	lit, _decomp2
+	.quad	lit, _call
+	.quad	lit, DECOMPILING
+	.quad	latest
+	.quad	does
+
 	.quad	exit
 
 # FORTHWORD ( xt -- )
@@ -636,6 +705,12 @@ _forthword:
 	.quad	here
 	.quad	lit, _comp
 	.quad	lit, COMPILING
+	.quad	latest
+	.quad	does
+
+	.quad	lit, 0
+	.quad	lit, _decomp
+	.quad	lit, DECOMPILING
 	.quad	latest
 	.quad	does
 
