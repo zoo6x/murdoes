@@ -97,6 +97,3 @@
 : while    compile ?branch >mark ; immediate
 : repeat   >< compile branch <resolve >resolve ; immediate
 
-
-
-

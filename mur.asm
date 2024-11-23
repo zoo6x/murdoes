@@ -120,8 +120,8 @@ _tib:
 		.quad	_decomp
 		.quad	0
 	.else
-		.quad	_call
-		.quad	_decomp2
+		.quad	_decomp
+		.quad	0
 	.endif
 .else
 	.quad	\decomp
@@ -374,6 +374,7 @@ _see:
 _decomp:
 	cmp	qword ptr [_decompiling], 1
 	je	1f
+_decomp1:
 	push	rpc
 	mov	rpc, rwork # [rwork + rstate * 8 - 16 + 8]
 	mov	qword ptr [_decompiling], 1
@@ -397,31 +398,12 @@ _decomp:
 	call	_emit
 	7:
 	jmp	rnext
-_decomp2:	
-	call	_dup
-	mov	rtop, rpc
-	sub	rtop, 8
-	push	rwork
-	call	_dot
-	pop	rwork
-	call	_dup
-	mov	rtop, rwork
-	call	_dup
-	call	_dot
-	call	_dup
-	mov	rtop, [rtop - STATES * 16 - 16]	# NFA
-	call	_count
-	call	_type
-	mov	rtop, 0xa
-	call	_emit
-	ret
 _decomp_exit:
-	call	_decomp2
 	mov	qword ptr [_decompiling], 0
 	call	_bracket_open
 	call	_interpreting_
 	pop	rpc
-	jmp	rnext
+	jmp	1b
 _decompiling:	.quad	0
 
 # BL ( -- c )
@@ -698,8 +680,8 @@ _codeword:
 	.quad	latest
 	.quad	does
 
-	.quad	lit, _decomp2
-	.quad	lit, _call
+	.quad	lit, 0
+	.quad	lit, _decomp
 	.quad	lit, DECOMPILING
 	.quad	latest
 	.quad	does
