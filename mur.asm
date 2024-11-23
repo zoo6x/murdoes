@@ -62,6 +62,14 @@ _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 - 16 + 8]
 	jmp	rnext
+_does:
+	mov	qword ptr [rstack0 + rstack * 8], rtop
+	dec	rstack
+	mov	rtop, rwork
+	push	rpc
+	mov	rpc, [rwork + rstate * 8 - 16 + 8]
+	add	rpc, 6*8 # Skip words, compiled by DOES>
+	jmp	rnext
 _comp:
 	stosq
 	jmp	rnext
@@ -151,7 +159,7 @@ word	exit,,, exit, 0
 # DUP ( a -- a a )
 word	dup
 _dup:
-	mov	qword ptr [rstack0 + rstack * 8], rtop
+	mov	[rstack0 + rstack * 8], rtop
 	dec	rstack
 	ret
 
@@ -159,7 +167,7 @@ _dup:
 word	drop
 _drop:
 	inc	rstack
-	mov	rtop, qword ptr [rstack0 + rstack * 8]
+	mov	rtop, [rstack0 + rstack * 8]
 	ret
 
 # LIT ( -- n )
@@ -537,7 +545,7 @@ _interpreting_:
 # DOES ( code param state xt -- )
 # Sets semantics for a word defined by XT for given state to a given code:param pair
 word	does
-_does:
+_does1:
 	mov	rwork, rtop
 	call	_drop
 	mov	rtmp, rtop
@@ -589,6 +597,47 @@ _coloncolon:
 	.quad	header
 	.quad	exit
 
+# (CREATE) ( -- xt )
+# Pushes XT of the word being executed into stack
+word	_create_, "(create)"
+__create_:
+	call	_dup
+	mov	rtop, rwork
+	jmp	rnext
+
+# CREATE ( "<name> -- ) ( -- xt )
+# Creates a new definition, which pushes XT in the stack
+word	create,,, forth
+_create:
+	.quad	header
+
+	.quad	lit, __create_
+	.quad	here
+	.quad	lit, INTERPRETING
+	.quad	latest
+	.quad	does
+	.quad	lit, _comp
+	.quad	lit, 0
+	.quad	lit, COMPILING
+	.quad	latest
+	.quad	does
+	.quad	exit
+
+# DOES> ( -- ) ( -- )
+# Defines defining word
+word	does_, "does>", immediate, forth
+_does_:
+	.quad	compile, lit
+	.quad	compile, _does
+	.quad	compile, lit
+	.quad	here, comma
+	.quad	compile, lit
+	.quad	lit, INTERPRETING, comma
+	.quad	compile, latest
+	.quad	compile, does
+	.quad	compile, exit
+	.quad	exit
+
 # : ( "<name>" -- )
 # Creates a Forth word
 word	colon, ":",, forth
@@ -602,8 +651,7 @@ _colon:
 # Finished Forth definition
 word	semicolon, "\x3b", immediate, forth
 _semicolon:
-	.quad	compile
-	.quad	exit
+	.quad	compile, exit
 	.quad	bracket_open
 	.quad	exit
 
