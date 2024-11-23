@@ -51,6 +51,8 @@
 
 : shl,     rex, d3 ` e0 or ` ;					\ ( rd -- )		shl	Rd, cl
 :: shl     code load1, r1 shl, r0 r1 mov, off, ret,		\ ( n u -- u<<n )	mov	r1, [S+8] ; shl r1, r0l ; mov r0, r1 ; inc rstack	
+: sar,     rex, d3 ` f8 or ` ;					\ ( rd -- )		sar	Rd, cl
+:: sar     code load1, r1 sar, r0 r1 mov, off, ret,		\ ( n u -- u>>n )	mov	r1, [S+8] ; sal r1, r0l ; mov r0, r1 ; inc rstack	
 
 : load,    (load,  3 shl 44 or ` load), ; 			\ ( # rd -- )		mov	Rd, [S+#]
 : store,   (store, 3 shl 44 or ` store), ;		 	\ ( # rs -- )		mov	[S+#], Rs
@@ -72,27 +74,15 @@
 :: !       code #1 r1 load, rex, 89 ` 11 ` off, off, ret,	\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack
 
 \ Variables and constants
-: var , does> ;
-: val , does> @ ;
+: var      , does> ;
+: val      , does> @ ;
 
-:: a 12345 var
+\ Control structures
+: cell/	   3 sar ;
 
-2 3 + ..
+: >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
+: >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch
 
-10203040 ..
-
-:: b 98765 val
-
-: qq b .. ;
-qq
-
-: q
-  a | .. @ ..
-  b | .. a !
-  a | .. @ ..
-;
-q
-
-
-
+: <mark    here | .. ;						\ ( -- a )		Address for backward branch fixup
+: <resolve here | .. - | .. cell/ 1- | .. , ;
 
