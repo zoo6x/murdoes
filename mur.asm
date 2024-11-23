@@ -591,6 +591,17 @@ _does1:
 
 	ret
 
+# IMMEDIATE ( -- )
+# Sets latest ord's compilation semantics to execution semantics
+word	immediate
+_immediate:
+	mov	rwork, rlatest
+	lea	rtmp, _run
+	mov	[rwork + COMPILING * 8 - 16], rtmp
+	mov	rtmp, [rwork + INTERPRETING * 8 - 16 + 8]
+	mov	[rwork + COMPILING * 8 - 16 + 8], rtmp
+	ret
+
 # CODEWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a code word
 word	codeword, "code",, forth
