@@ -46,6 +46,9 @@ q
 
 \ Decompiler
 \ see >resolve
-see if
+see repeat
+see while
+see else
+see val
 
 
