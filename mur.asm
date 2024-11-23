@@ -925,6 +925,14 @@ word	dot, "."
 _dot:
 	mov	rtmp, 16
 
+	cmp	rtop, 0
+	jge	1f
+
+	neg	rtop
+	call	_dup
+	mov	rtop, 0x2d
+	call	_emit
+
 	1:
 	rol	rtop, 4
 	test	rtop, 0xf
