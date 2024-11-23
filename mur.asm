@@ -97,7 +97,7 @@ _tib:
 	.endr
 .endm
 
-.macro	word	name, fname, immediate, does=code, param
+.macro	word	name, fname, immediate, does=code, param, decomp, decomp_param
 	.align	16
 \name\()_str0:
 	.byte	\name\()_strend - \name\()_str
@@ -115,12 +115,17 @@ _tib:
 	reserve_cfa
 
 	# DECOMPILATION
-.ifc "\does", "forth"
-	.quad	_decomp
-	.quad	0
+.ifc "\decomp", ""
+	.ifc "\does", "forth"
+		.quad	_decomp
+		.quad	0
+	.else
+		.quad	_call
+		.quad	_decomp2
+	.endif
 .else
-	.quad	_call
-	.quad	_decomp2
+	.quad	\decomp
+	.quad	\decomp_param
 .endif
 
 	# COMPILATION
@@ -169,7 +174,7 @@ _dummy:
 
 # EXIT
 # Exit current Forth word and return the the caller
-word	exit,,, exit, 0
+word	exit,,, exit, 0, _decomp_exit, 0
 
 # DUP ( a -- a a )
 word	dup
@@ -380,6 +385,7 @@ _decomp:
 	push	rwork
 	call	_dot
 	pop	rwork
+	call	_dup
 	mov	rtop, rwork
 	call	_dup
 	call	_dot
@@ -398,6 +404,7 @@ _decomp2:
 	push	rwork
 	call	_dot
 	pop	rwork
+	call	_dup
 	mov	rtop, rwork
 	call	_dup
 	call	_dot
@@ -408,6 +415,13 @@ _decomp2:
 	mov	rtop, 0xa
 	call	_emit
 	ret
+_decomp_exit:
+	call	_decomp2
+	mov	qword ptr [_decompiling], 0
+	call	_bracket_open
+	call	_interpreting_
+	pop	rpc
+	jmp	rnext
 _decompiling:	.quad	0
 
 # BL ( -- c )
@@ -1085,6 +1099,7 @@ word	cold,,, forth
 _cold:
 	.quad	quit
 	.quad	bye
+	.quad	exit # Not needed here, for decompiler only for now
 
 # LATEST
 	.equ	last, latest_word
