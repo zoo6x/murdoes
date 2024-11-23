@@ -34,6 +34,7 @@ _start:
 _abort:
 	xor	rtop, rtop
 	xor	rstate, rstate
+	mov	[_state], rstate
 	lea	rpc, qword ptr [_cold]
 	lea	rnext, qword ptr [_next]
 	/* TODO: In "hardened" version map stacks to separate pages, with gaps between them */
@@ -192,12 +193,27 @@ _drop:
 
 # LIT ( -- n )
 # Pushes compiled literal onto data stack
-word	lit
+word	lit,,,,, _lit_decomp, 0
 _lit:
 	call	_dup
 	lodsq
 	mov	rtop, rax
 	ret
+_lit_decomp:
+	call	_dup
+	mov	rtop, rwork
+	call	_decomp_print
+	call	_dup
+	mov	rtop, 0x9
+	call	_emit
+
+	lodsq
+	call	_dup
+	mov	rtop, rwork
+	call	_dot
+	mov	rtop, 0xa
+	call	_emit
+	jmp	rnext
 
 # LITERAL ( n -- ) IMMEDIATE
 # Compiles a literal
@@ -209,15 +225,33 @@ _literal:
 
 # BRANCH ( -- )
 # Changes PC by compiled offset (in cells)
-word	branch
+word	branch,,,,, _branch_decomp, 0
 _branch:
 	lodsq
 	lea	rpc, [rpc + rwork * 8]
 	ret
+_branch_decomp:
+	call	_dup
+	mov	rtop, rwork
+	call	_decomp_print
+	call	_dup
+	mov	rtop, 0x9
+	call	_emit
+
+	lodsq
+	mov	rtmp, rpc
+	sal	rwork, 3
+	add	rtmp, rwork
+	call	_dup
+	mov	rtop, rtmp
+	call	_dot
+	mov	rtop, 0xa
+	call	_emit
+	jmp	rnext
 
 # ?BRANCH ( f -- )
 # Changes PC by compiled offset (in cells) if top element is not zero
-word	qbranch, "?branch"
+word	qbranch, "?branch",,,, _branch_decomp, 0
 _qbranch:
 	lodsq
 	test	rtop, rtop
@@ -381,19 +415,8 @@ _decomp1:
 	jmp	7f
 	1:
 	call	_dup
-	mov	rtop, rpc
-	sub	rtop, 8
-	push	rwork
-	call	_dot
-	pop	rwork
-	call	_dup
 	mov	rtop, rwork
-	call	_dup
-	call	_dot
-	call	_dup
-	mov	rtop, [rtop - STATES * 16 - 16]	# NFA
-	call	_count
-	call	_type
+	call	_decomp_print
 	mov	rtop, 0xa
 	call	_emit
 	7:
@@ -404,6 +427,18 @@ _decomp_exit:
 	call	_interpreting_
 	pop	rpc
 	jmp	1b
+_decomp_print:
+	call	_dup
+	mov	rtop, rpc
+	sub	rtop, 8
+	call	_dot
+	call	_dup
+	call	_dot
+	call	_dup
+	mov	rtop, [rtop - STATES * 16 - 16]	# NFA
+	call	_count
+	call	_type
+	ret
 _decompiling:	.quad	0
 
 # BL ( -- c )
@@ -1006,6 +1041,7 @@ word	quit,,, forth
 	.quad	interpreting_
 	.quad	qcsp
 	.quad	branch, -5
+	.quad	exit	# Needed here only for decompilation
 
 # ?CSP ( -- )
 # Aborts on stack underflow
