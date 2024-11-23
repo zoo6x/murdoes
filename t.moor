@@ -33,15 +33,17 @@ q
 1 q
 : q 5 [ <mark ] 2a emit 1- | ?branch [ <resolve ] ;
 q
-: q if 31 .. then 39 .. ;
-0 q
-1 q
 : q ?branch [ >mark ]  31 .. branch [ >mark >< >resolve ]  30 .. [ >resolve ]  .. 39 .. ;
 33 1 q
 33 0 q
 : q if 31 .. else 30 .. then .. 39 .. ;
 33 1 q
 33 0 q
+: q 0 begin 2a emit 1+ until 2b emit ;
+q
+: q 5 begin 2a emit 1- | while 2b emit repeat 2a emit ;
+q
 
-33 34 35 >mark | .. >resolve ..  .. ..
+
+
 

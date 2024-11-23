@@ -91,3 +91,12 @@
 : else     compile branch >mark >< >resolve ; immediate
 : then     >resolve ; immediate
 
+: begin    <mark ; immediate
+: until    compile ?branch <resolve ; immediate
+: again    compile branch <resolve ; immediate
+: while    compile ?branch >mark ; immediate
+: repeat   >< compile branch <resolve >resolve ; immediate
+
+
+
+
