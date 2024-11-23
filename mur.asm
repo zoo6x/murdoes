@@ -878,25 +878,34 @@ _find:
 word	number
 _number:
 	push	rsi
+	push	rbx
+	xor	rbx, rbx	# Positive number
 	mov	rsi, rtop
 	movzx	rcx, byte ptr [rtop]
 	test	rcx, rcx
-	jz	6f
+	jz	8f
 
 	xor	rtmp, rtmp
 	xor	rwork, rwork
 	inc	rsi
 	1:
 	lodsb
+	cmp	bl, 1
+	je	2f
+	cmp	al, 0x2d # "-"
+	jne	2f
+	inc	bl
+	jmp	5f
+	2:
 	cmp	al, 0x30
-	jb	6f
+	jb	8f
 	cmp	al, 0x39
 	jbe	3f
 	or	al, 0x20
 	cmp	al, 0x61
-	jb	6f
+	jb	8f
 	cmp	al, 0x66
-	ja	6f
+	ja	8f
 	sub	al, 0x61 - 10
 	jmp	4f
 	3:
@@ -904,18 +913,25 @@ _number:
 	4:
 	shl	rtmp, 4
 	add	rtmp, rwork
+	5:
 	dec	rcx
 	jnz	1b
 
 	mov	rtop, rtmp
+	cmp	bl, 1
+	jne	7f
+	neg	rtop
+	7:
 	call	_dup
 	mov	rtop, -1
 	jmp	9f
 
-	6:
+	8:
 	mov	rtop, 0
+	jmp	9f
 
 	9:
+	pop	rbx
 	pop	rsi
 	ret
 
