@@ -18,13 +18,13 @@
 : #1 8 ;	\ Offset of the second stack item
 : #2 10 ;	\ Offset of the third stack item
 
-: rex,	48 ` ;
-: rex1,	49 ` ;
+: rex,     48 ` ;
+: rex1,    49 ` ;
 
-: ret,	c3 ` ;							\ ( -- )		ret
+: ret,     c3 ` ;						\ ( -- )		ret
 
-:: 1+	code rex, ff ` c1 ` ret,				\ ( n -- n+1)		inc	r0
-:: 1-	code rex, ff ` c9 ` ret,				\ ( n -- n-1)		dec	r0
+:: 1+      code rex, ff ` c1 ` ret,				\ ( n -- n+1)		inc	r0
+:: 1-      code rex, ff ` c9 ` ret,				\ ( n -- n-1)		dec	r0
 
 : shl1,    rex, c1 ` e2 ` ` ;					\ ( n -- )		shl	r0, n
 :: shl1#3  code	3 shl1,	ret,					\ ( -- )		shl	r1, 3
@@ -71,7 +71,8 @@
 :: @       code rex, 8b ` 09 ` ret,				\ ( a -- [a] )		mov	r0, [r0]
 :: c@      code rex, 0f ` b6 ` 09 ` ret,			\ ( a -- byte [a] )	movzx	r0, byte ptr [r0]
 
-:: !       code #1 r1 load, rex, 89 ` 11 ` off, off, ret,	\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack
+:: !       code #1 r1 load, rex, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
+           #0 r0 load, ret,					\			mov	r0, [S+8]
 
 \ Variables and constants
 : var      , does> ;
@@ -83,6 +84,10 @@
 : >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
 : >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch
 
-: <mark    here | .. ;						\ ( -- a )		Address for backward branch fixup
-: <resolve here | .. - | .. cell/ 1- | .. , ;
+: <mark    here  ;						\ ( -- a )		Address for backward branch fixup
+: <resolve here  - cell/ 1- , ;
+
+: if       compile ?branch >mark ; immediate
+: else     compile branch >mark >< >resolve ; immediate
+: then     >resolve ; immediate
 

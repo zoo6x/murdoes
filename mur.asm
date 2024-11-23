@@ -200,13 +200,13 @@ _branch:
 	lea	rpc, [rpc + rwork * 8]
 	ret
 
-# ?BRANCH ( -- )
+# ?BRANCH ( f -- )
 # Changes PC by compiled offset (in cells) if top element is not zero
 word	qbranch, "?branch"
 _qbranch:
 	lodsq
 	test	rtop, rtop
-	jz	9f
+	jnz	9f
 
 	lea	rpc, [rpc + rwork * 8]
 
