@@ -524,6 +524,9 @@ _header:
 	lea	rtop, qword ptr [_header_errm]
 	call	_count
 	call	_type
+.ifdef	DEBUG
+	call	_bye
+.endif
 	jmp	_abort
 
 	call	_drop
@@ -905,6 +908,9 @@ _quit_:
 	lea	rtop, qword ptr [_quit_errm2]
 	call	_count
 	call	_type
+.ifdef	DEBUG
+	call	_bye
+.endif
 	jmp	_abort
 
 	7:
@@ -940,6 +946,9 @@ _qcsp:
 	lea	rtop, qword ptr [_qcsp_errm]
 	call	_count
 	call	_type
+.ifdef	DEBUG
+	call	_bye
+.endif
 	jmp	_abort
 
 	9:
