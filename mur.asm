@@ -68,9 +68,9 @@ _does:
 	mov	rtop, rwork
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 - 16 + 8]
-	add	rpc, 6*8 # Skip words, compiled by DOES>
 	jmp	rnext
 _comp:
+	mov	rwork, [rwork + rstate * 8 - 16 + 8]
 	stosq
 	jmp	rnext
 _noop:
@@ -126,7 +126,12 @@ _tib:
 		.quad	\param
 	.endif
 .else
-	.quad	_comp, 0
+	.quad	_comp
+	.ifc	"\param",""
+		.quad	\name
+	.else
+		.quad	\param
+	.endif
 .endif
 
 	# INTERPRETATION
@@ -178,6 +183,14 @@ _lit:
 	lodsq
 	mov	rtop, rax
 	ret
+
+# LITERAL ( n -- ) IMMEDIATE
+# Compiles a literal
+word	literal,, immediate, forth
+_literal:
+	.quad	compile, lit
+	.quad	comma
+	.quad	exit
 
 # BRANCH ( -- )
 # Changes PC by compiled offset (in cells)
@@ -435,6 +448,24 @@ _word:
 	pop	rbx
 	ret
 
+# CFA-ALLOT ( -- )
+# Creates a default multi-CFA section at HERE
+word	cfa_allot, "cfa-allot"
+_cfa_allot:
+	mov	rcx, 16
+	lea	rtmp, qword ptr [_call]
+	lea	rwork, qword ptr [_noop]
+
+	1:
+	mov	qword ptr [rhere], rtmp
+	add	rhere, 8
+	mov	qword ptr [rhere], rwork
+	add	rhere, 8
+	dec	rcx
+	jnz	1b
+
+	ret
+
 # HEADER ( "<name>" -- ) : ( -- )
 # Reads word name from input stream and creates a default header for the new word. The new word does nothing
 word	header
@@ -460,7 +491,6 @@ _header:
 
 	pop	rsi
 
-	0:
 	add	rhere, rtmp
 	call	_align
 
@@ -469,18 +499,7 @@ _header:
 	mov	qword ptr [rhere], rlatest	# LFA
 	add	rhere, 8
 
-	mov	rcx, 16
-	lea	rtmp, qword ptr [_call]
-	lea	rwork, qword ptr [_noop]
-
-	1:
-	mov	qword ptr [rhere], rtmp
-	add	rhere, 8
-	mov	qword ptr [rhere], rwork
-	add	rhere, 8
-	dec	rcx
-	jnz	1b
-
+	call	_cfa_allot
 	call	_drop
 
 	mov	rlatest, rhere	# XT
@@ -521,7 +540,7 @@ _here:
 	mov	rtop, rhere
 	ret
 
-# [ ( -- )
+# [ ( -- ) IMMEDIATE
 # Switches text interpreter STATE to INTERPRETING
 word	bracket_open, "[", immediate
 _bracket_open:
@@ -535,14 +554,14 @@ _bracket_close:
 	mov	qword ptr [_state], COMPILING
 	ret
 
-# (INTERPRETING)
+# (INTERPRETING) IMMEDIATE
 # Switches address interpreter state to INTERPRETING
 word	interpreting_, "(interpreting)", immediate
 _interpreting_:
 	mov	rstate, INTERPRETING
 	ret
 
-# DOES ( code param state xt -- )
+# DOES ( param code state xt -- )
 # Sets semantics for a word defined by XT for given state to a given code:param pair
 word	does
 _does1:
@@ -551,9 +570,9 @@ _does1:
 	mov	rtmp, rtop
 	call	_drop
 
-	mov	qword ptr [rwork + rtmp * 8 - 16 + 8], rtop
-	call	_drop
 	mov	qword ptr [rwork + rtmp * 8 - 16], rtop
+	call	_drop
+	mov	qword ptr [rwork + rtmp * 8 - 16 + 8], rtop
 	call	_drop
 
 	ret
@@ -562,32 +581,36 @@ _does1:
 # Specifies execution semantics for a word specified by XT as a code word
 word	codeword, "code",, forth
 _codeword:
-	.quad	lit, _code
 	.quad	here
+	.quad	lit, _code
 	.quad	lit, INTERPRETING
 	.quad	latest
 	.quad	does
+
+	.quad	here
 	.quad	lit, _comp
-	.quad	lit, 0
 	.quad	lit, COMPILING
 	.quad	latest
 	.quad	does
+
 	.quad	exit
 
 # FORTHWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a forth word with threaded code following at HERE
 word	forthword,,, forth
 _forthword:
-	.quad	lit, _exec
 	.quad	here
+	.quad	lit, _exec
 	.quad	lit, INTERPRETING
 	.quad	latest
 	.quad	does
+
+	.quad	here
 	.quad	lit, _comp
-	.quad	lit, 0
 	.quad	lit, COMPILING
 	.quad	latest
 	.quad	does
+
 	.quad	exit
 
 # :: ( "<name>" -- )
@@ -611,30 +634,52 @@ word	create,,, forth
 _create:
 	.quad	header
 
-	.quad	lit, __create_
 	.quad	here
+	.quad	lit, __create_
 	.quad	lit, INTERPRETING
 	.quad	latest
 	.quad	does
+
+	.quad	here
 	.quad	lit, _comp
-	.quad	lit, 0
 	.quad	lit, COMPILING
 	.quad	latest
 	.quad	does
 	.quad	exit
 
-# DOES> ( -- ) ( -- )
+# (DOES>XT)
+# Internal word that fixes HERE address, depends on DOES> implementation
+word	_does_xt_, "(does>xt)"
+__does_xt_:
+	add	rtop, 3 * 8
+	ret
+
+# (DOES>) ( xt -- )
+# Defines execution and compilation semantics for the latest word
+word	_does_, "(does>)",, forth
+__does_:
+	.quad	_does_xt_
+
+	.quad	lit, _does	
+	.quad	lit, INTERPRETING
+	.quad	latest
+	.quad	does
+
+	.quad	latest
+	.quad	lit, _comp
+	.quad	lit, COMPILING
+	.quad	latest
+	.quad	does
+
+	.quad	exit
+
+# DOES> ( -- ) IMMEDIATE
 # Defines defining word
 word	does_, "does>", immediate, forth
-_does_:
-	.quad	compile, lit
-	.quad	compile, _does
+_does1_:
 	.quad	compile, lit
 	.quad	here, comma
-	.quad	compile, lit
-	.quad	lit, INTERPRETING, comma
-	.quad	compile, latest
-	.quad	compile, does
+	.quad	compile, _does_	
 	.quad	compile, exit
 	.quad	exit
 
@@ -647,7 +692,7 @@ _colon:
 	.quad	bracket_close
 	.quad	exit
 
-# ; ( -- )
+# ; ( -- ) IMMEDIATE
 # Finished Forth definition
 word	semicolon, "\x3b", immediate, forth
 _semicolon:
@@ -929,6 +974,8 @@ _bye:
 # Cold start (in fact, just a test word that runs first)
 word	cold,,, forth
 _cold:
+	.quad	lit, 42
+	.quad	emit
 	.quad	quit
 	.quad	bye
 
