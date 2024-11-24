@@ -1,22 +1,23 @@
-: _ drop ;
-: | dup ;
+: \ 0 word drop ;
+\
+\ Moore Forth System
+\
 
+								\ Comments and debug output
 : norm	1b emit 5b emit 30 emit 6d emit ;
 : blue	1b emit 5b emit 33 emit 34 emit 6d emit ;
-
-: \ 0 word _ ;
 : .\ 0 word count blue type norm 0a emit ;
 : cr 0a emit ;
 : .. blue . norm ;
 
 : ` c, ;
-
-\ Register assignment. Should be changed if register aliases are changed
-: r0 01 ;	\ rcx = rtop
-: r1 02 ;	\ rdx = rtmp
-: #0 0 ;	\ Offset of the first stack item (for DUP)
-: #1 8 ;	\ Offset of the second stack item
-: #2 10 ;	\ Offset of the third stack item
+								\ Register assignment. Should be changed if register aliases are changed
+: r0 01 ;							\ rcx = rtop
+: r1 02 ;							\ rdx = rtmp
+: r2 00 ;							\ rax = rwork
+: #0 0 ;							\ Offset of the first available stack item
+: #1 8 ;							\ Offset of the second stack item
+: #2 10 ;							\ Offset of the third stack item
 
 : rex,     48 ` ;
 : rex1,    49 ` ;
@@ -64,7 +65,13 @@
 :: +       code #1 r1 load, r1 add, off, ret,			\ ( n1 n2 -- n1+n2 )	mov	r1, [S+8] ; add r0, r1 ; inc rstack
 :: -       code #1 r1 load, r1 sub, r0 r1 mov, off, ret,	\ ( n1 n2 -- n1-n2 )	mov	r1, [S+8] ; sub r1, r0 ; mov r0, r1 ; inc rstack
 
-:: ><      code #1 r1 load, #1 r0 store, r0 r1 mov, ret,	\ ( a b -- b a )
+								\ Modern and fancy names for stack manipulation words with visual semantics
+:: _       code #1 r0 load, off, ret,				\ ( a -- )		drop
+:: |       code on, #1 r0 store, ret,				\ ( a -- a a )		dup
+:: ><      code #1 r1 load, #1 r0 store, r0 r1 mov, ret,	\ ( a b -- b a )	swap
+:: >|      code #1 r1 load, on, #1 r0 store, r0 r1 mov, ret,	\ ( a b -- a b a )	over
+:: >>>     code #1 r1 load, #2 r2 load, 			\ ( a b c -- b c a )	rot
+           #2 r1 store, #1 r0 store, r0 r2 mov, ret,
 
 : dup,     #0 r0 store, on, ;
 
