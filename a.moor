@@ -72,6 +72,8 @@
 :: >|      code #1 r1 load, on, #1 r0 store, r0 r1 mov, ret,	\ ( a b -- a b a )	over
 :: >>>     code #1 r1 load, #2 r2 load, 			\ ( a b c -- b c a )	rot
            #2 r1 store, #1 r0 store, r0 r2 mov, ret,
+:: <<<     code	#1 r1 load, #2 r2 load,				\ ( a b c -- c a b )	-rot
+           #2 r0 store, #1 r2 store, r0 r1 mov, ret,
 
 : dup,     #0 r0 store, on, ;
 
