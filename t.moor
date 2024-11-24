@@ -44,7 +44,7 @@ cs2
 : cs3 5 begin 2a emit 1- | while 2b emit repeat 2a emit ;
 cs3
 
-\ Decompiler
+.\ Decompiler
 \ see >resolve
 see repeat
 see while
@@ -54,6 +54,7 @@ see cs1
 see cs2
 see cs3
 
+.\ Stack manipulation words
 98 99 - ..
 33 | .. .. cr
 33 34 42 _ .. .. cr
@@ -62,5 +63,19 @@ see cs3
 
 2 3 >| 1+ 1+ \ 2 3 4
 cr .. .. .. cr
+1 2 >|>| .. .. .. .. 
 
+.\ Assembler
+3 1 2 and .. .. 
+
+
+r2 r2 rex .. 
+r1 r0 rex .. 
+r0 r1 rex .. 
+r0 rbegin rex .. 
+rindex r0 rex .. 
+r2 r2 modrr .. 
+r0 r0 modrr .. 
+r0 r2 modrr .. 
+r2 r0 modrr .. 
 

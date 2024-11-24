@@ -1,24 +1,30 @@
 : \ 0 word drop ; immediate
+: \\ 0 word drop ; immediate
 \
-\ Moore Forth System
+\\ Moore Forth System
 \
 
-								\ Comments and debug output
-: norm	1b emit 5b emit 30 emit 6d emit ;
-: blue	1b emit 5b emit 33 emit 34 emit 6d emit ;
-: .\ 0 word count blue type norm 0a emit ;
-: cr 0a emit ;
-: .. blue . norm ;
+								\\ Comments and debug output
+: norm     1b emit 5b emit 30 emit 6d emit ;
+: blue     1b emit 5b emit 33 emit 34 emit 6d emit ;
+: .\       0 word count blue type norm 0a emit ;
+: cr       0a emit ;
+: ..       blue . norm ;
+								\ Compile single byte
+: `        c, ;
+								\\ Register assignment. Should be changed if register aliases are changed
+: r0       01 ;							\ rcx = rtop
+: r1       02 ;							\ rdx = rtmp
+: r2       00 ;							\ rax = rwork
+: rbegin   0a ;							\ r10 = rbegin
+: rend     0b ;							\ r11 = rend
+: rindex   0c ;							\ r12 = rindex
 
-: ` c, ;
-								\ Register assignment. Should be changed if register aliases are changed
-: r0 01 ;							\ rcx = rtop
-: r1 02 ;							\ rdx = rtmp
-: r2 00 ;							\ rax = rwork
 : #0 0 ;							\ Offset of the first available stack item
 : #1 8 ;							\ Offset of the second stack item
 : #2 10 ;							\ Offset of the third stack item
 
+								\\ Basic assembler for r0-r7. Stack access is hardcoded
 : rex,     48 ` ;
 : rex1,    49 ` ;
 
@@ -44,11 +50,18 @@
 : (or),    rex, 09 ` ;
 : or01,    (or), d1 ` ;						\ ( -- )		or	r0, r1
 :: or01    code or01, ret,
-: or,	   (or), c0 load1 shl1#3 or01 off load1 or01 off ` ;	\ ( rd rs -- )		or	Rd, Rs
+
+: modrm,   c0 load1 shl1#3 or01 off load1 or01 ` ;		\ ( rd rs -- ) Compiles ModR/M byte
+
+: or,	   (or), modrm, ;					\ ( rd rs -- )		or	Rd, Rs
 :: or	   code load1, r0 r1 or, off, ret,
 
+: (and),    rex, 21 ` ;
+: and,	   (and), modrm, ;					\ ( rd rs -- )		and	Rd, Rs
+:: and	   code load1, r0 r1 and, off, ret,
+
 : (mov),   rex, 89 ` ;
-: mov,     (mov), c0 load1 shl1#3 or01 off load1 or01 off ` ;	\ ( rd rs -- )		mov	Rd, Rs
+: mov,     (mov), modrm, ;					\ ( rd rs -- )		mov	Rd, Rs	# s, d <= 7
 
 : shl,     rex, d3 ` e0 or ` ;					\ ( rd -- )		shl	Rd, cl
 :: shl     code load1, r1 shl, r0 r1 mov, off, ret,		\ ( n u -- u<<n )	mov	r1, [S+8] ; shl r1, r0l ; mov r0, r1 ; inc rstack	
@@ -58,6 +71,7 @@
 : load,    (load,  3 shl 44 or ` load), ; 			\ ( # rd -- )		mov	Rd, [S+#]
 : store,   (store, 3 shl 44 or ` store), ;		 	\ ( # rs -- )		mov	[S+#], Rs
 
+								\ Basic subtraction is needed to implement control structures
 : (add),   rex, 01 ` ;
 : (sub),   rex, 29 ` ;
 : add,     (add), 3 shl c0 or r0 or ` ;				\ ( rs -- )		add	r0, Rs
@@ -65,11 +79,12 @@
 :: +       code #1 r1 load, r1 add, off, ret,			\ ( n1 n2 -- n1+n2 )	mov	r1, [S+8] ; add r0, r1 ; inc rstack
 :: -       code #1 r1 load, r1 sub, r0 r1 mov, off, ret,	\ ( n1 n2 -- n1-n2 )	mov	r1, [S+8] ; sub r1, r0 ; mov r0, r1 ; inc rstack
 
-								\ Modern and fancy names for stack manipulation words with visual semantics
+								\\ Stack manipulation words with modern and fancy names not without visual semantics
 : _,       #1 r0 load, off, ;					\ ( a -- )		drop
 : |,       #0 r0 store, on, ;					\ ( a -- a a )		dup
 : ><,      #1 r1 load, #1 r0 store, r0 r1 mov, ;		\ ( a b -- b a )	swap
 : >|,      #1 r1 load, on, #1 r0 store, r0 r1 mov, ;		\ ( a b -- a b a )	over
+: >|>|,    #1 r1 load, on, #1 r0 store, on, #1 r1 store, ;	\ ( a b -- a b a b )	2dup = over over
 : >>>,     #1 r1 load, #2 r2 load,				\ ( a b c -- b c a )	rot
            #2 r1 store, #1 r0 store, r0 r2 mov, ;
 : <<<,     #1 r1 load, #2 r2 load,				\ ( a b c -- c a b )	-rot
@@ -79,21 +94,22 @@
 :: |       code |, ret,
 :: ><      code ><, ret,
 :: >|      code >|, ret,
+:: >|>|    code >|>|, ret,
 :: >>>     code >>>, ret,
 :: <<<     code <<<, ret,
 
-								\ Memory access words
+								\\ Memory access words
 :: @       code rex, 8b ` 09 ` ret,				\ ( a -- [a] )		mov	r0, [r0]
 :: c@      code rex, 0f ` b6 ` 09 ` ret,			\ ( a -- byte [a] )	movzx	r0, byte ptr [r0]
 
 :: !       code #1 r1 load, rex, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
            #0 r0 load, ret,					\			mov	r0, [S+8]
 
-								\ Variables and constants
-: var      , does> ;
-: val      , does> @ ;
+								\\ Variables and constants
+: var      , does> ;						\ :: a 12345 var
+: val      , does> @ ;						\ :: b 98765 val
 
-								\ Control structures
+								\\ Control structures: conditionals
 : cell/	   3 sar ;
 
 : >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
@@ -106,9 +122,22 @@
 : else     compile branch >mark >< >resolve ; immediate
 : then     >resolve ; immediate
 
+								\\ Improved assembler, r0-15 support 
+: rex      08 and if 04 else 00 then ><				\ ( rd rs -- rex )	Returns REX prefix for Rd and Rs
+           08 and if 01 or then 48 or ;
+: modrr    07 and 3 shl >< 07 and or c0 or ;			\ ( rd rs -- modrm )	Returns ModR/M byte for Rd and Rs
+
+								\\ Arithmetic, logic and moves
+
+								\\ Control structures: loops
 : begin    <mark ; immediate
 : until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
 : again    compile branch <resolve ; immediate			\ ... begin ... again ...
 : while    compile ?branch >mark ; immediate
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
+
+: for,     ;
+: for      ; immediate						\ ... n for ... aft ... then ... over ...
+: aft      ; immediate
+: over     ; immediate
 
