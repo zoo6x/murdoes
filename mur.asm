@@ -255,12 +255,26 @@ _branch_decomp:
 	jmp	rnext
 
 # ?BRANCH ( f -- )
-# Changes PC by compiled offset (in cells) if top element is not zero
+# Changes PC by compiled offset (in cells) if top element is zero
 word	qbranch, "?branch",,,, _branch_decomp, 0
 _qbranch:
 	lodsq
 	test	rtop, rtop
 	jnz	9f
+
+	lea	rpc, [rpc + rwork * 8]
+
+	9:
+	call	_drop
+	ret
+
+# -?BRANCH ( f -- )
+# Changes PC by compiled offset (in cells) if top element is not zero
+word	mqbranch, "-?branch",,,, _branch_decomp, 0
+_mqbranch:
+	lodsq
+	test	rtop, rtop
+	jz	9f
 
 	lea	rpc, [rpc + rwork * 8]
 
@@ -879,6 +893,7 @@ _find:
 	pop	rsi
 	ret
 
+# TODO: BUG: Input -?branch causes stack underflow
 # NUMBER ( c-addr -- n -1 | 0 )
 # Parses string as a number (in HEX base)
 word	number
@@ -1165,6 +1180,6 @@ _warm:
 	.equ	last, latest_word
 .align	16
 here0:
-	.rep	0x4000
+	.rep	0x8000
 	.quad	0
 	.endr
