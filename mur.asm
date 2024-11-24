@@ -36,10 +36,11 @@ _start:
 	lea	rlatest, last
 	lea	rhere, here0
 _abort:
+_cold:
 	xor	rtop, rtop
 	xor	rstate, rstate
 	mov	[_state], rstate
-	lea	rpc, qword ptr [_cold]
+	lea	rpc, qword ptr [_warm]
 	lea	rnext, qword ptr [_next]
 	/* TODO: In "hardened" version map stacks to separate pages, with gaps between them */
 	lea	rstack0, [rsp - 0x1000]
@@ -730,7 +731,7 @@ _codeword:
 
 # FORTHWORD ( xt -- )
 # Specifies execution semantics for a word specified by XT as a forth word with threaded code following at HERE
-word	forthword,,, forth
+word	forthword, "fun",, forth
 _forthword:
 	.quad	here
 	.quad	lit, _exec
@@ -1142,10 +1143,20 @@ _bye:
 	mov	rax, 60
 	syscall
 
+# ABORT
+# Reinitializes the system, or quits to OS in debug build
+word	abort
+_abort1:
+.ifdef	DEBUG
+	jmp	_bye
+.else
+	jmp	_abort
+.endif
+
 # COLD
-# Cold start (in fact, just a test word that runs first)
-word	cold,,, forth
-_cold:
+# Cold start
+word	warm,,, forth
+_warm:
 	.quad	quit
 	.quad	bye
 	.quad	exit # Not needed here, for decompiler only for now
