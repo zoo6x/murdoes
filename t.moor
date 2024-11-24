@@ -69,13 +69,25 @@ cr .. .. .. cr
 3 1 2 and .. .. 
 
 
-r2 r2 rex .. 
-r1 r0 rex .. 
-r0 r1 rex .. 
-r0 rbegin rex .. 
-rindex r0 rex .. 
+r2 r2 rexrr.q .. 
+r1 r0 rexrr.q .. 
+r0 r1 rexrr.q .. 
+r0 rbegin rexrr.q .. 
+rindex r0 rexrr.q .. 
+r0 rindex rexrr.q .. 
 r2 r2 modrr .. 
 r0 r0 modrr .. 
 r0 r2 modrr .. 
 r2 r0 modrr .. 
+
+:: q r0 r0 mov, ret,
+13 q .. 
+
+rindex r0 rexrs.q .. 
+r0 rindex rexrs.q .. 
+
+: q for 2a emit over cr ;
+q
+
+.\ Tests finished successfully
 

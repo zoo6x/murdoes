@@ -7,9 +7,12 @@
 								\\ Comments and debug output
 : norm     1b emit 5b emit 30 emit 6d emit ;
 : blue     1b emit 5b emit 33 emit 34 emit 6d emit ;
+: red      1b emit 5b emit 33 emit 31 emit 6d emit ;
 : .\       0 word count blue type norm 0a emit ;
+: abort"   22 word count 0a emit red type norm 0a emit abort ;
 : cr       0a emit ;
 : ..       blue . norm ;
+: ??       dup .. ;
 								\ Compile single byte
 : `        c, ;
 								\\ Register assignment. Should be changed if register aliases are changed
@@ -123,11 +126,69 @@
 : then     >resolve ; immediate
 
 								\\ Improved assembler, r0-15 support 
-: rex      08 and if 04 else 00 then ><				\ ( rd rs -- rex )	Returns REX prefix for Rd and Rs
-           08 and if 01 or then 48 or ;
-: modrr    07 and 3 shl >< 07 and or c0 or ;			\ ( rd rs -- modrm )	Returns ModR/M byte for Rd and Rs
+\\ TODO: need [compile] and " to make this work : rex      abort" REX is now obsolete, use REXn where n=8, 32, 64" ;
+: rex      abort ;						\ Obsolete
+: rex.     40 ;
+: rex.b    rex. ;						\ REX operand size determined by CS.D
+: rex.q    rex. 08 or ;						\ REX specifies 64-bit operands
+: rex?     08 and ;						\ ( r -- f )	 	Checks if R is an extended regsiter (R8-R15)
+: rex.rd   >< rex? if 01 or then ;				\ ( rd rex' -- rex'' )	REX part with Rd bit set
+: rex.rs   >< rex? if 04 or then ;				\ ( rd rex' -- rex'' )	REX part with Rd bit set
+: rexrr.q  rex.q rex.rs rex.rd ;				\ ( rd rs -- rex )	Returns REX prefix for Rd and Rs
+: rexrd.q  rex.q rex.rd ;					\ ( rd -- rex )		Returns REX prefix for Rd
+: rexrs.q  rex.q rex.rs ;					\ ( rs -- rex )		Returns REX prefix for Rs
+: rd       07 and ;						\ ( rd -- modrm' )	Returns ModR/M byte part for Rd
+: rs       07 and 3 shl ;						\ ( rs -- modrm' )	Returns ModR/M byte part for Rs
+: rr       c0 ;							\ (  -- modrm' )	Returns ModR/M byte part for RR
+: modrr    rs >< rd or rr or ;					\ ( rd rs -- modrm )	Returns ModR/M byte for Rd and Rs
+: modro    >< rd or rr or ;					\ ( rd op -- modrm )	Returns ModR/M byte for Rd and opcode
+: instrr   c, does> <<< >|>| rexrr.q ` >>> c@ ` modrr ` ;	\ ( op -- )		( rd rs a -- )
+: instro   c, c, does> >< | rexrd.q ` >< | c@ ?? ` 1+ c@  modro ` ; \ ( op1 op2 -- )	( rd a -- )
+
+								\\ Condition codes and conditional set instructions
+:: .o      00 val
+:: .no     01 val
+:: .b      02 val
+:: .nae    02 val
+:: .nb     03 val
+:: .ae     03 val
+:: .e      04 val
+:: .z      04 val
+:: .ne     05 val
+:: .nz     05 val
+:: .be     06 val
+:: .na     06 val
+:: .nbe    07 val
+:: .a      07 val
+:: .s      08 val
+:: .ns     09 val
+:: .p      0a val
+:: .pe     0a val
+:: .np     0b val
+:: .po     0b val
+:: .l      0c val
+:: .nge    0c val
+:: .nl     0d val
+:: .ge     0d val
+:: .le     0e val
+:: .ng     0e val
+:: .nle    0f val
+:: .g      0f val
+
+:: setf.op 90 val						\ SETF opcode
+: setf,    rex.b ` 0f ` setf.op or ` rd rr or ` ;		\ ( rd cond -- )	set.f	rd
+
 
 								\\ Arithmetic, logic and moves
+:: movzx.op b6 val						\ MOVZX opcode
+: movzx,   rex.q ` 0f ` movzx.op ` modrr ` ;			\ ( rd rs -- )		movzx	rdl, rs
+
+:: mov,    89 instrr						\ ( rd rs -- )		mov	rd, rs	
+
+:: inc,    00 ff instro						\ ( rd -- )		inc	rd
+:: dec,    08 ff instro						\ ( rd -- )		dec	rd
+
+: setnz0,  r0 .nz setf,    48 ` 0f ` b6 ` c9 ` ;		\ 			setnz	cl ; movzx rcx, cl
 
 								\\ Control structures: loops
 : begin    <mark ; immediate
@@ -136,8 +197,10 @@
 : while    compile ?branch >mark ; immediate
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 
-: for,     ;
-: for      ; immediate						\ ... n for ... aft ... then ... over ...
+:: (for)   rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
+:: (over)  , rindex dec, r0 .nz setf, r0 r0 movzx, ret,		\ ( -- )		dup ; dec rindex ; setnz r0l ; movzx r0, r0l
+
+: for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      ; immediate
-: over     ; immediate
+: over     compile (over) compile ?branch <resolve ; immediate
 
