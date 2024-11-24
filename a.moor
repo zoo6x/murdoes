@@ -1,4 +1,4 @@
-: \ 0 word drop ;
+: \ 0 word drop ; immediate
 \
 \ Moore Forth System
 \
@@ -66,28 +66,34 @@
 :: -       code #1 r1 load, r1 sub, r0 r1 mov, off, ret,	\ ( n1 n2 -- n1-n2 )	mov	r1, [S+8] ; sub r1, r0 ; mov r0, r1 ; inc rstack
 
 								\ Modern and fancy names for stack manipulation words with visual semantics
-:: _       code #1 r0 load, off, ret,				\ ( a -- )		drop
-:: |       code on, #1 r0 store, ret,				\ ( a -- a a )		dup
-:: ><      code #1 r1 load, #1 r0 store, r0 r1 mov, ret,	\ ( a b -- b a )	swap
-:: >|      code #1 r1 load, on, #1 r0 store, r0 r1 mov, ret,	\ ( a b -- a b a )	over
-:: >>>     code #1 r1 load, #2 r2 load, 			\ ( a b c -- b c a )	rot
-           #2 r1 store, #1 r0 store, r0 r2 mov, ret,
-:: <<<     code	#1 r1 load, #2 r2 load,				\ ( a b c -- c a b )	-rot
-           #2 r0 store, #1 r2 store, r0 r1 mov, ret,
+: _,       #1 r0 load, off, ;					\ ( a -- )		drop
+: |,       #0 r0 store, on, ;					\ ( a -- a a )		dup
+: ><,      #1 r1 load, #1 r0 store, r0 r1 mov, ;		\ ( a b -- b a )	swap
+: >|,      #1 r1 load, on, #1 r0 store, r0 r1 mov, ;		\ ( a b -- a b a )	over
+: >>>,     #1 r1 load, #2 r2 load,				\ ( a b c -- b c a )	rot
+           #2 r1 store, #1 r0 store, r0 r2 mov, ;
+: <<<,     #1 r1 load, #2 r2 load,				\ ( a b c -- c a b )	-rot
+           #2 r0 store, #1 r2 store, r0 r1 mov, ;
 
-: dup,     #0 r0 store, on, ;
+:: _       code _, ret,
+:: |       code |, ret,
+:: ><      code ><, ret,
+:: >|      code >|, ret,
+:: >>>     code >>>, ret,
+:: <<<     code <<<, ret,
 
+								\ Memory access words
 :: @       code rex, 8b ` 09 ` ret,				\ ( a -- [a] )		mov	r0, [r0]
 :: c@      code rex, 0f ` b6 ` 09 ` ret,			\ ( a -- byte [a] )	movzx	r0, byte ptr [r0]
 
 :: !       code #1 r1 load, rex, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
            #0 r0 load, ret,					\			mov	r0, [S+8]
 
-\ Variables and constants
+								\ Variables and constants
 : var      , does> ;
 : val      , does> @ ;
 
-\ Control structures
+								\ Control structures
 : cell/	   3 sar ;
 
 : >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
@@ -101,8 +107,8 @@
 : then     >resolve ; immediate
 
 : begin    <mark ; immediate
-: until    compile ?branch <resolve ; immediate
-: again    compile branch <resolve ; immediate
+: until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
+: again    compile branch <resolve ; immediate			\ ... begin ... again ...
 : while    compile ?branch >mark ; immediate
-: repeat   >< compile branch <resolve >resolve ; immediate
+: repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 
