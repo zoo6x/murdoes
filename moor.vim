@@ -236,12 +236,14 @@ if get(g:, "forth_no_comment_fold", 0)
       " extension words
     syn match  forthComment '\<\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
     syn match  forthComment2 '\<\\\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
+    syn match  forthComment3 '\<\\\\\sTODO:\>.*$' contains=@Spell,forthTodo,forthSpaceError
     syn match  forthComment2 '\<\.\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
 else
     syn region forthComment start='\<(\>' end=')' contains=@Spell,forthTodo,forthSpaceError fold
       " extension words
     syn match  forthComment '\<\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
     syn match  forthComment2 '\<\\\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
+    syn match  forthComment3 '\<\\\\\sTODO:\>.*$' contains=@Spell,forthTodo,forthSpaceError
     syn match  forthComment2 '\<\.\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
     syn region forthMultilineComment start="^\s*\\\>" end="\n\%(\s*\\\>\)\@!" contains=forthComment transparent fold
 endif
@@ -420,12 +422,15 @@ syn keyword forthString     -TRAILING-GARBAGE
 " Define the default highlighting {{{1
 hi def forthCommentNorm ctermfg=Red
 hi def forthCommentBold ctermfg=Red cterm=bold
+hi def forthCommentTodo ctermfg=Yellow cterm=bold
+hi def forthConditionalBold ctermfg=LightCyan cterm=bold
+
 hi def link forthBoolean Boolean
 hi def link forthCharacter Character
 hi def link forthTodo Todo
 hi def link forthOperators Operator
 hi def link forthMath Number
-hi def link forthInteger Operator
+hi def link forthInteger Character
 hi def link forthFloat Float
 hi def link forthStack Special
 hi def link forthRstack Special
@@ -434,8 +439,8 @@ hi def link forthSP Special
 hi def link forthMemory Function
 hi def link forthAdrArith Function
 hi def link forthMemBlks Function
-hi def link forthCond Conditional
-hi def link forthLoop Repeat
+hi def link forthCond forthConditionalBold
+hi def link forthLoop forthConditionalBold
 hi def link forthColonDef Special
 hi def link forthEndOfColonDef Special
 hi def link forthDefine Special
@@ -449,6 +454,7 @@ hi def link forthEscape Special
 hi def link forthString String
 hi def link forthComment forthCommentNorm
 hi def link forthComment2 forthCommentBold
+hi def link forthComment3 forthCommentTodo
 hi def link forthClassDef Define
 hi def link forthEndOfClassDef Define
 hi def link forthObjectDef Define
