@@ -143,7 +143,7 @@
 : modrr    rs >< rd or rr or ;					\ ( rd rs -- modrm )	Returns ModR/M byte for Rd and Rs
 : modro    >< rd or rr or ;					\ ( rd op -- modrm )	Returns ModR/M byte for Rd and opcode
 : instrr   c, does> <<< >|>| rexrr.q ` >>> c@ ` modrr ` ;	\ ( op -- )		( rd rs a -- )
-: instro   c, c, does> >< | rexrd.q ` >< | c@ ?? ` 1+ c@  modro ` ; \ ( op1 op2 -- )	( rd a -- )
+: instro   c, c, does> >< | rexrd.q ` >< | c@ ` 1+ c@  modro ` ; \ ( op1 op2 -- )	( rd a -- )
 
 								\\ Condition codes and conditional set instructions
 :: .o      00 val
@@ -197,10 +197,10 @@
 : while    compile ?branch >mark ; immediate
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 
-:: (for)   rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
-:: (over)  , rindex dec, r0 .nz setf, r0 r0 movzx, ret,		\ ( -- )		dup ; dec rindex ; setnz r0l ; movzx r0, r0l
+:: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
+:: (over)  code |, rindex dec, r0 rindex mov, ret,		\ ( -- )		dup ; dec rindex ; mov r0, rindex
 
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      ; immediate
-: over     compile (over) compile ?branch <resolve ; immediate
+: over     compile (over) compile -?branch <resolve ; immediate
 

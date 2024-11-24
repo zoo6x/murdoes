@@ -87,7 +87,7 @@ rindex r0 rexrs.q ..
 r0 rindex rexrs.q .. 
 
 : q for 2a emit over cr ;
-q
+5 q
 
 .\ Tests finished successfully
 
