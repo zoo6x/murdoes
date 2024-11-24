@@ -14,8 +14,8 @@
 	.equ	COMPILING, -2
 	.equ	DECOMPILING, -4
 
-	/* Before changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc. */
-	/* TODO: define low byte aliases for needed address interpreter regsters */
+				/* Before changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc. */
+				/* TODO: define low byte aliases for needed address interpreter regsters */
 	.equ	rwork, rax	/* Points to XT in code words. Needs not be preserved */
 	.equ	rtop, rcx
 	.equ	rstate, rbx
@@ -925,6 +925,8 @@ _number:
 	mov	rtop, rtmp
 	cmp	bl, 1
 	jne	7f
+	or	rtop, rtop	# Single "-", "-0", "-0[0...]" is considered an errorneous input
+	jz	8f
 	neg	rtop
 	7:
 	call	_dup
