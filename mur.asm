@@ -1,6 +1,7 @@
 .intel_syntax	noprefix
 
 # TODO: https://wiki.osdev.org/X86-64_Instruction_Encoding
+# https://jacobfilipp.com/DrDobbs/articles/DDJ/1988/8810/8810b/8810b.htm
 # https://www.complang.tuwien.ac.at/forth/fth79std/FORTH-79.TXT
 # https://www.complang.tuwien.ac.at/forth/fth83std/FORTH83.TXT
 # https://forth-standard.org/standard/words
@@ -20,10 +21,13 @@
 	.equ	rstate, rbx
 	.equ	rtmp, rdx	/* Needs not be preserved */
 	.equ	rpc, rsi	/* Do not change! LODSx instructions are used */
+	.equ	rstack, rbp
 	.equ	rhere, rdi	/* Do not change! STOSx instructions are used */
+	.equ	rbegin, r10	/* Loop begin and end values, and index */
+	.equ	rend, r11
+	.equ	rindex, r12
 	.equ	rnext, r13
 	.equ	rlatest, r14
-	.equ	rstack, rbp
 	.equ	rstack0, r15
 
 # Initialization
