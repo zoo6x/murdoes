@@ -107,6 +107,7 @@ syn keyword forthCond ?DUP-0=-IF ?DUP-IF ENDIF
 " iterations {{{2
 syn keyword forthLoop +LOOP BEGIN DO EXIT I J LEAVE LOOP RECURSE REPEAT UNLOOP
 syn keyword forthLoop UNTIL WHILE
+syn keyword forthLoop FOR AFT OVER
   " extension words
 syn keyword forthLoop ?DO AGAIN
 
@@ -234,10 +235,14 @@ if get(g:, "forth_no_comment_fold", 0)
     syn region forthComment start='\<(\>' end=')' contains=@Spell,forthTodo,forthSpaceError
       " extension words
     syn match  forthComment '\<\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
+    syn match  forthComment2 '\<\\\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
+    syn match  forthComment2 '\<\.\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
 else
     syn region forthComment start='\<(\>' end=')' contains=@Spell,forthTodo,forthSpaceError fold
       " extension words
     syn match  forthComment '\<\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
+    syn match  forthComment2 '\<\\\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
+    syn match  forthComment2 '\<\.\\\>.*$' contains=@Spell,forthTodo,forthSpaceError
     syn region forthMultilineComment start="^\s*\\\>" end="\n\%(\s*\\\>\)\@!" contains=forthComment transparent fold
 endif
 
@@ -413,7 +418,8 @@ syn keyword forthConversion XHOLD
 syn keyword forthString     -TRAILING-GARBAGE
 
 " Define the default highlighting {{{1
-hi def forthA ctermfg=Red
+hi def forthCommentNorm ctermfg=Red
+hi def forthCommentBold ctermfg=Red cterm=bold
 hi def link forthBoolean Boolean
 hi def link forthCharacter Character
 hi def link forthTodo Todo
@@ -441,7 +447,8 @@ hi def link forthForth Statement
 hi def link forthVocs Statement
 hi def link forthEscape Special
 hi def link forthString String
-hi def link forthComment forthA
+hi def link forthComment forthCommentNorm
+hi def link forthComment2 forthCommentBold
 hi def link forthClassDef Define
 hi def link forthEndOfClassDef Define
 hi def link forthObjectDef Define
