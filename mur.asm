@@ -483,6 +483,7 @@ _count:
 
 # WORD ( c "<chars>ccc<char>" -- c-addr )
 # Reads char-separated word from stdin, places it as a byte-counted string at TIB
+# TODO: BUG: If \ is the last character on the line (just before 0a), the next line is skipped (?)
 word	word,,, code, _word
 _word:
 	mov	rtmp, qword ptr [_tib]
