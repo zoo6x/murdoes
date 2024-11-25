@@ -205,7 +205,7 @@ syn match forthInteger '\<\$-\=\x\+\.\=\>'
 syn match forthInteger '\<%-\=[01abcdef]\+\.\=\>'
 
 " characters {{{2
-syn match forthCharacter "'\k'"
+"syn match forthCharacter "'\k'"
 
 " strings {{{2
 
@@ -430,7 +430,7 @@ hi def link forthCharacter Character
 hi def link forthTodo Todo
 hi def link forthOperators Operator
 hi def link forthMath Number
-hi def link forthInteger Character
+hi def link forthInteger Comment
 hi def link forthFloat Float
 hi def link forthStack Special
 hi def link forthRstack Special

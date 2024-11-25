@@ -23,9 +23,9 @@
 	.equ	rpc, rsi	/* Do not change! LODSx instructions are used */
 	.equ	rstack, rbp
 	.equ	rhere, rdi	/* Do not change! STOSx instructions are used */
-	.equ	rbegin, r10	/* Loop begin and end values, and index */
-	.equ	rend, r11
-	.equ	rindex, r12
+	.equ	rindex, r10	/* Loop end and index values */
+				/* R11 is clobbered by syscalls ix x64 Linux ABI */
+	.equ	rend, r12
 	.equ	rnext, r13
 	.equ	rlatest, r14
 	.equ	rstack0, r15
@@ -181,6 +181,28 @@ _dummy:
 # EXIT
 # Exit current Forth word and return the the caller
 word	exit,,, exit, 0, _decomp_exit, 0
+
+# SUMMON
+# Summons Forth word from assembly
+word	summon
+_summon:
+	push	rpc
+	lea	rpc, qword ptr [forsake]
+	jmp	_doxt
+
+# RETREAT
+# Retreats from Forth back into assembly
+word	retreat
+_retreat:
+	pop	rtmp
+	pop	rpc
+	ret
+
+# FORSAKE
+# Forsakes Forth for assembly
+word	forsake
+	.quad	retreat
+	.quad	exit
 
 # DUP ( a -- a a )
 word	dup
@@ -1167,6 +1189,25 @@ _abort1:
 .else
 	jmp	_abort
 .endif
+
+# DARK LORD
+# Dark Lord to be summoned
+word	darklord,,, forth
+	.quad	lit, 42
+	.quad	dup
+	.quad	emit, emit
+	.quad	exit
+
+# SUMMONER
+# Dark Lord, I summon Thee!
+word	summoner
+_summoner:
+	lea	rwork, qword ptr [darklord]
+	call	summon
+	call	_dup
+	mov	rtop, 43
+	call	_emit
+	ret
 
 # COLD
 # Cold start

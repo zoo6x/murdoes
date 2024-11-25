@@ -19,9 +19,8 @@
 : r0       01 ;							\ rcx = rtop
 : r1       02 ;							\ rdx = rtmp
 : r2       00 ;							\ rax = rwork
-: rbegin   0a ;							\ r10 = rbegin
-: rend     0b ;							\ r11 = rend
-: rindex   0c ;							\ r12 = rindex
+: rindex   0a ;							\ r10 = rindex
+: rend     0c ;							\ r12 = rend
 
 : #0 0 ;							\ Offset of the first available stack item
 : #1 8 ;							\ Offset of the second stack item
@@ -200,6 +199,7 @@
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
 :: (over)  code |, rindex dec, r0 rindex mov, ret,		\ ( -- )		dup ; dec rindex ; mov r0, rindex
 
+\ https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      ; immediate
 : over     compile (over) compile -?branch <resolve ; immediate

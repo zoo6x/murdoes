@@ -72,7 +72,7 @@ cr .. .. .. cr
 r2 r2 rexrr.q .. 
 r1 r0 rexrr.q .. 
 r0 r1 rexrr.q .. 
-r0 rbegin rexrr.q .. 
+r0 rindex rexrr.q .. 
 rindex r0 rexrr.q .. 
 r0 rindex rexrr.q .. 
 r2 r2 modrr .. 
