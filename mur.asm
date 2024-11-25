@@ -180,7 +180,7 @@ _dummy:
 
 # EXIT
 # Exit current Forth word and return the the caller
-word	exit,,, exit, 0, _decomp_exit, 0
+word	exit,,, exit, exit, _decomp_exit, 0
 
 # SUMMON
 # Summons Forth word from assembly
@@ -451,7 +451,7 @@ _decomp:
 	je	1f
 _decomp1:
 	push	rpc
-	mov	rpc, rwork # [rwork + rstate * 8 - 16 + 8]
+	mov	rpc, rwork
 	mov	qword ptr [_decompiling], 1
 	jmp	7f
 	1:
@@ -466,8 +466,13 @@ _decomp_exit:
 	mov	qword ptr [_decompiling], 0
 	call	_bracket_open
 	call	_interpreting_
+	call	_dup
+	mov	rtop, rwork
+	call	_decomp_print
+	mov	rtop, 0xa
+	call	_emit
 	pop	rpc
-	jmp	1b
+	jmp	rnext
 _decomp_print:
 	call	_dup
 	mov	rtop, rpc
@@ -1176,7 +1181,7 @@ _dump:
 # Returns to OS
 word	bye
 _bye:
-	mov	rdi, 42
+	mov	rdi, rtop
 	mov	rax, 60
 	syscall
 
