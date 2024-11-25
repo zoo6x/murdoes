@@ -193,14 +193,17 @@
 : begin    <mark ; immediate
 : until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
 : again    compile branch <resolve ; immediate			\ ... begin ... again ...
+: ahead    compile branch >mark ; immediate
 : while    compile ?branch >mark ; immediate
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
 :: (over)  code |, rindex dec, r0 rindex mov, ret,		\ ( -- )		dup ; dec rindex ; mov r0, rindex
+:: I       code _, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
+
 
 \ https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
-: aft      ; immediate
+: aft      _ compile branch >mark <mark >< ; immediate
 : over     compile (over) compile -?branch <resolve ; immediate
 

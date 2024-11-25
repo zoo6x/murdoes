@@ -86,8 +86,38 @@ r2 r0 modrr ..
 rindex r0 rexrs.q .. 
 r0 rindex rexrs.q .. 
 
-: q for 2a emit over cr ;
+: q for 2a emit aft 2b emit then 2c emit I . over cr ;
 5 q
+
+: fib 
+  | if | 1- if 1- | 1- fib >< fib + then then ;
+
+see fib
+
+0 fib .. cr 
+1 fib .. cr 
+2 fib .. cr 
+3 fib .. cr 
+4 fib .. cr 
+5 fib .. cr 
+6 fib .. cr 
+7 fib .. cr 
+8 fib .. cr 
+9 fib .. cr 
+
+: fib \ n
+  1+ 0 1 >>> for >| + ><  over ;
+
+see fib
+
+2 fib .. cr 
+3 fib .. cr 
+4 fib .. cr 
+5 fib .. cr 
+6 fib .. cr 
+7 fib .. cr 
+8 fib .. cr 
+9 fib .. cr 
 
 .\ Tests finished successfully
 
