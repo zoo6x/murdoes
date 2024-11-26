@@ -1,0 +1,12 @@
+\
+\\ Optimizer
+\
+
+\\ Concepts
+\
+\ Virtual registers
+\ - Reference a CPU register or a (local?) memory slot
+\ - Optimizer can change virtual reference without re-emitting SSA IR 
+\   (for instance, if hint or statistics indicate that this exact VR shold be stored in register/memory)
+
+
