@@ -23,6 +23,7 @@
 	.equ	rpc, rsi	/* Do not change! LODSx instructions are used */
 	.equ	rstack, rbp
 	.equ	rhere, rdi	/* Do not change! STOSx instructions are used */
+	.equ	rstack2, r8	/* Stack 2, grows from rstack0 upwards. >S S> and S@ for access */
 	.equ	rindex, r10	/* Loop end and index values */
 				/* R11 is clobbered by syscalls ix x64 Linux ABI */
 	.equ	rend, r12
@@ -45,6 +46,7 @@ _cold:
 	/* TODO: In "hardened" version map stacks to separate pages, with gaps between them */
 	lea	rstack0, [rsp - 0x1000]
 	xor	rstack, rstack
+	xor	rstack2, rstack2
 	lea	rwork, [rsp - 0x2000]
 	mov	qword ptr [_tib], rwork
 	xor	rwork, rwork
@@ -216,6 +218,29 @@ word	drop
 _drop:
 	inc	rstack
 	mov	rtop, [rstack0 + rstack * 8]
+	ret
+
+# >S ( a -- ) (S2: -- a )
+# Pushes top element onto stack 2
+word	to_s, ">s"
+	inc	rstack2
+	mov	[rstack0 + rstack2 * 8], rtop
+	call	_drop
+	ret
+
+# S> ( -- a ) (S2: a -- )
+# Pops element off stack 2
+word	s_from, "s>"
+	call	_dup
+	mov	rtop, [rstack0 + rstack2 * 8]
+	dec	rstack2
+	ret
+
+# S@ ( -- a ) (S2: a -- a )
+# Pops element off stack 2
+word	s_fetch, "s@"
+	call	_dup
+	mov	rtop, [rstack0 + rstack2 * 8]
 	ret
 
 # LIT ( -- n )
@@ -1122,8 +1147,12 @@ word	quit,,, forth
 word	qcsp, "?csp"
 _qcsp:
 	cmp	rstack, 0
-	jle	9f
+	jnle	6f
+	cmp	rstack2, 0
+	jl	6f
+	jmp	9f
 
+	6:
 	lea	rtop, qword ptr [_qcsp_errm]
 	call	_count
 	call	_type
