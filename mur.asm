@@ -13,6 +13,7 @@
 	.equ	INTERPRETING, 0
 	.equ	COMPILING, -2
 	.equ	DECOMPILING, -4
+	.equ	REGALLOCING, -6
 
 				/* Before changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc. */
 				/* TODO: define low byte aliases for needed address interpreter regsters */
@@ -95,6 +96,61 @@ _noop:
 _state:
 	.quad	INTERPRETING
 
+_state_notimpl:
+	push	rstate
+	push	rwork
+
+	call	_dup
+	lea	rtop, qword ptr [_state_notimpl_errm1]
+	call	_count
+	call	_type
+	
+	pop	rwork
+	
+	call	_dup
+	mov	rwork, [rwork - STATES * 16 - 16]	/* XT > NFA */
+	mov	rtop, rwork
+	call	_count
+	call	_type
+
+	call	_dup
+	lea	rtop, qword ptr [_state_notimpl_errm2]
+	call	_count
+	call	_type
+
+	pop	rstate
+
+	call	_dup
+	mov	rtop, rstate
+	call	_dot
+
+	call	_dup
+	lea	rtop, qword ptr [_state_notimpl_errm3]
+	call	_count
+	call	_type
+
+.ifdef	DEBUG
+	call	_bye
+.endif
+	jmp	_abort
+
+	9:
+	ret
+_state_notimpl_errm1:
+	.byte _state_notimpl_errm1$ - _state_notimpl_errm1 - 1
+	.ascii	"\r\n\x1b[31mERROR! \x1b[0m\x1b[33mWord \x1b[1m\x1b[7m "
+_state_notimpl_errm1$:
+
+_state_notimpl_errm2:
+	.byte _state_notimpl_errm2$ - _state_notimpl_errm2 - 1
+	.ascii	" \x1b[0m does not implement state \x1b[7m "
+_state_notimpl_errm2$:
+
+_state_notimpl_errm3:
+	.byte _state_notimpl_errm3$ - _state_notimpl_errm3 - 1
+	.ascii	"\x1b[0m\r\n"
+_state_notimpl_errm3$:
+
 _tib:
 	.quad	0
 
@@ -102,16 +158,17 @@ _tib:
 
 	latest_word	= 0
 
-.macro	reserve_cfa does, reserve=(STATES - 3)
+.macro	reserve_cfa does, reserve=(STATES - 4)
 	# Execution semantics can be either code or Forth word
+
 	# Compilation semantics inside Forth words is the same: compile adress of XT
 	# Semantics for other states does nothing by default
 	.rept \reserve
-	.quad	_call, _noop
+	.quad	_state_notimpl, 0
 	.endr
 .endm
 
-.macro	word	name, fname, immediate, does=code, param, decomp, decomp_param
+.macro	word	name, fname, immediate, does=code, param, decomp, decomp_param, regalloc, regalloc_param
 	.align	16
 \name\()_str0:
 	.byte	\name\()_strend - \name\()_str
@@ -128,13 +185,31 @@ _tib:
 
 	reserve_cfa
 
-	# DECOMPILATION
+	# REGALLOCING
+.ifc "\regalloc", ""
+	.ifc "\does", "forth"
+		.quad	_\does
+		.ifc	"\param",""
+			.quad	\name
+		.else
+			.quad	\param
+		.endif
+	.else
+		.quad	_state_notimpl
+		.quad	0
+	.endif
+.else
+	.quad	\regalloc
+	.quad	\regalloc_param
+.endif
+
+	# DECOMPILING
 .ifc "\decomp", ""
 	.ifc "\does", "forth"
 		.quad	_decomp
 		.quad	0
 	.else
-		.quad	_decomp
+		.quad	_decomp_code
 		.quad	0
 	.endif
 .else
@@ -142,7 +217,7 @@ _tib:
 	.quad	\decomp_param
 .endif
 
-	# COMPILATION
+	# COMPILING
 .ifc	"\immediate", "immediate"
 	.ifc "\does", "forth"
 		.quad	_run
@@ -163,7 +238,7 @@ _tib:
 	.endif
 .endif
 
-	# INTERPRETATION
+	# INTERPRETING
 	.quad	_\does
 .ifc	"\param",""
 	.quad	\name
@@ -188,7 +263,7 @@ _dummy:
 
 # EXIT
 # Exit current Forth word and return the the caller
-word	exit,,, exit, exit, _decomp_exit, 0
+word	exit,,, exit, exit, _decomp_exit, 0, _interpreting_, 0
 
 # SUMMON
 # Summons Forth word from assembly
@@ -485,6 +560,17 @@ _see:
 
 # DECOMP ( -- )
 # Decompile XT being currently interpreted
+_decomp_code:
+	cmp	qword ptr [_decompiling], 1
+	je	1f
+	call	_dup
+	mov	rtop, rwork
+	call	_decomp_print
+	mov	rtop, 0xa
+	call	_emit
+	call	_bracket_open
+	call	_interpreting_
+	jmp	rnext
 _decomp:
 	cmp	qword ptr [_decompiling], 1
 	je	1f
