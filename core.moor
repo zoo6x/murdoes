@@ -113,7 +113,9 @@
 : val      , does> @ ;						\ :: b 98765 val
 
 								\\ Control structures: conditionals
-: cell/	   3 sar ;
+: cell     8 ;							\ ( -- 8 )		Size of one cell
+: cells    3 shl ;						\ ( n -- n*8 )		Convert size in cells to size in bytes
+: cell/	   3 sar ;						\ ( n -- n/8 )		Convert size in bytes to size in cells
 
 : >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
 : >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch

@@ -34,6 +34,7 @@
 
 # Initialization
 
+.p2align	16, 0x90
 _start:
 	lea	rlatest, last
 	lea	rhere, here0
@@ -72,12 +73,6 @@ _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 - 16 + 8]
 	jmp	rnext
-_once:
-	push	rpc
-	mov	rpc, [rwork + rstate * 8 - 16 + 8]
-	mov	rstate, INTERPRETING
-	mov	qword ptr [_state], INTERPRETING
-	jmp	rnext
 _does:
 	mov	qword ptr [rstack0 + rstack * 8], rtop
 	dec	rstack
@@ -91,6 +86,11 @@ _comp:
 	jmp	rnext
 _noop:
 	ret
+_interp:
+	lea	rnext, qword ptr [_next]
+	mov	rstate, INTERPRETING
+	mov	qword ptr [_state], INTERPRETING
+	jmp	rnext
 
 	.p2align	3, 0x90
 _state:
@@ -260,6 +260,17 @@ _tib:
 word	dummy
 _dummy:
 	ret
+
+# EXECUTE ( xt -- )
+# Executes word, specified by XT
+word	execute
+	mov	rwork, rtop
+	call	_drop
+	pop	rtmp	# Skip return address (=NEXT)
+
+	mov	rstate, qword ptr [_state]
+	lea	rnext, qword ptr [_interp]
+	jmp	_doxt
 
 # EXIT
 # Exit current Forth word and return the the caller
@@ -733,8 +744,8 @@ _word:
 word	cfa_allot, "cfa-allot"
 _cfa_allot:
 	mov	rcx, 16
-	lea	rtmp, qword ptr [_call]
-	lea	rwork, qword ptr [_noop]
+	lea	rtmp, qword ptr [_state_notimpl]
+	mov	rwork, 0
 
 	1:
 	mov	qword ptr [rhere], rtmp
@@ -839,7 +850,7 @@ _bracket_close:
 
 # (INTERPRETING) IMMEDIATE
 # Switches address interpreter state to INTERPRETING
-word	interpreting_, "(interpreting)", immediate
+word	interpreting_, "(interpreting)", immediate,,,,, _code, _interpreting_
 _interpreting_:
 	mov	rstate, INTERPRETING
 	ret
@@ -966,10 +977,10 @@ word	_does_, "(does)",, forth
 	.quad	lit, _does
 	.quad	exit
 
-# (ONCE) ( -- _once )
+# (EXEC) ( -- _once )
 # Returns address of the _once primitive entry point
-word	_once_, "(once)",, forth
-	.quad	lit, _once
+word	_exec_, "(exec)",, forth
+	.quad	lit, _exec
 	.quad	exit
 
 # (DOES>) ( xt -- )
@@ -1359,6 +1370,7 @@ _summoner:
 # Cold start
 word	warm,,, forth
 _warm:
+	.quad	lit, _start, dot
 	.quad	quit
 	.quad	bye
 	.quad	exit # Not needed here, for decompiler only for now

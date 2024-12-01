@@ -80,7 +80,7 @@ r0 r0 modrr ..
 r0 r2 modrr .. 
 r2 r0 modrr .. 
 
-:: q r0 r0 mov, ret,
+:: q code r0 r0 mov, ret,
 13 q .. 
 
 rindex r0 rexrs.q .. 
@@ -127,6 +127,8 @@ q
 regalloc q
 q
 88 99 regalloc | .. .. ..
+88 11 22 regalloc + .. ..
+88 11 22 regalloc + .. ..
 
 .\ Tests finished successfully
 
