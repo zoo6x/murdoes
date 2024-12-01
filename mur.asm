@@ -63,6 +63,8 @@ _next:
 _doxt:
 .ifdef DEBUG
 .ifdef TRACE
+	cmp	qword ptr [_trace], 0
+	jz	1f
 	call	_dup
 	mov	rtop, rstack
 	push	rtmp
@@ -86,6 +88,7 @@ _doxt:
 	pop	rwork
 	pop	rtmp
 	call	_drop
+	1:
 .endif
 .endif
 	jmp	[rwork + rstate * 8 - 16]
@@ -122,6 +125,8 @@ _interp:
 	.p2align	3, 0x90
 _state:
 	.quad	INTERPRETING
+_trace:
+	.quad	0
 
 _state_notimpl:
 	push	rstate
@@ -286,6 +291,17 @@ _tib:
 # For breakpoints
 word	dummy
 _dummy:
+	ret
+
+# TRACE
+# Turn tracing on
+word	trace
+	mov	qword ptr [_trace], 1
+	ret
+
+# NOTRACE
+word	notrace
+	mov	qword ptr [_trace], 0
 	ret
 
 # EXECUTE ( xt -- )
