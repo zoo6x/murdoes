@@ -13,6 +13,7 @@
 : cr       0a emit ;
 : ..       blue . norm ;
 : ??       dup .. ;
+
 								\ Compile single byte
 : `        c, ;
 								\\ Register assignment. Should be changed if register aliases are changed
@@ -206,4 +207,7 @@
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      _ compile branch >mark <mark >< ; immediate
 : over     compile (over) compile -?branch <resolve ; immediate
+
+								\\ Search
+: '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | ABORT )
 

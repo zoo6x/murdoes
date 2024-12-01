@@ -71,6 +71,12 @@ _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 - 16 + 8]
 	jmp	rnext
+_once:
+	push	rpc
+	mov	rpc, [rwork + rstate * 8 - 16 + 8]
+	mov	rstate, INTERPRETING
+	mov	qword ptr [_state], INTERPRETING
+	jmp	rnext
 _does:
 	mov	qword ptr [rstack0 + rstack * 8], rtop
 	dec	rstack
@@ -460,6 +466,14 @@ _words:
 	call	_dup
 	mov	rtop, 0xa
 	call	_emit
+	ret
+
+# STATE! ( state -- )
+# Sets address interpreter state for the next word from the input stream
+word	state_, "state!"
+	mov	rwork, rtop
+	call	_drop
+	mov	qword ptr [_state], rwork
 	ret
 
 # SEE ( -- )
@@ -860,13 +874,25 @@ __does_xt_:
 	add	rtop, 3 * 8
 	ret
 
+# (DOES) ( -- _does )
+# Returns address of the _does primitive entry point
+word	_does_, "(does)",, forth
+	.quad	lit, _does
+	.quad	exit
+
+# (ONCE) ( -- _once )
+# Returns address of the _once primitive entry point
+word	_once_, "(once)",, forth
+	.quad	lit, _once
+	.quad	exit
+
 # (DOES>) ( xt -- )
 # Defines execution and compilation semantics for the latest word
-word	_does_, "(does>)",, forth
+word	_does__, "(does>)",, forth
 __does_:
 	.quad	_does_xt_
 
-	.quad	lit, _does	
+	.quad	_does_
 	.quad	lit, INTERPRETING
 	.quad	latest
 	.quad	does
@@ -885,7 +911,7 @@ word	does_, "does>", immediate, forth
 _does1_:
 	.quad	compile, lit
 	.quad	here, comma
-	.quad	compile, _does_	
+	.quad	compile, _does__
 	.quad	compile, exit
 	.quad	exit
 

@@ -6,7 +6,7 @@
 \ https://github.com/tarantool/tarantool/wiki/LuaJIT-Optimizations
 \ https://medium.com/@AlexanderObregon/everything-you-need-to-know-about-register-allocation-in-c-27019602cc5c
 \ https://langdev.stackexchange.com/questions/1441/what-are-the-disadvantages-of-using-ssa-form
-\ https://docs.oracle.com/cd/E36784_01/html/E36859/gntae.html		AVX2 256-bit instructions, if needed
+\ https://en.wikipedia.org/wiki/Register_allocation
 
 \\ Concepts
 
@@ -27,19 +27,25 @@
 \   - leaf: do not call other words (but may inline others)
 \   - twig: non-leaf nodes, call other words that are already compiled
 
-: ``       >< ` ` ;
+
+\ does ( param code state xt -- )
+:: REGALLOC -6 val
+
+: %        here (once) REGALLOC ' does ] ;
+
+\ : ``       >< ` ` ;
 
 \ #-taken #-put #-aliases [old-index new-index]
 
-% |        1 ` 2 ` 2 `  0 0 ``  0 1 ``
-% _        1 ` 0 ` 0 `
-% ><       2 ` 2 ` 0 1 `` 1 0 ``
+\ % |        1 ` 2 ` 2 `  0 0 ``  0 1 ``
+\ % _        1 ` 0 ` 0 `
+\ % ><       2 ` 2 ` 0 1 `` 1 0 ``
 
-% lit      0 ` 1 ` 0 `
-% emit     1 ` 0 ` 0 `
+\ % lit      0 ` 1 ` 0 `
+\ % emit     1 ` 0 ` 0 `
 
-% +        2 ` 1 ` 0 `
-% ,        1 ` 0 ` 0 `
+\ % +        2 ` 1 ` 0 `
+\ % ,        1 ` 0 ` 0 `
 
 
 

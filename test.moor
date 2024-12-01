@@ -119,5 +119,12 @@ see fib
 8 fib .. cr 
 9 fib .. cr 
 
+\ : q abort" AAA!" ;		Need (") implemented to make this work
+
+: q        2a emit ;
+% q        2b emit ;
+q
+REGALLOC state! q
+q
 .\ Tests finished successfully
 
