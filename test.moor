@@ -124,7 +124,9 @@ see fib
 : q        2a emit ;
 % q        2b emit ;
 q
-REGALLOC state! q
+regalloc q
 q
+88 99 regalloc | .. .. ..
+
 .\ Tests finished successfully
 
