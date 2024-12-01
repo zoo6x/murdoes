@@ -61,6 +61,33 @@ _exit:
 _next:
 	lodsq
 _doxt:
+.ifdef DEBUG
+.ifdef TRACE
+	call	_dup
+	mov	rtop, rstack
+	push	rtmp
+	push	rwork
+	call	_dot
+	pop	rwork
+	call	_dup
+	mov	rtop, rstate
+	push	rwork
+	call	_dot
+	pop	rwork
+	call	_dup
+	mov	rtop, rwork
+	push	rwork
+	call	_decomp_print
+	pop	rwork
+	call	_dup
+	mov	rtop, 0xa
+	push	rwork
+	call	_emit
+	pop	rwork
+	pop	rtmp
+	call	_drop
+.endif
+.endif
 	jmp	[rwork + rstate * 8 - 16]
 _code:
 _call:
@@ -268,13 +295,15 @@ word	execute
 	call	_drop
 	pop	rtmp	# Skip return address (=NEXT)
 
-	mov	rstate, qword ptr [_state]
-	lea	rnext, qword ptr [_interp]
+	mov	rstate, [_state]
+
 	jmp	_doxt
 
 # EXIT
 # Exit current Forth word and return the the caller
-word	exit,,, exit, exit, _decomp_exit, 0, _interpreting_, 0
+word	exit,,, exit, exit, _decomp_exit, 0, _exit_regalloc, 0
+_exit_regalloc:
+	jmp	_exit
 
 # SUMMON
 # Summons Forth word from assembly
@@ -555,11 +584,19 @@ _words:
 	ret
 
 # STATE! ( state -- )
-# Sets address interpreter state for the next word from the input stream
+# Sets address interpreter state for the next word from the text interpreter
 word	state_, "state!"
 	mov	rwork, rtop
 	call	_drop
 	mov	qword ptr [_state], rwork
+	ret
+
+# STATE!! ( state -- )
+# Sets address interpreter state for the next word from the address interpterer
+word	state__, "state!!"
+	mov	rwork, rtop
+	call	_drop
+	mov	rstate, rwork
 	ret
 
 # SEE ( -- )
@@ -594,6 +631,7 @@ _decomp1:
 	call	_dup
 	mov	rtop, rwork
 	call	_decomp_print
+	call	_dup
 	mov	rtop, 0xa
 	call	_emit
 	7:
@@ -605,8 +643,6 @@ _decomp_exit:
 	call	_dup
 	mov	rtop, rwork
 	call	_decomp_print
-	mov	rtop, 0xa
-	call	_emit
 	pop	rpc
 	jmp	rnext
 _decomp_print:
@@ -637,6 +673,15 @@ word	comma, ","
 _comma:
 	mov	rax, rtop
 	stosq
+	call	_drop
+	ret
+
+# , ( v -- )
+# Reserve space for 4 bytes in the data space and store value in the pace
+word	four_comma, "4,"
+_four_comma:
+	mov	rax, rtop
+	stosd
 	call	_drop
 	ret
 
@@ -855,6 +900,13 @@ _interpreting_:
 	mov	rstate, INTERPRETING
 	ret
 
+# INTERPRETING!
+# Switches address interpreter state to INTERPRETING
+word	interpreting__, "interpreting!",,,,,, _code, _interpreting__
+_interpreting__:
+	mov	rstate, INTERPRETING
+	ret
+
 # DOES ( param code state xt -- )
 # Sets semantics for a word defined by XT for given state to a given code:param pair
 word	does
@@ -925,6 +977,12 @@ _forthword:
 	.quad	lit, 0
 	.quad	lit, _decomp
 	.quad	lit, DECOMPILING
+	.quad	latest
+	.quad	does
+
+	.quad	here
+	.quad	lit, _exec
+	.quad	lit, REGALLOCING
 	.quad	latest
 	.quad	does
 
@@ -1370,7 +1428,6 @@ _summoner:
 # Cold start
 word	warm,,, forth
 _warm:
-	.quad	lit, _start, dot
 	.quad	quit
 	.quad	bye
 	.quad	exit # Not needed here, for decompiler only for now

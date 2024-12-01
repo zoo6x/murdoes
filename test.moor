@@ -106,7 +106,7 @@ see fib
 9 fib .. cr 
 
 : fib \ n
-  1+ 0 1 >>> for >| + ><  over ;
+  1+ 0 1 >>> for >| + ><  over >< _ ;
 
 see fib
 
@@ -129,6 +129,9 @@ q
 88 99 regalloc | .. .. ..
 88 11 22 regalloc + .. ..
 88 11 22 regalloc + .. ..
+: q + + ;
+33 88 11 22 regalloc q .. ..
+
 
 .\ Tests finished successfully
 

@@ -19,7 +19,10 @@
 								\\ Register assignment. Should be changed if register aliases are changed
 : r0       01 ;							\ rcx = rtop
 : r1       02 ;							\ rdx = rtmp
+: rtmp     02 ;							\ rdx = rtmp
 : r2       00 ;							\ rax = rwork
+: rwork    00 ;							\ rax = rwork
+: rpc      06 ;							\ rsi = rpc
 : rindex   0a ;							\ r10 = rindex
 : rend     0c ;							\ r12 = rend
 
@@ -144,8 +147,9 @@
 : rr       c0 ;							\ (  -- modrm' )	Returns ModR/M byte part for RR
 : modrr    rs >< rd or rr or ;					\ ( rd rs -- modrm )	Returns ModR/M byte for Rd and Rs
 : modro    >< rd or rr or ;					\ ( rd op -- modrm )	Returns ModR/M byte for Rd and opcode
-: instrr   c, does> <<< >|>| rexrr.q ` >>> c@ ` modrr ` ;	\ ( op -- )		( rd rs a -- )
-: instro   c, c, does> >< | rexrd.q ` >< | c@ ` 1+ c@  modro ` ; \ ( op1 op2 -- )	( rd a -- )
+: instrr   c, does> <<< >|>| rexrr.q ` >>> c@ ` modrr ` ;	\ ( op -- ) ( rd rs a -- )
+: instro   c, c, does> >< | rexrd.q ` >< | c@ ` 1+ c@  modro ` ; \ ( op1 op2 -- ) ( rd a -- )
+: instpp   c, does> c@ >< | rex? if 41 ` then 7 and or ` ; 	\ ( op -- ) ( rd a -- )	Push/pop instruction
 
 								\\ Condition codes and conditional set instructions
 :: .o      00 val
@@ -190,6 +194,9 @@
 :: inc,    00 ff instro						\ ( rd -- )		inc	rd
 :: dec,    08 ff instro						\ ( rd -- )		dec	rd
 
+:: push,   50 instpp						\ ( rs -- )		push	rs
+:: pop,    58 instpp						\ ( rd -- )		pop	rd
+
 : setnz0,  r0 .nz setf,    48 ` 0f ` b6 ` c9 ` ;		\ 			setnz	cl ; movzx rcx, cl
 
 								\\ Control structures: loops
@@ -212,4 +219,4 @@
 
 								\\ Search
 : '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | ABORT )
-
+: [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
