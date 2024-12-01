@@ -130,8 +130,9 @@ q
 88 11 22 regalloc + .. ..
 88 11 22 regalloc + .. ..
 : q + + ;
-33 88 11 22 regalloc q .. ..
-
+trace
+:^ ^ ^ ^ ^> q .. 
+notrace
 
 .\ Tests finished successfully
 

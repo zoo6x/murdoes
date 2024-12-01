@@ -51,7 +51,9 @@
 : %;       compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 :: vreg    0 var 						\ ( -- a-vr )		Variable holding latest allocated virtual register (VR)
-:% ~       vreg @ | 1+ vreg ! %;				\ ( -- vr ) 		Returns current VR and increases next VR value
+:% ^       vreg @ | 1+ vreg ! %;				\ ( -- vr ) 		Returns current VR and increases next VR value
+:% :^      0 vreg ! %;
+:% ^>      regalloc ;
 
 :: skip    code here ?? rtmp pop, rpc pop, 			\ ( -- )		Skip next adress interpreter word
 		rpc inc, rpc inc, rpc inc, rpc inc,
@@ -63,10 +65,10 @@
 
 %> ><								\ ( r1 r2 -- r2 r2 )	Swaps registers
 
-% lit      skip ~ ;						\ ( -- r )		Allocates new register
+% lit      skip ^ ;						\ ( -- r )		Allocates new register
 % emit     _ ;							\ ( r -- )		Frees a register
 
-% +        _ _ ~ ;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
+% +        _ _ ^ ;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
 % ,        _ ;							\ ( r -- )		Frees a register
 
 
