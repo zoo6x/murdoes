@@ -1,1 +1,1 @@
-gdb moor
+gdb moord
