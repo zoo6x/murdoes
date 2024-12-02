@@ -55,10 +55,10 @@
 :% :^      0 vreg ! %;
 :% ^>      regalloc ;
 
-:: skip    code here ?? rtmp pop, rpc pop, 			\ ( -- )		Skip next adress interpreter word
+:: skip    code rtmp pop, rpc pop, 				\ ( -- )		Skip next adress interpreter word
 		rpc inc, rpc inc, rpc inc, rpc inc,
 		rpc inc, rpc inc, rpc inc, rpc inc,
-		rpc push, rtmp push, ret, 20 dump <% 
+		rpc push, rtmp push, ret, <% 
 
 %> |								\ ( r -- r r )		Duplicates register (creates an alias)
 %> _								\ ( r -- )		Frees a register
