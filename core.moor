@@ -209,7 +209,7 @@
 
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
 :: (over)  code |, rindex dec, r0 rindex mov, ret,		\ ( -- )		dup ; dec rindex ; mov r0, rindex
-:: I       code _, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
+:: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
 
 
 \ https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
