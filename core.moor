@@ -115,15 +115,19 @@
 : var      , does> ;						\ :: a 12345 var
 : val      , does> @ ;						\ :: b 98765 val
 
+								\\ Cells
+: cell     8 ;							\ ( -- 8 )		Size of one cell
+: cells    3 shl ;						\ ( n -- n*8 )		Convert size in cells to size in bytes
+: cell/	   3 sar ;						\ ( n -- n/8 )		Convert size in bytes to size in cells
+
 								\\ States
 :: INTERPRETING  0 val
 :: COMPILING    -2 val
 :: DECOMPILING  -4 val
 :: REGALLOCING  -6 val
-								\\ Control structures: conditionals
-: cell     8 ;							\ ( -- 8 )		Size of one cell
-: cells    3 shl ;						\ ( n -- n*8 )		Convert size in cells to size in bytes
-: cell/	   3 sar ;						\ ( n -- n/8 )		Convert size in bytes to size in cells
+
+: >cfa     cells + cell - cell - ;				\ ( xt state -- cfa )	Returns CFA for given state for XT
+: cfa@     | @ >< cell + @ >< ;					\ ( cfa -- param code )	Returns param and code for CFA
 
 : >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
 : >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch
@@ -134,6 +138,9 @@
 : if       compile ?branch >mark ; immediate
 : else     compile branch >mark >< >resolve ; immediate
 : then     >resolve ; immediate
+								\\ Search
+: '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | ABORT )
+: [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
 
 								\\ Improved assembler, r0-15 support 
 \\ TODO: need [compile] and " to make this work : rex      abort" REX is now obsolete, use REXn where n=8, 32, 64" ;
@@ -218,15 +225,12 @@
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
-:: (over)  code rindex dec, lodsq, 4 .z j, rpc+=ofs, ret,	\ ( -- )		dec rindex ; lodsq ; jz ret ; rpc+=ofs ; ret
 :: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
-
+:: (over)  code rindex dec, lodsq, 4 .z j, rpc+=ofs, ret,	\ ( -- )		dec rindex ; lodsq ; jz ret ; rpc+=ofs ; ret
+' branch DECOMPILING >cfa cfa@ DECOMPILING latest does
 
 \ https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      _ compile branch >mark <mark >< ; immediate
 : over     compile (over) <resolve ; immediate
 
-								\\ Search
-: '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | ABORT )
-: [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream

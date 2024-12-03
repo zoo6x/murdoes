@@ -28,8 +28,6 @@
 \   - twig: non-leaf nodes, call other words that are already compiled
 
 
-: >cfa     cells + cell - cell - ;				\ ( xt state -- cfa )	Returns CFA for given state for XT
-: cfa@     | @ >< cell + @ >< ;					\ ( cfa -- param code )		Returns param and code for CFA
 
 : %        here (exec) REGALLOCING ' does ] ;			\ ( "<name>" --  )	Creates new semantics for register allocation state
 : (%>)     | INTERPRETING >cfa cfa@ >>> REGALLOCING >< does ;	\ ( xt -- )		Sets word's register allocation semantics to its execution semantics
@@ -69,7 +67,7 @@
 \ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
 \ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
 : fib \ n	Fn = Fn-1 + Fn-2
-  0 1 >>> for >| + >< over _ ;
+  | if 0 1 >>> for >| + >< over _ else _ 0 then ;
 
 \ https://www.forwardcom.info/
 
@@ -83,14 +81,29 @@
 \ 425d88 41bb60 >|           <---------\        1 2 1 3		R: 0			88:
 \ 425d90 41ab20 +                      |	1 2 2		R: 0			add	rdx, rcx
 \ 425d98 41ba30 ><                     |	2 1 2		R: 0
-\ 425da0 4222e0 (over)                 |	2 1 0 3		R: 0			dec	rax
-\											jz	:c0
-\ 425da8 4117a0 -?branch	425d88-/        2 1 2		R: 0			xchg	rdx, rcx
-\		<resolve								jmp     :88		
+\ 425da0 4222e0 (over)          425d88-/       	2 1 2		R: 0			dec	rax
+\               <resolve  	 	        2 1 2		R: 0			xchg	rdx, rcx
+\											jz	:88
 \ 425dc0 41b7d0 _				2 1
 \ 425dc8 410790 exit									rdx
 
 \ 1 => 2, 2 => 1 == 1 => 3, 2 => 1, 3 => 2
+
+\ 424d30  |
+\ 424d38  ?branch	424db8
+\ 424d48  lit	0
+\ 424d58  lit	1
+\ 424d68  >>>
+\ 424d70  (for)
+\ 424d78: >|
+\ 424d80  +
+\ 424d88  ><
+\ 424d90  (over)	424d78
+\ 424da0  _
+\ 424da8  branch	424dd0
+\ 424db8: _
+\ 424dc0  lit	0
+\ 424dd0: exit
 
 
 
