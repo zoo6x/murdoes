@@ -115,6 +115,11 @@
 : var      , does> ;						\ :: a 12345 var
 : val      , does> @ ;						\ :: b 98765 val
 
+								\\ States
+:: INTERPRETING  0 val
+:: COMPILING    -2 val
+:: DECOMPILING  -4 val
+:: REGALLOCING  -6 val
 								\\ Control structures: conditionals
 : cell     8 ;							\ ( -- 8 )		Size of one cell
 : cells    3 shl ;						\ ( n -- n*8 )		Convert size in cells to size in bytes
@@ -181,9 +186,11 @@
 :: .nle    0f val
 :: .g      0f val
 
-:: setf.op 90 val						\ SETF opcode
-: setf,    rex.b ` 0f ` setf.op or ` rd rr or ` ;		\ ( rd cond -- )	set.f	rd
+:: setf.op 90 val						\ SETcc opcode
+: setf,    rex.b ` 0f ` setf.op or ` rd rr or ` ;		\ ( rd cond -- )	set.cc rd
 
+:: j.op    70 val						\ Jcc opcode
+: j,       j.op or ` ` ;					\ ( offset cond -- )	j.cc	offset
 
 								\\ Arithmetic, logic and moves
 :: movzx.op b6 val						\ MOVZX opcode
@@ -199,6 +206,9 @@
 
 : setnz0,  r0 .nz setf,    48 ` 0f ` b6 ` c9 ` ;		\ 			setnz	cl ; movzx rcx, cl
 
+: lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
+: rpc+=ofs, 48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
+
 								\\ Control structures: loops
 : begin    <mark ; immediate
 : until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
@@ -208,14 +218,14 @@
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
-:: (over)  code |, rindex dec, r0 rindex mov, ret,		\ ( -- )		dup ; dec rindex ; mov r0, rindex
+:: (over)  code rindex dec, lodsq, 4 .z j, rpc+=ofs, ret,	\ ( -- )		dec rindex ; lodsq ; jz ret ; rpc+=ofs ; ret
 :: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
 
 
 \ https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      _ compile branch >mark <mark >< ; immediate
-: over     compile (over) compile -?branch <resolve ; immediate
+: over     compile (over) <resolve ; immediate
 
 								\\ Search
 : '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | ABORT )

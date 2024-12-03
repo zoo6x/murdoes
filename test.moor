@@ -92,7 +92,8 @@ r0 rindex rexrs.q ..
 : fib 
   | if | 1- if 1- | 1- fib >< fib + then then ;
 
-see fib
+\ see fib
+\ TODO: branch decompilation semantics for (over)
 
 0 fib .. cr 
 1 fib .. cr 
@@ -108,7 +109,7 @@ see fib
 : fib \ n
   0 1 >>> for >| + >< over _ ;
 
-see fib
+\ see fib
 
 1 fib .. cr 
 2 fib .. cr 

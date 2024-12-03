@@ -28,11 +28,6 @@
 \   - twig: non-leaf nodes, call other words that are already compiled
 
 
-:: INTERPRETING  0 val
-:: COMPILING    -2 val
-:: DECOMPILING  -4 val
-:: REGALLOCING  -6 val
-
 : >cfa     cells + cell - cell - ;				\ ( xt state -- cfa )	Returns CFA for given state for XT
 : cfa@     | @ >< cell + @ >< ;					\ ( cfa -- param code )		Returns param and code for CFA
 
