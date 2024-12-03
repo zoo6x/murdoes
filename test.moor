@@ -106,10 +106,11 @@ see fib
 9 fib .. cr 
 
 : fib \ n
-  1+ 0 1 >>> for >| + ><  over >< _ ;
+  0 1 >>> for >| + >< over _ ;
 
 see fib
 
+1 fib .. cr 
 2 fib .. cr 
 3 fib .. cr 
 4 fib .. cr 
@@ -130,9 +131,13 @@ q
 88 11 22 regalloc + .. ..
 88 11 22 regalloc + .. ..
 : q + + ;
-trace
+\ trace
 :^ ^ ^ ^ ^> q .. 
-notrace
+\ notrace
+
+: q for I . over ;
+99 40 q ..
+
 
 .\ Tests finished successfully
 
