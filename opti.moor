@@ -52,23 +52,54 @@
 
 :: vreg    0 var 						\ ( -- a-vr )		Variable holding latest allocated virtual register (VR)
 :% ^       vreg @ | 1+ vreg ! %;				\ ( -- vr ) 		Returns current VR and increases next VR value
-:% :^      0 vreg ! %;
-:% ^>      regalloc ;
+: :^       0 vreg ! ;
+: ^>       regalloc ;
 
 :: skip    code rtmp pop, rpc pop, 				\ ( -- )		Skip next adress interpreter word
 		rpc inc, rpc inc, rpc inc, rpc inc,
 		rpc inc, rpc inc, rpc inc, rpc inc,
 		rpc push, rtmp push, ret, <% 
 
-%> |								\ ( r -- r r )		Duplicates register (creates an alias)
-%> _								\ ( r -- )		Frees a register
+% |        ;							\ ( r -- r r )		Duplicates register (creates an alias)
+% _        ;							\ ( r -- )		Frees a register
 
-%> ><								\ ( r1 r2 -- r2 r2 )	Swaps registers
+% ><       ;							\ ( r1 r2 -- r2 r2 )	Swaps registers
 
 % lit      skip ^ ;						\ ( -- r )		Allocates new register
 % emit     _ ;							\ ( r -- )		Frees a register
 
 % +        _ _ ^ ;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
 % ,        _ ;							\ ( r -- )		Frees a register
+
+\ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
+\ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
+: fib \ n	Fn = Fn-1 + Fn-2
+  0 1 >>> for >| + >< over _ ;
+
+\ https://www.forwardcom.info/
+
+\						#r count
+\ see fib					0 1					rax
+\ 425d58 411240 lit	0 			0 1 2					mov	rcx, 0
+\ 425d68 411240 lit	1			0 1 2 3					mov	rdx, 1
+\ 425d78 41bde0 >>>				1 2 0 3
+\ 425d80 4221b0 (for)			        1 2 2		R: 0
+\     88        <mark				1 2 2		R: 0	S: 2 2 1 
+\ 425d88 41bb60 >|           <---------\        1 2 1 3		R: 0			88:
+\ 425d90 41ab20 +                      |	1 2 2		R: 0			add	rdx, rcx
+\ 425d98 41ba30 ><                     |	2 1 2		R: 0
+\ 425da0 4222e0 (over)                 |	2 1 0 3		R: 0			dec	rax
+\											jz	:c0
+\ 425da8 4117a0 -?branch	425d88-/        2 1 2		R: 0			xchg	rdx, rcx
+\		<resolve								jmp     :88		
+\ 425dc0 41b7d0 _				2 1
+\ 425dc8 410790 exit									rdx
+
+\ 1 => 2, 2 => 1 == 1 => 3, 2 => 1, 3 => 2
+
+
+
+
+
 
 
