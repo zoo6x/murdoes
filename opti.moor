@@ -12,7 +12,7 @@
 
 \\ Virtual registers
 \ - Reference a CPU register or a (local?) memory slot
-\ - Optimizer can change virtual reference without re-emitting SSA IR 
+\ - Optimizer can change virtual reference without re-emitting SSA IR (register pressure optimization?)
 \   (for instance, if hint or statistics indicate that this exact VR shold be stored in register/memory)
 
 \\ Stack changes
@@ -28,14 +28,19 @@
 \   - twig: non-leaf nodes, call other words that are already compiled
 
 
-
-: %        here (exec) REGALLOCING ' does ] ;			\ ( "<name>" --  )	Creates new semantics for register allocation state
+								\\ Regallocing state
+: %        here (exec) REGALLOCING ' does			\ ( "<name>" --  )	Creates new semantics for register allocation state
+           compile interpreting! ] ;
 : (%>)     | INTERPRETING >cfa cfa@ >>> REGALLOCING >< does ;	\ ( xt -- )		Sets word's register allocation semantics to its execution semantics
 : %>       ' (%>) ;						\ ( "<name>" -- )	Sets register allocation semantics to execution semantics
 : <%       latest (%>) ;					\ ( -- )		Sets latest word's register allocation semantics to execution semantics
 
 : REGALLOCING! REGALLOCING state! ;
 : INTERPRETING! INTERPRETING state! ;
+\\ TODO: @ in REGALLOCING state must compile assembler. Search for a workaround
+%> REGALLOCING
+%> @
+%> state!!
 : REGALLOCING!! REGALLOCING state!! ;
 
 : regalloc REGALLOCING! ' execute interpreting! INTERPRETING! ;	\ ( -- )		Sets STATE to REGALLOCING for the next text interpreter word 
@@ -43,67 +48,54 @@
 : :%       : compile interpreting! ;
 : %;       compile REGALLOCING!! compile exit [compile] [ ; immediate
 
+								\\ Register allocation
+:: #regs   16 val						\ Number of CPU registers
+:: regs    #regs allot						\ Register alias count
 :: vreg    0 var 						\ ( -- a-vr )		Variable holding latest allocated virtual register (VR)
+
 :% ^       vreg @ | 1+ vreg ! %;				\ ( -- vr ) 		Returns current VR and increases next VR value
 : :^       0 vreg ! ;
 : ^>       regalloc ;
 
-:: skip    code rtmp pop, rpc pop, 				\ ( -- )		Skip next adress interpreter word
-		rpc inc, rpc inc, rpc inc, rpc inc,
-		rpc inc, rpc inc, rpc inc, rpc inc,
-		rpc push, rtmp push, ret, <% 
 
-% |        ;							\ ( r -- r r )		Duplicates register (creates an alias)
-% _        ;							\ ( r -- )		Frees a register
+								\\ Regallocing state semantics
+% |        >r | r> 1+ %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
+% _        %;							\ ( r # -- #-1)		Frees a register
 
-% ><       ;							\ ( r1 r2 -- r2 r2 )	Swaps registers
+% ><       %;							\ ( r1 r2 # -- r2 r2 # ) Swaps registers
 
-% lit      skip ^ ;						\ ( -- r )		Allocates new register
-% emit     _ ;							\ ( r -- )		Frees a register
+% lit      skip ^ %;						\ ( # -- r #+1 )	Allocates new register
 
-% +        _ _ ^ ;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
-% ,        _ ;							\ ( r -- )		Frees a register
+% +        _ _ ^ %;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
 
+
+% ,        %;							\ ( r -- )		TODO: WRONG! Stub for now
+% emit     %;							\ ( r -- )		TODO: WRONG! Stub for now 
+
+\\ Fibonacci sequence generator
 \ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
 \ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
 : fib \ n	Fn = Fn-1 + Fn-2
-  | if 0 1 >>> for >| + >< over _ else _ 0 then ;
+  | if 0 1 >>> for >| + >< over _ then ;
 
-\ https://www.forwardcom.info/
-
-\						#r count
-\ see fib					0 1					rax
-\ 425d58 411240 lit	0 			0 1 2					mov	rcx, 0
-\ 425d68 411240 lit	1			0 1 2 3					mov	rdx, 1
-\ 425d78 41bde0 >>>				1 2 0 3
-\ 425d80 4221b0 (for)			        1 2 2		R: 0
-\     88        <mark				1 2 2		R: 0	S: 2 2 1 
-\ 425d88 41bb60 >|           <---------\        1 2 1 3		R: 0			88:
-\ 425d90 41ab20 +                      |	1 2 2		R: 0			add	rdx, rcx
-\ 425d98 41ba30 ><                     |	2 1 2		R: 0
-\ 425da0 4222e0 (over)          425d88-/       	2 1 2		R: 0			dec	rax
-\               <resolve  	 	        2 1 2		R: 0			xchg	rdx, rcx
-\											jz	:88
-\ 425dc0 41b7d0 _				2 1
-\ 425dc8 410790 exit									rdx
-
-\ 1 => 2, 2 => 1 == 1 => 3, 2 => 1, 3 => 2
-
-\ 424d30  |
-\ 424d38  ?branch	424db8
-\ 424d48  lit	0
-\ 424d58  lit	1
-\ 424d68  >>>
-\ 424d70  (for)
-\ 424d78: >|
-\ 424d80  +
-\ 424d88  ><
-\ 424d90  (over)	424d78
-\ 424da0  _
-\ 424da8  branch	424dd0
-\ 424db8: _
-\ 424dc0  lit	0
-\ 424dd0: exit
+\					0	1						
+\ 424d30  |				0 0	2						
+\ 424d38  ?branch	424db8		0	1						
+\         (>mark)			0	1		S: 1	0			
+\ 424d48  lit	0			0 1	2		S: 1	0			
+\ 424d58  lit	1			0 1 2	3		S: 1	0			
+\ 424d68  >>>				1 2 0	3		S: 1	0			
+\ 424d70  (for)				1 2	2	R: 0	S: 1	0			
+\         (<mark)			1 2	2	R: 0	S: 2	2 1	1	0	
+\ 424d78: >|				1 2 1	3	R: 0	S: 2	2 1	1	0	
+\ 424d80  +				1 2	2	R: 0	S: 2	2 1	1	0	
+\ 424d88  ><				2 1	2	R: 0	S: 2	2 1	1	0	
+\ 424d90  (over)	424d78		2 1	2		S: 2	2 1	1	0	
+\         (<resolve)			2 1	2		S: 1	0			
+\ 424da0  _				2	1		S: 1	0			
+\ 424da8  branch	424dd0		2	1		S: 1	0			
+\         (>resolve)			2	1						
+\ 424dd0: exit				2	1						
 
 
 
