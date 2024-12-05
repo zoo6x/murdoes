@@ -23,6 +23,7 @@
 : r2       00 ;							\ rax = rwork
 : rwork    00 ;							\ rax = rwork
 : rstate   03 ;							\ rbx = rstate
+: rsp      04 ;							\ rsp
 : rpc      06 ;							\ rsi = rpc
 : rindex   0a ;							\ r10 = rindex
 : rend     0c ;							\ r12 = rend

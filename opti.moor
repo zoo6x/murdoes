@@ -47,13 +47,13 @@
 								\\ Register allocation
 :: #regs   16 val						\ Number of CPU registers
 :: regs    adr #regs allot						\ Register alias count
-: +reg     regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register
-: -reg     regs + | c@ 1- >< c! ; 				\ ( r -- )		Increments reference count for a register
+: +reg!    regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register
+: -reg!    regs + | c@ 1- >< c! ; 				\ ( r -- )		Increments reference count for a register
 :: vreg    0 var 						\ ( -- a-vr )		Variable holding latest allocated virtual register (VR)
 
 : regs-init							\ ( -- )		Initializes array of referenced registers
           regs #regs 0 fill
-
+          rsp +reg!						\ 			RSP should not be used as a general-purpose register
 ;
 
 :% ^       vreg @ | 1+ vreg ! %;				\ ( -- vr ) 		Returns current VR and increases next VR value
