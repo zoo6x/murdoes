@@ -1,6 +1,7 @@
 .intel_syntax	noprefix
 
 # TODO: https://wiki.osdev.org/X86-64_Instruction_Encoding
+# https://www.forwardcom.info/
 # https://jacobfilipp.com/DrDobbs/articles/DDJ/1988/8810/8810b/8810b.htm
 # https://www.complang.tuwien.ac.at/forth/fth79std/FORTH-79.TXT
 # https://www.complang.tuwien.ac.at/forth/fth83std/FORTH83.TXT
@@ -659,6 +660,9 @@ _decomp_exit:
 	call	_dup
 	mov	rtop, rwork
 	call	_decomp_print
+	call	_dup
+	mov	rtop, 0xa
+	call	_emit
 	pop	rpc
 	jmp	rnext
 _decomp_print:
@@ -681,6 +685,13 @@ word	bl_, "bl"
 _bl_:
 	call	_dup
 	mov	rtop, 0x20
+	ret
+
+# ALLOT ( n -- )
+# Reserves n bytes in data space
+word	allot
+	add	rhere, rtop
+	call	_drop
 	ret
 
 # , ( v -- )
