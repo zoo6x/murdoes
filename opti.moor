@@ -29,29 +29,32 @@
 
 
 								\\ Regallocing state
-: %        here (exec) REGALLOCING ' does			\ ( "<name>" --  )	Creates new semantics for register allocation state
-           compile interpreting! ] ;
-: (%>)     | INTERPRETING >cfa cfa@ >>> REGALLOCING >< does ;	\ ( xt -- )		Sets word's register allocation semantics to its execution semantics
+: %        here (exec) REGALLOCING ' does			\ ( "<name>" --  )	Creates new semantics for register allocation state,
+           compile interpreting! ] ;				\			which equals to execution semantics of its constituents
+: (%>)     | INTERPRETING >cfa@ >>> REGALLOCING >< does ;	\ ( xt -- )		Sets word's register allocation semantics to its execution semantics
 : %>       ' (%>) ;						\ ( "<name>" -- )	Sets register allocation semantics to execution semantics
 : <%       latest (%>) ;					\ ( -- )		Sets latest word's register allocation semantics to execution semantics
 
 : REGALLOCING! REGALLOCING state! ;
 : INTERPRETING! INTERPRETING state! ;
-\\ TODO: @ in REGALLOCING state must compile assembler. Search for a workaround
-%> REGALLOCING
-%> @
-%> state!!
-: REGALLOCING!! REGALLOCING state!! ;
+:: REGALLOCING!!  code rstate REGALLOCING mov.i, ret, <%	\ ( -- )		Sets state to REGALLOCING without address interpreter involvement
 
 : regalloc REGALLOCING! ' execute interpreting! INTERPRETING! ;	\ ( -- )		Sets STATE to REGALLOCING for the next text interpreter word 
-								\			This allies to stack manipulation words without effects
+
 : :%       : compile interpreting! ;
 : %;       compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 								\\ Register allocation
 :: #regs   16 val						\ Number of CPU registers
-:: regs    #regs allot						\ Register alias count
+:: regs    adr #regs allot						\ Register alias count
+: +reg     regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register
+: -reg     regs + | c@ 1- >< c! ; 				\ ( r -- )		Increments reference count for a register
 :: vreg    0 var 						\ ( -- a-vr )		Variable holding latest allocated virtual register (VR)
+
+: regs-init							\ ( -- )		Initializes array of referenced registers
+          regs #regs 0 fill
+
+;
 
 :% ^       vreg @ | 1+ vreg ! %;				\ ( -- vr ) 		Returns current VR and increases next VR value
 : :^       0 vreg ! ;
