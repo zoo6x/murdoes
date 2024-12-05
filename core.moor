@@ -110,8 +110,11 @@
 
 :: !       code #1 r1 load, rex, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
            #0 r0 load, ret,					\			mov	r0, [S+8]
+:: c!      code #1 r1 load, rex, 88 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
+           #0 r0 load, ret,					\			mov	r0, [S+8]
 
 								\\ Variables and constants
+: adr      does> ;						\ :: a adr
 : var      , does> ;						\ :: a 12345 var
 : val      , does> @ ;						\ :: b 98765 val
 
@@ -215,7 +218,14 @@
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
 : rpc+=ofs, 48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
+:: skip    code rtmp pop, rpc pop, 				\ ( -- )		Skip next address interpreter word TODO: make single ADD
+		rpc inc, rpc inc, rpc inc, rpc inc,
+		rpc inc, rpc inc, rpc inc, rpc inc,
+		rpc push, rtmp push, ret, 
 
+								\\ Return stack
+:: >r      code r1 pop, r0 push, _, r1 push, ret,		\ ( a -- ) ( R: -- a)	Pushes top of parameter stack onto return stack
+:: r>      code |, r1 pop, r0 pop, r1 push, ret,		\ ( -- a ) ( R: a -- )	Pops top of parameter stack off return stack
 								\\ Control structures: loops
 : begin    <mark ; immediate
 : until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
@@ -233,4 +243,7 @@
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      _ compile branch >mark <mark >< ; immediate
 : over     compile (over) <resolve ; immediate
+
+								\\ Data structures
+: fill    <<< for >|>| c! over _ _ ;				\ ( a n c -- )	Fill N bytes from address A with character C
 
