@@ -1015,13 +1015,6 @@ _forthword:
 
 	.quad	exit
 
-# :: ( "<name>" -- )
-# Synonym for HEADER
-word	coloncolon, "::",, forth
-_coloncolon:
-	.quad	header
-	.quad	exit
-
 # (CREATE) ( -- xt )
 # Pushes XT of the word being executed into stack
 word	_create_, "(create)"
@@ -1047,6 +1040,20 @@ _create:
 	.quad	lit, COMPILING
 	.quad	latest
 	.quad	does
+
+	.quad	lit, 0
+	.quad	lit, _decomp
+	.quad	lit, DECOMPILING
+	.quad	latest
+	.quad	does
+
+	.quad	exit
+
+# :: ( "<name>" -- )
+# Synonym for CREATE
+word	coloncolon, "::",, forth
+_coloncolon:
+	.quad	create
 	.quad	exit
 
 # (DOES>XT)
