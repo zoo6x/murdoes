@@ -240,6 +240,7 @@
 : again    compile branch <resolve ; immediate			\ ... begin ... again ...
 : ahead    compile branch >mark ; immediate
 : while    compile ?branch >mark ; immediate
+: leave    compile ?branch >mark >< ; immediate
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
