@@ -125,14 +125,14 @@ see fib
 : q        2a emit ;
 % q        2b emit %;
 q
-regalloc q
-q
-88 99 trace regalloc | notrace .. .. ..
-88 11 22 regalloc + .. ..
-88 11 22 regalloc + .. ..
+\ regalloc q
+\ q
+\ 88 99 regalloc | .. .. ..
+\ 88 11 22 regalloc + .. ..
+\ 88 11 22 regalloc + .. ..
 : q + + ;
 \ trace
-:^ ^ ^ ^ ^> q .. 
+:^ ?^ ?^ ?^ ^> q .. 
 \ notrace
 
 : q for I . over ;

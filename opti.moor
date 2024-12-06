@@ -45,31 +45,34 @@
 : %;       compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 								\\ Register allocation
-:: #regs   16 val						\ Number of CPU registers
-:: regs    adr #regs allot						\ Register alias count
-: +reg!    regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register
-: -reg!    regs + | c@ 1- >< c! ; 				\ ( r -- )		Increments reference count for a register
-:: vreg    0 var 						\ ( -- a-vr )		Variable holding latest allocated virtual register (VR)
+:: #regs   10 val						\ Number of CPU registers
+:: regs    adr #regs allot					\ Register alias count
+: ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register
+: v        regs + | c@ 1- >< c! ; 				\ ( r -- )		Decrements reference count for a register
+: ?^       regs #regs for | c@ leave 1+ over abort then
+           _ #regs I - | ^ ;
+
+\ trace
+see ?^
 
 : regs-init							\ ( -- )		Initializes array of referenced registers
           regs #regs 0 fill
-          rsp +reg!						\ 			RSP should not be used as a general-purpose register
+          rsp ^							\ 			RSP should not be used as a general-purpose register
 ;
 
-:% ^       vreg @ | 1+ vreg ! %;				\ ( -- vr ) 		Returns current VR and increases next VR value
-: :^       0 vreg ! ;
+: :^       regs-init ;
 : ^>       regalloc ;
 
 
 								\\ Regallocing state semantics
-% |        >r | r> 1+ %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
-% _        %;							\ ( r # -- #-1)		Frees a register
+% |        1+ >< | | ^ ><  %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
+% _        v %;							\ ( r # -- #-1)		Frees a register
 
-% ><       %;							\ ( r1 r2 # -- r2 r2 # ) Swaps registers
+% ><       >r >< r> %;						\ ( r1 r2 # -- r2 r2 # ) Swaps registers
 
-% lit      skip ^ %;						\ ( # -- r #+1 )	Allocates new register
+% lit      skip 1+ ?^ >< %;						\ ( # -- r #+1 )	Allocates new register
 
-% +        _ _ ^ %;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
+% +        v v ?^ %;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
 
 
 % ,        %;							\ ( r -- )		TODO: WRONG! Stub for now
