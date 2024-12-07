@@ -151,7 +151,11 @@ reg-stack stack@ .S
 10 reg-stack >s
 20 reg-stack >s
 30 reg-stack >s
-reg-stack .stack
+reg-stack stack@ .S
+cr .S reg-stack cr .S cr 
+\ see .stack
+
+reg-stack trace .stack
 reg-stack s> ..
 reg-stack s> ..
 reg-stack s> ..
