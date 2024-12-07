@@ -160,7 +160,7 @@
 : continue compile -?branch | <resolve ; immediate		\ ... begin ... ? continue ... ? continue ... ? break ... [while] ... repeat|again ... then
 : break    compile -?branch >mark >< ; immediate		\ 
 								\\ Search
-: '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | E )
+: '        bl word _ find | if else badd1c 071c .abort then ;		\ ("<name>" -- xt | E )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
 
 								\\ Improved assembler, r0-15 support 
