@@ -1306,11 +1306,6 @@ word	dot_s, ".S"
 	call	dot
 
 	5:
-	call	_dup
-	mov	rtop, 0xa
-	call	emit
-
-
 	ret
 
 # (QUIT) ( -- )
