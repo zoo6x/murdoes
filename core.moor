@@ -156,6 +156,8 @@
 : while    compile ?branch >mark ; immediate
 : leave    compile ?branch >mark >< ; immediate
 : repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
+: continue compile -?branch | <resolve ; immediate		\ ... begin ... ? continue ... ? continue ... ? break ... [while] ... repeat|again ... then
+: break    compile -?branch >mark >< ; immediate		\ 
 								\\ Search
 : '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | ABORT )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
@@ -257,5 +259,5 @@
 : over     compile (over) <resolve ; immediate
 
 								\\ Data structures
-: fill    <<< for >|>| c! over _ _ ;				\ ( a n c -- )	Fill N bytes from address A with character C
+: fill    <<< for >|>| c! 1+ over _ _ ;				\ ( a n c -- )	Fill N bytes from address A with character C
 
