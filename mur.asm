@@ -1275,6 +1275,46 @@ _dot:
 	call	_emit
 	ret
 
+# .S ( -- )
+# Prints stacks
+word	dot_s, ".s"
+	call	_dup
+	mov	rtop, 0x53
+	call	emit
+	call	_dup
+	mov	rtop, 0x3a
+	call	emit
+	call	_dup
+	mov	rtop, 0x20
+	call	emit
+
+	test	rstack, rstack
+	jz	5f
+	mov	rwork, 0
+	1:
+	dec	rwork
+	cmp	rwork, rstack
+	je	3f
+	call	_dup
+	mov	rtop, [rstack0 + rwork * 8]
+	push	rwork
+	call	dot
+	pop	rwork
+	jmp	1b
+	3:
+	test	rstack, rstack
+	jz	5f
+	call	_dup
+	call	dot
+
+	5:
+	call	_dup
+	mov	rtop, 0xa
+	call	emit
+
+
+	ret
+
 # (QUIT) ( -- )
 # Read one word from input stream and interpret it
 word	quit_, "(quit)"
