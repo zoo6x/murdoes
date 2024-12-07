@@ -75,7 +75,6 @@
 : fib \ n	Fn = Fn-1 + Fn-2
   | if 0 1 >>> for >| + >< over _ then ;
 see fib
-cold								\ 			Clear stack. We'll deal with junk later
 \					0	1						
 \ 424d30  |				0 0	2						
 \ 424d38  ?branch	424db8		0	1						
@@ -94,11 +93,10 @@ cold								\ 			Clear stack. We'll deal with junk later
 \ 424da8  branch	424dd0		2	1		S: 1	0			
 \         (>resolve)			2	1						
 \ 424dd0: exit				2	1						
+: q + + ;
+cold
+:^ ?^ ?^ ?^ 3 ^> q
+cold
 :^ ?^ 1 ^> fib
-600df00d 0 .abort
-
-
-
-
-
+\ 600df00d 0 .abort
 

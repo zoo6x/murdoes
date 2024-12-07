@@ -149,6 +149,13 @@
 : if       compile ?branch >mark ; immediate
 : else     compile branch >mark >< >resolve ; immediate
 : then     >resolve ; immediate
+: begin    <mark ; immediate
+: until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
+: again    compile branch <resolve ; immediate			\ ... begin ... again ...
+: ahead    compile branch >mark ; immediate
+: while    compile ?branch >mark ; immediate
+: leave    compile ?branch >mark >< ; immediate
+: repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
 								\\ Search
 : '        bl word _ find | if else abort then ;		\ ("<name>" -- xt | ABORT )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
@@ -239,20 +246,12 @@
 :: >r      code r1 pop, r0 push, _, r1 push, ret,		\ ( a -- ) ( R: -- a)	Pushes top of parameter stack onto return stack
 :: r>      code |, r1 pop, r0 pop, r1 push, ret,		\ ( -- a ) ( R: a -- )	Pops top of parameter stack off return stack
 								\\ Control structures: loops
-: begin    <mark ; immediate
-: until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
-: again    compile branch <resolve ; immediate			\ ... begin ... again ...
-: ahead    compile branch >mark ; immediate
-: while    compile ?branch >mark ; immediate
-: leave    compile ?branch >mark >< ; immediate
-: repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
-
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
 :: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
 :: (over)  code rindex dec, lodsq, 4 .z j, rpc+=ofs, ret,	\ ( -- )		dec rindex ; lodsq ; jz ret ; rpc+=ofs ; ret
 ' branch DECOMPILING >cfa@ DECOMPILING latest does
 
-\ https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
+								\ DOC: https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      _ compile branch >mark <mark >< ; immediate
 : over     compile (over) <resolve ; immediate

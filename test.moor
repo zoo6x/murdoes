@@ -130,12 +130,12 @@ q
 \ 88 99 regalloc | .. .. ..
 \ 88 11 22 regalloc + .. ..
 \ 88 11 22 regalloc + .. ..
-: q + + ;
+\ : q + + ;
 \ trace
-:^ ?^ ?^ ?^ 3 ^> q .. 
+\ :^ ?^ ?^ ?^ 3 ^> q .. 
 \ notrace
 see fib
-:^ ?^ 1 ^> fib
+\ :^ ?^ 1 ^> fib
 
 : q for I . over ;
 99 40 q ..
