@@ -2,32 +2,6 @@
 \\ Optimizer
 \
 
-\\ References
-\ https://github.com/tarantool/tarantool/wiki/LuaJIT-Optimizations
-\ https://medium.com/@AlexanderObregon/everything-you-need-to-know-about-register-allocation-in-c-27019602cc5c
-\ https://langdev.stackexchange.com/questions/1441/what-are-the-disadvantages-of-using-ssa-form
-\ https://en.wikipedia.org/wiki/Register_allocation
-
-\\ Concepts
-
-\\ Virtual registers
-\ - Reference a CPU register or a (local?) memory slot
-\ - Optimizer can change virtual reference without re-emitting SSA IR (register pressure optimization?)
-\   (for instance, if hint or statistics indicate that this exact VR shold be stored in register/memory)
-
-\\ Stack changes
-\ In IR generation (?) state each word returns
-\ - Number of values taken of the stack
-\ - Number of values put onto the stack
-\ - Aliasing between new and old values, if any
-\ ( -- [ new old ]... naliases nput ntaken)
-\ This is needed only for code words, for Forth words everything is deduced from threaded code
-\ - Words are
-\   - inline: registers are allocated dynamically
-\   - leaf: do not call other words (but may inline others)
-\   - twig: non-leaf nodes, call other words that are already compiled
-
-
 								\\ Regallocing state
 : %        here (exec) REGALLOCING ' does			\ ( "<name>" --  )	Creates new semantics for register allocation state,
            compile interpreting! ] ;				\			which equals to execution semantics of its constituents
@@ -47,43 +21,46 @@
 								\\ Register allocation
 :: #regs   10 val						\ Number of CPU registers
 :: regs    adr #regs allot					\ Register alias count
-: ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register
+: ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ 1- >< c! ; 				\ ( r -- )		Decrements reference count for a register
-: ?^       regs #regs for | c@ leave 1+ over badface 0 .abort then
-           _ #regs I - | ^ ;
-
-\ trace
-see ?^
+: ?^       regs #regs for | c@ leave 1+ over bada110c 0 .abort  \ ( -- r | ABORT )	Allocates a new register, if one is available
+           then _ #regs I - | ^ ;
+: ∧        ^ ;							\			An attempt at aesthetics with Unicode symbols
+: ∨        v ;
+: ?∧       ?^ ;
+: ⊻        1- >r ∨ r> ;						\ ( r # -- #-1 )	Frees a register
 
 : regs-init							\ ( -- )		Initializes array of referenced registers
           regs #regs 0 fill
-          rsp ^							\ 			RSP should not be used as a general-purpose register
+          rsp ∧							\ 			RSP should not be used as a general-purpose register
 ;
 
 : :^       regs-init ;
 : ^>       regalloc ;
 
+% |        norm 1+ >r | | ∧ r> .S %;				\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
+% _        ⊻ .S %;						\ ( r # -- #-1)
 
-								\\ Regallocing state semantics
-% |        1+ >< | | ^ ><  %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
-% _        v %;							\ ( r # -- #-1)		Frees a register
+% ><       >r >< r> .S %;					\ ( r1 r2 # -- r2 r2 # )
+% <<<      >r <<< r> .S %;					\ ( r1 r2 r3 # -- r3 r1 r2 # )
+% >>>      >r >>> r> .S %;					\ ( r1 r2 r3 # -- r2 r3 r1 # )
 
-% ><       >r >< r> %;						\ ( r1 r2 # -- r2 r2 # ) Swaps registers
+% lit      skip 1+ ?∧ >< .S %;					\ ( # -- r #+1 )	Allocates new register
+% ?branch  skip ⊻ .S %;						\ ( r # -- #-1 )		Branches do not allocate registers. MARK and RESOLVE do all work
 
-% lit      skip 1+ ?^ >< %;						\ ( # -- r #+1 )	Allocates new register
-
-% +        v v ?^ %;						\ ( r1 r2 -- r3 )	Frees two registers and allocates one
+% +        1- >r ∨ ∨ ?∧ r> .S %;				\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 
 
-% ,        v %;							\ ( r -- )		TODO: WRONG! Stub for now
-% emit     v %;							\ ( r -- )		TODO: WRONG! Stub for now 
+% ,        ∨ .S %;						\ ( r # -- #-1 )	Frees the parameter
+% emit     ∨ .S %;						\ ( r # -- #-1 )	Frees the parameter 
 
 \\ Fibonacci sequence generator
 \ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
 \ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
 : fib \ n	Fn = Fn-1 + Fn-2
   | if 0 1 >>> for >| + >< over _ then ;
-
+see fib
+cold								\ 			Clear stack. We'll deal with junk later
 \					0	1						
 \ 424d30  |				0 0	2						
 \ 424d38  ?branch	424db8		0	1						
@@ -102,6 +79,8 @@ see ?^
 \ 424da8  branch	424dd0		2	1		S: 1	0			
 \         (>resolve)			2	1						
 \ 424dd0: exit				2	1						
+:^ ?^ 1 
+cr .S ^> fib
 
 
 
