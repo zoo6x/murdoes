@@ -162,6 +162,9 @@ reg-stack s> ..
 
 reg-stack stack@ .S
 
+cold
+11 22 33 44 55 .S cr
+0 #| .. 1 #| .. 2 #| .. 3 #| .. 4 #| ..
 
 words
 .\ Tests finished successfully
