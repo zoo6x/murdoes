@@ -135,8 +135,6 @@ q
 :^ ?^ ?^ ?^ 3 ^> q .. 
 \ notrace
 see fib
-' words >name count type
-: qaz self >name count red type norm ; qaz
 :^ ?^ 1 ^> fib
 
 : q for I . over ;
