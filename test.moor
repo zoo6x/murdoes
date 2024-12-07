@@ -155,7 +155,7 @@ reg-stack stack@ .S
 cr .S reg-stack cr .S cr 
 \ see .stack
 
-reg-stack trace .stack
+reg-stack trace .stack notrace
 reg-stack s> ..
 reg-stack s> ..
 reg-stack s> ..
