@@ -356,6 +356,7 @@ _drop:
 	mov	rtop, [rstack0 + rstack * 8]
 	ret
 
+/*
 # >S ( a -- ) (S2: -- a )
 # Pushes top element onto stack 2
 word	to_s, ">s"
@@ -378,6 +379,7 @@ word	s_fetch, "s@"
 	call	_dup
 	mov	rtop, [rstack0 + rstack2 * 8]
 	ret
+*/
 
 # LIT ( -- n )
 # Pushes compiled literal onto data stack
