@@ -346,11 +346,11 @@ syn keyword forthFStack    FNIP FTUCK
 " The optional Locals word set {{{1
 syn keyword forthForth (LOCAL)
   " extension words
-syn region forthLocals start="\<{:\>" end="\<:}\>"
+"syn region forthLocals start="\<{:\>" end="\<:}\>"
 syn region forthLocals start="\<LOCALS|\>" end="\<|\>"
 
 " Non-standard Locals words
-syn region forthLocals start="\<{\>" end="\<}\>"
+" syn region forthLocals start="\<{\>" end="\<}\>"
 
 " The optional Memory-Allocation word set {{{1
 syn keyword forthMemory ALLOCATE FREE RESIZE

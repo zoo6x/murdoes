@@ -43,24 +43,27 @@
            regs #regs 0 fill
            rsp ∧ _						\ 			RSP should not be used as a general-purpose register
 ;
-
+								\\ Syntactic sugar
 : :^       regs-init ;
 : ^>       regalloc ;
+: {        compile >r ;	immediate
+: }        compile r> ;	immediate
 
-% |        norm 1+ >r | ∧ r> %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
+								\\ Register allocation implementation
+% |        norm 1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
 % _        ⊻ %;							\ ( r # -- #-1)
 
-% ><       >r >< r> %;						\ ( r1 r2 # -- r2 r2 # )
-% <<<      >r <<< r> %;						\ ( r1 r2 r3 # -- r3 r1 r2 # )
-% >>>      >r >>> r> %;						\ ( r1 r2 r3 # -- r2 r3 r1 # )
-% >|       1+ >r >| ∧ r> %;				 	\ ( r1 r2 # -- r1 r2 r1 #+1 )
+% ><       { >< } %;						\ ( r1 r2 # -- r2 r2 # )
+% <<<      { <<< } %;						\ ( r1 r2 r3 # -- r3 r1 r2 # )
+% >>>      { >>> } %;						\ ( r1 r2 r3 # -- r2 r3 r1 # )
+% >|       1+ { >| ∧ } %;				 	\ ( r1 r2 # -- r1 r2 r1 #+1 )
 
 % lit      skip 1+ ?∧ >< %;					\ ( # -- r #+1 )	Allocates new register
 % ?branch  skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
-% (for)    1- >r ∧ _ r> %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
+% (for)    1- { ∧ _ } %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
 % (over)   skip %;						\ ( -- )		TODO: Do nothing so far. (RESOLVE) will do all the job
 
-% +        1- >r ∨ ∨ ?∧ r> %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+% +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 
 
 % ,        ∨ %;							\ ( r # -- #-1 )	Frees the parameter
