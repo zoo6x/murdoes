@@ -8,6 +8,7 @@
 : norm     1b emit 5b emit 30 emit 6d emit ;
 : blue     1b emit 5b emit 33 emit 34 emit 6d emit ;
 : red      1b emit 5b emit 33 emit 31 emit 6d emit ;
+: white    1b emit 5b emit 33 emit 37 emit 6d emit ;
 : .\       0 word count blue type norm 0a emit ;
 : abort"   22 word count 0a emit red type norm 0a emit abort ;
 : .abort   red . . norm abort ;					\ ( code message -- )	Prints code and message as hexadecimal numbers and aborts
