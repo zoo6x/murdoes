@@ -115,8 +115,6 @@ _comp:
 	mov	rwork, [rwork + rstate * 8 - 16 + 8]
 	stosq
 	jmp	rnext
-_noop:
-	ret
 _interp:
 	lea	rnext, qword ptr [_next]
 	mov	rstate, INTERPRETING
