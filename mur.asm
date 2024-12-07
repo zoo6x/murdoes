@@ -83,12 +83,28 @@ _doxt:
 	call	_decomp_print
 	pop	rwork
 	call	_dup
-	mov	rtop, 0xa
-	push	rwork
+	mov	rtop, 0x1b
 	call	_emit
-	pop	rwork
-	pop	rtmp
+	call	_dup
+	mov	rtop, 0x5b
+	call	_emit
+	call	_dup
+	mov	rtop, 0x33
+	call	_emit
+	call	_dup
+	mov	rtop, 0x39
+	call	_emit
+	call	_dup
+	mov	rtop, 0x47
+	call	_emit
 	call	_drop
+	push	rwork
+	call	dot_s
+	pop	rwork
+	call	_dup
+	mov	rtop, 0xa
+	call	_emit
+	pop	rtmp
 	1:
 .endif
 .endif
@@ -652,6 +668,7 @@ _decomp1:
 	mov	rtop, 0xa
 	call	_emit
 	7:
+	call	_drop
 	jmp	rnext
 _decomp_exit:
 	mov	qword ptr [_decompiling], 0
