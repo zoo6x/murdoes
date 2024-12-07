@@ -42,7 +42,7 @@
            1b emit 5b emit 37 emit 35 emit 47 emit
 	   43 emit 3a emit bl emit cyc-stack .stack
            1b emit 5b emit 38 emit 35 emit 47 emit
-	   50 emit 3a emit bl emit \ phi-stack .stack
+	   cf emit 86 emit 3a emit bl emit phi-stack .stack
 	   cr ;
 
 								\\ Regallocing semantics definitions
@@ -79,12 +79,12 @@
 % >>>      { >>> } %;						\ ( r1 r2 r3 # -- r2 r3 r1 # )
 % >|       1+ { >| ∧ } %;				 	\ ( r1 r2 # -- r1 r2 r1 #+1 )
 
-% lit      skip 1+ ?∧ >< %;					\ ( # -- r #+1 )	Allocates new register
+% lit      skip 1+ { ?∧ } %;					\ ( # -- r #+1 )	Allocates new register
 % branch   skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 % ?branch  skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 % -?branch skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
-% (for)    1- { ∧ _ } %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
-% (over)   skip %;						\ ( -- )		TODO: Do nothing so far. (RESOLVE) will do all the job
+% (for)    1- { >cyc } %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
+% (over)   skip cyc> ∨ %;					\ ( -- )
 
 % +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % 1+       %;
@@ -93,11 +93,14 @@
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
 % emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
 
+: noop ;
+% noop %;
+
 \\ Fibonacci sequence generator
 \ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
 \ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
 : fib \ n	Fn = Fn-1 + Fn-2
-  | if 0 1 >>> for >| + >< over _ then ;
+  | if 0 1 >>> for >| + >< over _ then noop ;
 see fib
 \					0	1						
 \ 424d30  |				0 0	2						
@@ -114,13 +117,11 @@ see fib
 \ 424d90  (over)	424d78		2 1	2		S: 2	2 1	1	0	
 \         (<resolve)			2 1	2		S: 1	0			
 \ 424da0  _				2	1		S: 1	0			
-\ 424da8  branch	424dd0		2	1		S: 1	0			
-\         (>resolve)			2	1						
 \ 424dd0: exit				2	1						
 : q + + ;
 cold
 :^ ?^ ?^ ?^ 3 ^> q
 cold
 :^ ?^ 1 ^> fib
-\ 600df00d 0 .abort
+600df00d 0c0de .abort
 
