@@ -1277,7 +1277,7 @@ _dot:
 
 # .S ( -- )
 # Prints stacks
-word	dot_s, ".s"
+word	dot_s, ".S"
 	call	_dup
 	mov	rtop, 0x53
 	call	emit
@@ -1500,6 +1500,11 @@ _summoner:
 
 # COLD
 # Cold start
+word	cold
+	jmp	_abort
+
+# WARM
+# Warm start
 word	warm,,, forth
 _warm:
 	.quad	quit
