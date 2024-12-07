@@ -21,21 +21,36 @@
 :: regs    adr #regs allot					\ Register alias count
 : ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ 1- >< c! ; 				\ ( r -- )		Decrements reference count for a register
-: ?^       regs #regs for | c@ leave 1+ over 0add bada110c .abort \ ( -- r | ABORT )	Allocates a new register, if one is available
+: ?^       regs #regs for | c@ leave 1+ over			\ ( -- r | ABORT )	Allocates a new register, if one is available
+           0add bada110c .abort
            then _ #regs I - | ^ ;
 : .regs    regs #regs for | c@ .. 1+ over _ ;
+
+:: cyc-stack 100 stack						\ Cycle stack
+: >cyc    cyc-stack >s ;
+: cyc>    cyc-stack s> ;
+
+:: phi-stack 100 stack						\ Phi junction stack
+: >phi    phi-stack >s ;
+: phi>    phi-stack s> ;
 
 : %.debug  >name count white type norm				\ ( xt -- )		Debug print word name and stack
            1b emit 5b emit 31 emit 39 emit 47 emit ;
 : %.S      .S
            1b emit 5b emit 33 emit 39 emit 47 emit
-	   .regs cr ;
+	   .regs 
+           1b emit 5b emit 37 emit 35 emit 47 emit
+	   43 emit 3a emit bl emit cyc-stack .stack
+           1b emit 5b emit 38 emit 35 emit 47 emit
+	   50 emit 3a emit bl emit \ phi-stack .stack
+	   cr ;
 
+								\\ Regallocing semantics definitions
 : %        here (exec) REGALLOCING ' | >r does r>		\ ( "<name>" --  )	Creates new semantics for register allocation state,
            compile interpreting! 				\			which equals to execution semantics of its constituents
-	   [compile] literal compile %.debug
+	   [compile] literal compile %.debug			\ DEBUG
            ] ;
-: %;       compile %.S 
+: %;       compile %.S						\ DEBUG
            compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 	   							\\ Register allocation primitives
