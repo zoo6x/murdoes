@@ -21,7 +21,7 @@
 :: regs    adr #regs allot					\ Register alias count
 : ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ 1- >< c! ; 				\ ( r -- )		Decrements reference count for a register
-: ?^       regs #regs for | c@ leave 1+ over bada110c 0 .abort  \ ( -- r | ABORT )	Allocates a new register, if one is available
+: ?^       regs #regs for | c@ leave 1+ over 0add bada110c .abort \ ( -- r | ABORT )	Allocates a new register, if one is available
            then _ #regs I - | ^ ;
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 

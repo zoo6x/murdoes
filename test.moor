@@ -145,6 +145,20 @@ see cs4
 cold
 :^ ?^ 1 cr .S cr  ^> cs4
 
+cold
+:: reg-stack 3 stack
+reg-stack stack@ .S
+10 reg-stack >s
+20 reg-stack >s
+30 reg-stack >s
+reg-stack s> ..
+reg-stack s> ..
+reg-stack s> ..
+reg-stack s> ..
+
+reg-stack stack@ .S
+
+
 words
 .\ Tests finished successfully
 
