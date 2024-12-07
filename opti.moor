@@ -4,7 +4,7 @@
 
 								\\ Regallocing state
 : %.debug  >name count white type norm				\ ( xt -- )		Debug print word name and stack
-           9 | emit emit .S ;
+           9 | emit emit ;
 
 : %        here (exec) REGALLOCING ' | >r does r>		\ ( "<name>" --  )	Creates new semantics for register allocation state,
            compile interpreting! 				\			which equals to execution semantics of its constituents
@@ -22,7 +22,8 @@
 : regalloc REGALLOCING! ' execute interpreting! INTERPRETING! ;	\ ( -- )		Sets STATE to REGALLOCING for the next text interpreter word 
 
 : :%       : compile interpreting! ;
-: %;       compile REGALLOCING!! compile exit [compile] [ ; immediate
+: %;       compile .S 
+           compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 								\\ Register allocation
 :: #regs   10 val						\ Number of CPU registers
@@ -31,6 +32,8 @@
 : v        regs + | c@ 1- >< c! ; 				\ ( r -- )		Decrements reference count for a register
 : ?^       regs #regs for | c@ leave 1+ over bada110c 0 .abort  \ ( -- r | ABORT )	Allocates a new register, if one is available
            then _ #regs I - | ^ ;
+
+	   							\\ Register allocation primitives
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving it on the stack
 : ∨        v ;
 : ?∧       ?^ ;
@@ -54,7 +57,9 @@
 
 % lit      skip 1+ ?∧ >< %;					\ ( # -- r #+1 )	Allocates new register
 % ?branch  skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
-% (for)    ⊻ %;							\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
+% (for)    1- >r ∧ _ r> %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
+% (over)   skip %;						\ ( -- )		TODO: Do nothing so far. (RESOLVE) will do all the job
+
 % +        1- >r ∨ ∨ ?∧ r> %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 
 
@@ -87,7 +92,7 @@ cold								\ 			Clear stack. We'll deal with junk later
 \         (>resolve)			2	1						
 \ 424dd0: exit				2	1						
 :^ ?^ 1 ^> fib
-
+600df00d 0 .abort
 
 
 
