@@ -19,10 +19,11 @@
 : `        c, ;
 								\\ Register assignment. Should be changed if register aliases are changed
 : r0       01 ;							\ rcx = rtop
+: rtop     01 ;
 : r1       02 ;							\ rdx = rtmp
-: rtmp     02 ;							\ rdx = rtmp
+: rtmp     02 ;
 : r2       00 ;							\ rax = rwork
-: rwork    00 ;							\ rax = rwork
+: rwork    00 ;
 : rstate   03 ;							\ rbx = rstate
 : rsp      04 ;							\ rsp
 : rpc      06 ;							\ rsi = rpc
@@ -131,10 +132,12 @@
 :: COMPILING    -2 val
 :: DECOMPILING  -4 val
 :: REGALLOCING  -6 val
-
+								\\ Dictionary structure
 : >cfa     cells + cell - cell - ;				\ ( xt state -- cfa )	Returns CFA for given state for XT
 : cfa@     | @ >< cell + @ >< ;					\ ( cfa -- param code )	Returns param and code for CFA
-: >cfa@    >cfa cfa@ ;						\ ( xt state -- param code)	Returnt param and code for given state for XT
+: >cfa@    >cfa cfa@ ;						\ ( xt state -- param code)	Returns param and code for given state for XT
+
+: >name    22 cells - @ ; 					\ ( xt -- c-addr )	Returns address of the name counted string
 
 : >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
 : >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch
@@ -227,11 +230,10 @@
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
 : rpc+=ofs, 48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
-:: skip    code rtmp pop, rpc pop, 				\ ( -- )		Skip next address interpreter word TODO: make single ADD
-		rpc inc, rpc inc, rpc inc, rpc inc,
-		rpc inc, rpc inc, rpc inc, rpc inc,
-		rpc push, rtmp push, ret, 
-
+:: skip    code rtmp pop, rwork pop, 				\ ( -- )		Skip next address interpreter word TODO: make single ADD
+		rwork inc, rwork inc, rwork inc, rwork inc,
+		rwork inc, rwork inc, rwork inc, rwork inc,
+		rwork push, rtmp push, ret,
 								\\ Return stack
 :: >r      code r1 pop, r0 push, _, r1 push, ret,		\ ( a -- ) ( R: -- a)	Pushes top of parameter stack onto return stack
 :: r>      code |, r1 pop, r0 pop, r1 push, ret,		\ ( -- a ) ( R: a -- )	Pops top of parameter stack off return stack
