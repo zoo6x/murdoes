@@ -43,6 +43,9 @@ q
 cs2
 : cs3 5 begin 2a emit 1- | while 2b emit repeat 2a emit ;
 cs3
+: cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | while 33 emit repeat 34 emit then 35 emit ;
+0 cs4 
+1 cs4 
 
 .\ Decompiler
 \ see >resolve
@@ -53,6 +56,7 @@ see val
 see cs1
 see cs2
 see cs3
+see cs4
 
 .\ Stack manipulation words
 98 99 - ..
@@ -131,15 +135,15 @@ q
 \ 88 11 22 regalloc + .. ..
 \ 88 11 22 regalloc + .. ..
 \ : q + + ;
-\ trace
 \ :^ ?^ ?^ ?^ 3 ^> q .. 
-\ notrace
-see fib
+\ see fib
 \ :^ ?^ 1 ^> fib
-
 : q for I . over ;
 99 40 q ..
 
+see cs4
+cold
+:^ ?^ 1 cr .S cr  ^> cs4
 
 words
 .\ Tests finished successfully

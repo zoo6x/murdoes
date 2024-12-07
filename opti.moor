@@ -3,13 +3,6 @@
 \
 
 								\\ Regallocing state
-: %.debug  >name count white type norm				\ ( xt -- )		Debug print word name and stack
-           9 | emit emit ;
-
-: %        here (exec) REGALLOCING ' | >r does r>		\ ( "<name>" --  )	Creates new semantics for register allocation state,
-           compile interpreting! 				\			which equals to execution semantics of its constituents
-	   [compile] literal compile %.debug
-           ] ;
 	   							\\ TODO: Do we need these at all?
 : (%>)     | INTERPRETING >cfa@ >>> REGALLOCING >< does ;	\ ( xt -- )		Sets word's register allocation semantics to its execution semantics
 : %>       ' (%>) ;						\ ( "<name>" -- )	Sets register allocation semantics to execution semantics
@@ -22,8 +15,6 @@
 : regalloc REGALLOCING! ' execute interpreting! INTERPRETING! ;	\ ( -- )		Sets STATE to REGALLOCING for the next text interpreter word 
 
 : :%       : compile interpreting! ;
-: %;       compile .S 
-           compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 								\\ Register allocation
 :: #regs   10 val						\ Number of CPU registers
@@ -32,12 +23,29 @@
 : v        regs + | c@ 1- >< c! ; 				\ ( r -- )		Decrements reference count for a register
 : ?^       regs #regs for | c@ leave 1+ over bada110c 0 .abort  \ ( -- r | ABORT )	Allocates a new register, if one is available
            then _ #regs I - | ^ ;
+: .regs    regs #regs for | c@ .. 1+ over _ ;
+
+: %.debug  >name count white type norm				\ ( xt -- )		Debug print word name and stack
+           1b emit 5b emit 31 emit 39 emit 47 emit ;
+: %.S      .S
+           1b emit 5b emit 33 emit 39 emit 47 emit
+	   .regs cr ;
+
+: %        here (exec) REGALLOCING ' | >r does r>		\ ( "<name>" --  )	Creates new semantics for register allocation state,
+           compile interpreting! 				\			which equals to execution semantics of its constituents
+	   [compile] literal compile %.debug
+           ] ;
+: %;       compile %.S 
+           compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 	   							\\ Register allocation primitives
+: {        compile >r ;	immediate
+: }        compile r> ;	immediate
+
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving it on the stack
 : ∨        v ;
 : ?∧       ?^ ;
-: ⊻        1- >r ∨ r> ;						\ ( r # -- #-1 )	Frees a register
+: ⊻        1- { ∨ } ;						\ ( r # -- #-1 )	Frees a register
 
 : regs-init							\ ( -- )		Initializes array of referenced registers
            regs #regs 0 fill
@@ -46,8 +54,6 @@
 								\\ Syntactic sugar
 : :^       regs-init ;
 : ^>       regalloc ;
-: {        compile >r ;	immediate
-: }        compile r> ;	immediate
 
 								\\ Register allocation implementation
 % |        norm 1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
@@ -59,15 +65,18 @@
 % >|       1+ { >| ∧ } %;				 	\ ( r1 r2 # -- r1 r2 r1 #+1 )
 
 % lit      skip 1+ ?∧ >< %;					\ ( # -- r #+1 )	Allocates new register
+% branch   skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 % ?branch  skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
+% -?branch skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 % (for)    1- { ∧ _ } %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
 % (over)   skip %;						\ ( -- )		TODO: Do nothing so far. (RESOLVE) will do all the job
 
 % +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+% 1+       %;
+% 1-       %;
 
-
-% ,        ∨ %;							\ ( r # -- #-1 )	Frees the parameter
-% emit     ∨ %;							\ ( r # -- #-1 )	Frees the parameter 
+% ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
+% emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
 
 \\ Fibonacci sequence generator
 \ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
