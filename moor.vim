@@ -107,7 +107,7 @@ syn keyword forthCond ?DUP-0=-IF ?DUP-IF ENDIF
 " iterations {{{2
 syn keyword forthLoop +LOOP BEGIN DO EXIT I J LEAVE LOOP RECURSE REPEAT UNLOOP
 syn keyword forthLoop UNTIL WHILE
-syn keyword forthLoop FOR AFT OVER
+syn keyword forthLoop FOR AFT OVER CONTINUE BREAK
   " extension words
 syn keyword forthLoop ?DO AGAIN
 
