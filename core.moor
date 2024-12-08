@@ -144,11 +144,17 @@
 
 : >name    22 cells - @ ; 					\ ( xt -- c-addr )	Returns address of the name counted string
 
-: >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
-: >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch
+								\\ Control structures
+: (>mark) ;							\ Do nothing during execution, but are used uring code generation
+: (>resolve) ;
+: (<mark) ;
+: (<resolve) ;
 
-: <mark    here  ;						\ ( -- a )		Address for backward branch fixup
-: <resolve here  - cell/ 1- , ;
+: >mark    here 0 , compile (>mark) ;				\ ( -- a )		Address for forward branch fixup
+: >resolve | here >< - cell/ 1- ><  ! compile (>resolve) ;	\ ( a -- )		Fixup forward branch
+
+: <mark    here compile (<mark) ;				\ ( -- a )		Address for backward branch fixup
+: <resolve here  - cell/ 1- , compile (<resolve) ;
 
 : if       compile ?branch >mark ; immediate
 : else     compile branch >mark >< >resolve ; immediate
@@ -163,7 +169,7 @@
 : continue compile -?branch | <resolve ; immediate		\ ... begin ... ? continue ... ? continue ... ? break ... [while] ... repeat|again ... then
 : break    compile -?branch >mark >< ; immediate		\ 
 								\\ Search
-: '        bl word _ find | if else badd1c 071c .abort then ;		\ ("<name>" -- xt | E )
+: '        bl word _ find | if else badd1c 071c .abort then ;	\ ("<name>" -- xt | E )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
 
 								\\ Improved assembler, r0-15 support 
@@ -257,6 +263,8 @@
 								\\ Return stack
 :: >r      code r1 pop, r0 push, _, r1 push, ret,		\ ( a -- ) ( R: -- a)	Pushes top of parameter stack onto return stack
 :: r>      code |, r1 pop, r0 pop, r1 push, ret,		\ ( -- a ) ( R: a -- )	Pops top of parameter stack off return stack
+: {        compile >r ;	immediate
+: }        compile r> ;	immediate
 								\\ Control structures: loops
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
 :: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
@@ -288,4 +296,5 @@
           1- >|>| >< !						\ ( stack sp )		Decrement stack pointer
           cells + cell+ cell+ @					\ ( stack sp )		Fetch element
           else 05bb bad57ac .abort then ;			\			Stack underflow
+
 
