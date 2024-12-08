@@ -26,6 +26,10 @@
            then _ #regs I - | ^ ;
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
+:: ret-stack 100 stack						\ Return stack
+: >ret    ret-stack >s ;
+: ret>    ret-stack s> ;
+
 :: cyc-stack 100 stack						\ Cycle stack
 : >cyc    cyc-stack >s ;
 : cyc>    cyc-stack s> ;
@@ -35,13 +39,17 @@
 : phi>    phi-stack s> ;
 
 : %.debug  >name count white type norm				\ ( xt -- )		Debug print word name and stack
-           1b emit 5b emit 31 emit 39 emit 47 emit ;
-: %.S      .S
+           1b emit 5b emit 31 emit 31 emit 47 emit ;
+: %.S      
+           1b emit 5b emit 31 emit 39 emit 47 emit
+           .S
            1b emit 5b emit 33 emit 39 emit 47 emit
 	   .regs 
            1b emit 5b emit 37 emit 35 emit 47 emit
-	   43 emit 3a emit bl emit cyc-stack .stack
+	   52 emit 3a emit bl emit ret-stack .stack
            1b emit 5b emit 38 emit 35 emit 47 emit
+	   43 emit 3a emit bl emit cyc-stack .stack
+           1b emit 5b emit 39 emit 35 emit 47 emit
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
 	   cr ;
 
@@ -78,16 +86,20 @@
 % <<<      { <<< } %;						\ ( r1 r2 r3 # -- r3 r1 r2 # )
 % >>>      { >>> } %;						\ ( r1 r2 r3 # -- r2 r3 r1 # )
 % >|       1+ { >| ∧ } %;				 	\ ( r1 r2 # -- r1 r2 r1 #+1 )
+% >>|      1+ { >>| ∧ } %;				 	\ ( r1 r2 r3 # -- r1 r2 r3 r1 #+1 )
 
-% lit      skip 1+ { ?∧ } %;					\ ( # -- r #+1 )	Allocates new register
-% branch   skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
-% ?branch  skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
-% -?branch skip ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
+% >r       1- { >ret } %;
+% r>       1+ { ret> } %;
+
+% lit      @skip .. 1+ { ?∧ } %;					\ ( # -- r #+1 )	Allocates new register
+% branch   @skip .. %;						\ ( -- )		Branches do not allocate registers. MARK and RESOLVE do all work
+% ?branch  @skip .. ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
+% -?branch @skip .. ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 % (for)    1- { >cyc } %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
-% (over)   skip cyc> ∨ %;					\ ( -- )
+% (over)   @skip .. cyc> ∨ %;					\ ( -- )
 
 % +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
-% 1+       %;
+% 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
@@ -123,5 +135,16 @@ cold
 :^ ?^ ?^ ?^ 3 ^> q
 cold
 :^ ?^ 1 ^> fib
-\ 600df00d 0c0de .abort
+cold
+: cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | while 33 emit repeat 34 emit then _ _ 35 emit ;
+\ : cs5 41 3 begin 30 emit { 1+ ?? } 1- | continue 31 emit { 1+ ?? } 2 pick break 32 emit { 1+ ?? } | while 33 emit { 1+ ?? } repeat 34 emit { 1+ ?? } then _ 35 emit emit _ 36 emit ;
+: cs5 41 3 begin 30 emit { 1+ } 1- | continue 31 emit { 1+ } >>| break 32 emit { 1+ } | while 33 emit { 1+ } repeat 34 emit { 1+ } then _ 35 emit red emit norm _ 36 emit ;
+0 cs4 
+1 cs4 
+0 cs5 
+1 cs5 
+.S
+:^ ?^ 1 ^> cs5
+
+600df00d 0c0de .abort
 
