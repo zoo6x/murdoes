@@ -106,7 +106,6 @@
            #2 r1 store, #1 r0 store, r0 r2 mov, ;
 : <<<,     #1 r1 load, #2 r2 load,				\ ( a b c -- c a b )	-rot
            #2 r0 store, #1 r2 store, r0 r1 mov, ;
-: #|,      badf00d bad57ac .abort |, cells r0 load, ;					\ ( # -- S# )		pick
 
 :: _       code _, ret,
 :: |       code |, ret,
@@ -115,8 +114,9 @@
 :: >|>|    code >|>|, ret,
 :: >>>     code >>>, ret,
 :: <<<     code <<<, ret,
-\\ TODO: Implement mov rd, [S+R*8] for PICK
-\\ :: #|      code #|, ret,
+
+: #|       pick ;						\ WARNING! Generic PICK is not compileable, as it references an unknown stack element!
+: >>|      2 pick ;
 
 								\\ Memory access words
 :: @       code rex, 8b ` 09 ` ret,				\ ( a -- [a] )		mov	r0, [r0]
@@ -244,7 +244,13 @@
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
 : rpc+=ofs, 48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
+
 :: skip    code rtmp pop, rwork pop, 				\ ( -- )		Skip next address interpreter word TODO: make single ADD
+		rwork inc, rwork inc, rwork inc, rwork inc,
+		rwork inc, rwork inc, rwork inc, rwork inc,
+		rwork push, rtmp push, ret,
+:: @skip   code |, rtmp pop, rwork pop,				\ ( -- a )		Skip next address interpreter word, and return it
+                48 ` 8b ` 08 `         				\			mov rtop, [rwork]
 		rwork inc, rwork inc, rwork inc, rwork inc,
 		rwork inc, rwork inc, rwork inc, rwork inc,
 		rwork push, rtmp push, ret,
