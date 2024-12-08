@@ -372,6 +372,13 @@ _drop:
 	mov	rtop, [rstack0 + rstack * 8]
 	ret
 
+# PICK ( # -- a )
+word	pick
+	add	rtop, rstack
+	inc	rtop
+	mov	rtop, [rstack0 + rtop * 8]
+	ret
+
 /*
 # >S ( a -- ) (S2: -- a )
 # Pushes top element onto stack 2
