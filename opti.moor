@@ -26,6 +26,9 @@
            then _ #regs I - | ^ ;
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
+								\\ Stacks for control structures
+: >#|>s	   >< | { for | I 1+ #| >< >s over } | <<< >< >s  ;	\ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
+           
 :: ret-stack 100 stack						\ Return stack
 : >ret    ret-stack >s ;
 : ret>    ret-stack s> ;
@@ -62,9 +65,6 @@
            compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 	   							\\ Register allocation primitives
-: {        compile >r ;	immediate
-: }        compile r> ;	immediate
-
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving it on the stack
 : ∨        v ;
 : ?∧       ?^ ;
@@ -91,10 +91,17 @@
 % >r       1- { >ret } %;
 % r>       1+ { ret> } %;
 
-% lit      @skip .. 1+ { ?∧ } %;					\ ( # -- r #+1 )	Allocates new register
+% lit      @skip .. 1+ { ?∧ } %;				\ ( # -- r #+1 )	Allocates new register
+
+% (<mark)  %;
+% (<resolve) %;
+% (>mark)  %;
+% (>resolve) %;
+
 % branch   @skip .. %;						\ ( -- )		Branches do not allocate registers. MARK and RESOLVE do all work
-% ?branch  @skip .. ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
-% -?branch @skip .. ⊻ %;						\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
+% ?branch  @skip .. ⊻ %;					\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
+% -?branch @skip .. ⊻ %;					\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
+
 % (for)    1- { >cyc } %;					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
 % (over)   @skip .. cyc> ∨ %;					\ ( -- )
 
@@ -108,12 +115,45 @@
 : noop ;
 % noop %;
 
-\\ Fibonacci sequence generator
-\ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
-\ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
-: fib \ n	Fn = Fn-1 + Fn-2
-  | if 0 1 >>> for >| + >< over _ then noop ;
-see fib
+								\\ Simpler examples, w/o Phi junctions
+: ..S .S ;
+: .S blue ..S norm ;
+: q + + ;
+cold
+:^ ?^ ?^ ?^ 3 ^> q
+cold
+: cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
+\ : cs5 41 3 begin 30 emit { 1+ ?? } 1- | continue 31 emit { 1+ ?? } 2 pick break 32 emit { 1+ ?? } | while 33 emit { 1+ ?? } repeat 34 emit { 1+ ?? } then _ 35 emit emit _ 36 emit ;
+: cs5 41 3 begin 30 emit .S { 1+ } 1- | continue 31 emit .S { 1+ } >>| break 32 emit { 1+ } | 1+ while .S 33 emit _ >< _ 1 >< 2 .S repeat 34 emit { 1+ } then _ 35 emit red emit norm _ 36 emit ;
+: cs50 41 3 begin { 1+ } 1- | continue { 1+ } >>| break { 1+ } | 1+ while _ >< _ 1 >< 2 repeat { 1+ } then _ emit _ ;
+0 cs4 
+1 cs4
+cold
+0 cs5 .S 
+cold
+1 cs5 .S 
+cold
+0 cs50 .S 
+cold
+1 cs50 .S 
+cold
+:^ ?^ 1 ^> cs50
+
+								\\ Fibonacci sequence generator
+								\ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
+								\ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
+								\ n	Fn = Fn-1 + Fn-2
+: fib      | if 0 1 >>> for >| + >< over _ then ;
+: fib3     | if { 0 1 2 } 1- 1- for >>> >>| >>| + + over <<< _ _ then noop ;
+								\ 0, 1, 2, 3, 4,  5,  6,  7
+								\ 0, 1, 2, 3, 6, 11, 20, 37
+3 fib3 .. 
+4 fib3 .. 
+5 fib3 .. 
+6 fib3 .. 
+7 fib3 .. 
+
+see fib3
 \					0	1						
 \ 424d30  |				0 0	2						
 \ 424d38  ?branch	424db8		0	1						
@@ -130,21 +170,8 @@ see fib
 \         (<resolve)			2 1	2		S: 1 0			
 \ 424da0  _				2	1		S: 1 0			
 \ 424dd0: exit				2	1						
-: q + + ;
 cold
-:^ ?^ ?^ ?^ 3 ^> q
-cold
-:^ ?^ 1 ^> fib
-cold
-: cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | while 33 emit repeat 34 emit then _ _ 35 emit ;
-\ : cs5 41 3 begin 30 emit { 1+ ?? } 1- | continue 31 emit { 1+ ?? } 2 pick break 32 emit { 1+ ?? } | while 33 emit { 1+ ?? } repeat 34 emit { 1+ ?? } then _ 35 emit emit _ 36 emit ;
-: cs5 41 3 begin 30 emit { 1+ } 1- | continue 31 emit { 1+ } >>| break 32 emit { 1+ } | while 33 emit { 1+ } repeat 34 emit { 1+ } then _ 35 emit red emit norm _ 36 emit ;
-0 cs4 
-1 cs4 
-0 cs5 
-1 cs5 
-.S
-:^ ?^ 1 ^> cs5
+:^ ?^ 1 ^> fib3
 
 600df00d 0c0de .abort
 
