@@ -1,6 +1,9 @@
 \
 \\ Optimizer
 \
+								\\ Debug output
+: ..S .S ;
+: .S blue ..S norm ;						\ Blue stack
 
 								\\ Regallocing state
 	   							\\ TODO: Do we need these at all?
@@ -24,11 +27,24 @@
 : ?^       regs #regs for | c@ leave 1+ over			\ ( -- r | ABORT )	Allocates a new register, if one is available
            0add bada110c .abort
            then _ #regs I - | ^ ;
+: ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving it on the stack
+: ∨        v ;
+
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
 								\\ Stacks for control structures
-: >#|>s	   >< | { for | I 1+ #| >< >s over } | <<< >< >s  ;	\ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
+: >#|>s	   >< | { | for | { I - 1+ #| >| >s } over _ } | <<< >< >s  ; \ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
+: >#>s	   >#|>s for ∨ over ;					\ ( an ... a1 n s -- an ... a1 n )  Push N elements from data stack onto the specified stack
+: s>#>     | s> | { for | s> ∧ >< over _ } ;			\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements off the specified stack onto the data stack
+
+: upload   >#|>s ;
+: offload   >#>s ;						\ Increase references
+: download  s>#> ;
            
+:: tmp-stack 100 stack						\ Temporary stack, for transfers between other stacks
+: >tmp    tmp-stack >s ;
+: tmp>    tmp-stack s> ;
+
 :: ret-stack 100 stack						\ Return stack
 : >ret    ret-stack >s ;
 : ret>    ret-stack s> ;
@@ -41,7 +57,7 @@
 : >phi    phi-stack >s ;
 : phi>    phi-stack s> ;
 
-: %.debug  >name count white type norm				\ ( xt -- )		Debug print word name and stack
+: %.debug  cr >name count white type norm				\ ( xt -- )		Debug print word name and stack
            1b emit 5b emit 31 emit 31 emit 47 emit ;
 : %.S      
            1b emit 5b emit 31 emit 39 emit 47 emit
@@ -54,7 +70,9 @@
 	   43 emit 3a emit bl emit cyc-stack .stack
            1b emit 5b emit 39 emit 35 emit 47 emit
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
-	   cr ;
+           1b emit 5b emit 31 emit 31 emit 35 emit 47 emit
+	   54 emit 3a emit bl emit tmp-stack .stack
+	   ;
 
 								\\ Regallocing semantics definitions
 : %        here (exec) REGALLOCING ' | >r does r>		\ ( "<name>" --  )	Creates new semantics for register allocation state,
@@ -64,9 +82,8 @@
 : %;       compile %.S						\ DEBUG
            compile REGALLOCING!! compile exit [compile] [ ; immediate
 
+
 	   							\\ Register allocation primitives
-: ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving it on the stack
-: ∨        v ;
 : ?∧       ?^ ;
 : ⊻        1- { ∨ } ;						\ ( r # -- #-1 )	Frees a register
 
@@ -97,8 +114,9 @@
 % ?branch  @skip .. ⊻ %;					\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 % -?branch @skip .. ⊻ %;					\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 
-% (if)     %;
-% (else)   %;
+% (if)     >< { 1- phi-stack upload } >< 1+ %;			\			Upload stack as if after ?BRANCH
+% (else-pre) tmp-stack offload %;
+% (else-post) phi-stack download tmp-stack download phi-stack offload %;
 % (then)   %;
 % (begin)  %;
 % (until)  %;
@@ -113,6 +131,7 @@
 % (over)   @skip .. cyc> ∨ %;					\ ( -- )
 
 % +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+% -        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
@@ -123,11 +142,18 @@
 % noop %;
 
 								\\ Simpler examples, w/o Phi junctions
-: ..S .S ;
-: .S blue ..S norm ;
 : q + + ;
 cold
 :^ ?^ ?^ ?^ 3 ^> q
+cold
+: cs-if1 1 >< | if + else - then noop ;
+0 cs-if1 .. 
+1 cs-if1 .. 
+see cs-if1  
+:^ ?^ 1 ^> cs-if1  
+
+f00d 600d .abort
+
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
 \ : cs5 41 3 begin 30 emit { 1+ ?? } 1- | continue 31 emit { 1+ ?? } 2 pick break 32 emit { 1+ ?? } | while 33 emit { 1+ ?? } repeat 34 emit { 1+ ?? } then _ 35 emit emit _ 36 emit ;
