@@ -3,9 +3,17 @@
 \
 \\ Moore Forth System
 \
-\\ Index:
+\\ Index:		Press <S-8>=<*> to navigate in Vim
+\\ _core_core
+\\ _var_val
+\\ _states
 \\ _control
-\\
+\\ _search
+\\ _assembler
+\\ _memory
+\\ _return_stack
+\\ _loops
+\\ _stack
 
 								\\ Comments and debug output
 : norm     1b emit 5b emit 30 emit 6d emit ;
@@ -93,7 +101,7 @@
 :: +       code #1 r1 load, r1 add, off, ret,			\ ( n1 n2 -- n1+n2 )	mov	r1, [S+8] ; add r0, r1 ; inc rstack
 :: -       code #1 r1 load, r1 sub, r0 r1 mov, off, ret,	\ ( n1 n2 -- n1-n2 )	mov	r1, [S+8] ; sub r1, r0 ; mov r0, r1 ; inc rstack
 
-								\\ Cells
+								\\ Cells									_core_core
 : cell     8 ;							\ ( -- 8 )		Size of one cell
 : cells    3 shl ;						\ ( n -- n*8 )		Convert size in cells to size in bytes
 : cell/	   3 sar ;						\ ( n -- n/8 )		Convert size in bytes to size in cells
@@ -130,12 +138,12 @@
 :: c!      code #1 r1 load, rex, 88 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
            #0 r0 load, ret,					\			mov	r0, [S+8]
 
-								\\ Variables and constants
+								\\ Variables and constants							_var_val
 : adr      does> ;						\ :: a adr
 : var      , does> ;						\ :: a 12345 var
 : val      , does> @ ;						\ :: b 98765 val
 
-								\\ States
+								\\ States									_states
 :: INTERPRETING  0 val
 :: COMPILING    -2 val
 :: DECOMPILING  -4 val
@@ -156,7 +164,8 @@
 
 								\ These words do the job during register allocation and do nothing during execution
 : (if) ;
-: (else) ;
+: (else-pre) ;
+: (else-post) ;
 : (then) ;
 : (begin) ;
 : (until) ;
@@ -167,25 +176,30 @@
 : (repeat) ;
 : (continue) ;
 : (break) ;
+								\ ... begin ... -? until ...
+								\ ... begin ... again ...
+								\ ... begin ... ? while ... repeat ...	
+								\ ... begin ... ? continue ... ? break ... [while] ... repeat|again ... then	
+								\ TODO: Allow for multiple BREAKs, as with CONTINUE
 
 : if       compile (if) compile ?branch >mark ; immediate
-: else     compile (else) compile branch >mark >< >resolve ; immediate
+: else     compile (else-pre) compile branch >mark compile (else-post) >< >resolve ; immediate
 : then     compile (then) >resolve ; immediate
 : begin    compile (begin) <mark ; immediate
-: until    compile (until) compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
-: again    compile (again) compile branch <resolve ; immediate			\ ... begin ... again ...
+: until    compile (until) compile ?branch <resolve ; immediate
+: again    compile (again) compile branch <resolve ; immediate
 : ahead    compile (ahead) compile branch >mark ; immediate
 : while    compile (while) compile ?branch >mark ; immediate
 : leave    compile (leave) compile ?branch >mark >< ; immediate
-: repeat   compile (repeat) compile branch >< <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
-: continue compile (continue) compile -?branch | <resolve ; immediate		\ ... begin ... ? continue ... ? break ... [while] ... repeat|again ... then
-: break    compile (break) compile -?branch >mark >< ; immediate		\ TODO: Allow for multiple BREAKs, as with CONTINUE
+: repeat   compile (repeat) compile branch >< <resolve >resolve ; immediate
+: continue compile (continue) compile -?branch | <resolve ; immediate
+: break    compile (break) compile -?branch >mark >< ; immediate
 
-								\\ Search
+								\\ Search									_search
 : '        bl word _ find | if else badd1c 071c .abort then ;	\ ("<name>" -- xt | E )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
 
-								\\ Improved assembler, r0-15 support 
+								\\ Improved assembler, r0-15 support						_assembler
 \\ TODO: need [compile] and " to make this work : rex      abort" REX is now obsolete, use REXn where n=8, 32, 64" ;
 : rex      abort ;						\ Obsolete
 : rex.     40 ;
@@ -273,12 +287,12 @@
 		rwork inc, rwork inc, rwork inc, rwork inc,
 		rwork inc, rwork inc, rwork inc, rwork inc,
 		rwork push, rtmp push, ret,
-								\\ Return stack
+								\\ Return stack									_return_stack
 :: >r      code r1 pop, r0 push, _, r1 push, ret,		\ ( a -- ) ( R: -- a)	Pushes top of parameter stack onto return stack
 :: r>      code |, r1 pop, r0 pop, r1 push, ret,		\ ( -- a ) ( R: a -- )	Pops top of parameter stack off return stack
 : {        compile >r ;	immediate
 : }        compile r> ;	immediate
-								\\ Control structures: loops
+								\\ Control structures: loops							_loops
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
 : (aft) ;
 :: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
@@ -290,10 +304,10 @@
 : aft      compile (aft) compile branch _ >mark <mark >< ; immediate
 : over     compile (over) <resolve ; immediate
 
-								\\ Memory
+								\\ Memory									_memory
 : fill    <<< for >|>| c! 1+ over _ _ ;				\ ( a n c -- )	Fill N bytes from address A with character C
 
-								\\ Stack
+								\\ Stack									_stack
 								\ Structure: pointer limit data...
 : stack   0 , | , cells allot does> ;				\ ( n -- ) ( -- stack )	Stack N cells size
 : stack@  | @ >| cell+ @ ;					\ ( stack -- stack pointer limit )	Extracts stack parameters onto data stack
