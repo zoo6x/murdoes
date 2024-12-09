@@ -33,13 +33,14 @@
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
 								\\ Stacks for control structures
-: >#|>s	   >< | { | for | { I - 1+ #| >| >s } over _ } | <<< >< >s  ; \ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
-: >#>s	   >#|>s for ∨ over ;					\ ( an ... a1 n s -- an ... a1 n )  Push N elements from data stack onto the specified stack
-: s>#>     | s> | { for | s> ∧ >< over _ } ;			\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements off the specified stack onto the data stack
+: dirupload >< | { | for | { I - 1+ #| >| >s } over _ } | <<< >< >s  ; \ ( an ... a1 n s -- a1 ... an n )  Copy N elements from data stack onto the specified stack
+: revupload >< | { for | I 1+ #| >< >s over } | <<< >< >s  ;	\ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
 
-: upload   >#|>s ;
-: offload   >#>s ;						\ Increase references
-: download  s>#> ;
+: offload   for ∨ over ;
+: diroffload dirupload offload ;				\ ( an ... a1 n s -- an ... a1 n )  Push N elements from data stack onto the specified stack
+: revoffload revupload offload ;
+
+: download  | s> | { for | s> ∧ >< over _ } ;			\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements off the specified stack onto the data stack
            
 :: tmp-stack 100 stack						\ Temporary stack, for transfers between other stacks
 : >tmp    tmp-stack >s ;
@@ -89,6 +90,10 @@
 
 : regs-init							\ ( -- )		Initializes array of referenced registers
            regs #regs 0 fill
+	   tmp-stack empty
+	   ret-stack empty
+	   cyc-stack empty
+	   phi-stack empty
            rsp ∧ _						\ 			RSP should not be used as a general-purpose register
 ;
 								\\ Syntactic sugar
@@ -114,9 +119,9 @@
 % ?branch  @skip .. ⊻ %;					\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 % -?branch @skip .. ⊻ %;					\ ( r # -- #-1 )	Branches do not allocate registers. MARK and RESOLVE do all work
 
-% (if)     >< { 1- phi-stack upload } >< 1+ %;			\			Upload stack as if after ?BRANCH
-% (else-pre) tmp-stack offload %;
-% (else-post) phi-stack download tmp-stack download phi-stack offload %;
+% (if)     >< { 1- phi-stack dirupload } >< 1+ %;			\			Upload stack as if after ?BRANCH
+% (else-pre) tmp-stack diroffload %;
+% (else-post) phi-stack download tmp-stack download phi-stack revoffload %;
 % (then)   %;
 % (begin)  %;
 % (until)  %;
@@ -146,10 +151,14 @@
 cold
 :^ ?^ ?^ ?^ 3 ^> q
 cold
-: cs-if1 1 >< | if + else - then noop ;
+: cs-if0 1 >< | if + else - then noop ;
+: cs-if1 1 >< | if 11 + else - 55 then + ;
 0 cs-if1 .. 
 1 cs-if1 .. 
-see cs-if1  
+2 cs-if1 .. 
+cold
+:^ ?^ 1 ^> cs-if0  
+cold
 :^ ?^ 1 ^> cs-if1  
 
 f00d 600d .abort
