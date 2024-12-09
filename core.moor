@@ -3,6 +3,9 @@
 \
 \\ Moore Forth System
 \
+\\ Index:
+\\ _control
+\\
 
 								\\ Comments and debug output
 : norm     1b emit 5b emit 30 emit 6d emit ;
@@ -16,7 +19,7 @@
 : ..       blue . norm ;
 : ??       dup .. ;
 
-								\ Compile single byte
+								\ Compile single byte : aaaa
 : `        c, ;
 								\\ Register assignment. Should be changed if register aliases are changed
 : r0       01 ;							\ rcx = rtop
@@ -144,30 +147,40 @@
 
 : >name    22 cells - @ ; 					\ ( xt -- c-addr )	Returns address of the name counted string
 
-								\\ Control structures
-: (>mark) ;							\ Do nothing during execution, but are used uring code generation
-: (>resolve) ;
-: (<mark) ;
-: (<resolve) ;
+								\\ Control structures								_control
+: >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
+: >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch
 
-: >mark    here 0 , compile (>mark) ;				\ ( -- a )		Address for forward branch fixup
-: >resolve | here >< - cell/ 1- ><  ! compile (>resolve) ;	\ ( a -- )		Fixup forward branch
+: <mark    here ;						\ ( -- a )		Address for backward branch fixup
+: <resolve here  - cell/ 1- , ;
 
-: <mark    here compile (<mark) ;				\ ( -- a )		Address for backward branch fixup
-: <resolve here  - cell/ 1- , compile (<resolve) ;
+								\ These words do the job during register allocation and do nothing during execution
+: (if) ;
+: (else) ;
+: (then) ;
+: (begin) ;
+: (until) ;
+: (again) ;
+: (ahead) ;
+: (while) ;
+: (leave) ;
+: (repeat) ;
+: (continue) ;
+: (break) ;
 
-: if       compile ?branch >mark ; immediate
-: else     compile branch >mark >< >resolve ; immediate
-: then     >resolve ; immediate
-: begin    <mark ; immediate
-: until    compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
-: again    compile branch <resolve ; immediate			\ ... begin ... again ...
-: ahead    compile branch >mark ; immediate
-: while    compile ?branch >mark ; immediate
-: leave    compile ?branch >mark >< ; immediate
-: repeat   >< compile branch <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
-: continue compile -?branch | <resolve ; immediate		\ ... begin ... ? continue ... ? continue ... ? break ... [while] ... repeat|again ... then
-: break    compile -?branch >mark >< ; immediate		\ 
+: if       compile (if) compile ?branch >mark ; immediate
+: else     compile (else) compile branch >mark >< >resolve ; immediate
+: then     compile (then) >resolve ; immediate
+: begin    compile (begin) <mark ; immediate
+: until    compile (until) compile ?branch <resolve ; immediate			\ ... begin ... -? until ...
+: again    compile (again) compile branch <resolve ; immediate			\ ... begin ... again ...
+: ahead    compile (ahead) compile branch >mark ; immediate
+: while    compile (while) compile ?branch >mark ; immediate
+: leave    compile (leave) compile ?branch >mark >< ; immediate
+: repeat   compile (repeat) compile branch >< <resolve >resolve ; immediate	\ ... begin ... ? while ... repeat ...
+: continue compile (continue) compile -?branch | <resolve ; immediate		\ ... begin ... ? continue ... ? break ... [while] ... repeat|again ... then
+: break    compile (break) compile -?branch >mark >< ; immediate		\ TODO: Allow for multiple BREAKs, as with CONTINUE
+
 								\\ Search
 : '        bl word _ find | if else badd1c 071c .abort then ;	\ ("<name>" -- xt | E )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
@@ -267,13 +280,14 @@
 : }        compile r> ;	immediate
 								\\ Control structures: loops
 :: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
+: (aft) ;
 :: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
 :: (over)  code rindex dec, lodsq, 4 .z j, rpc+=ofs, ret,	\ ( -- )		dec rindex ; lodsq ; jz ret ; rpc+=ofs ; ret
 ' branch DECOMPILING >cfa@ DECOMPILING latest does
 
 								\ DOC: https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
-: aft      _ compile branch >mark <mark >< ; immediate
+: aft      compile (aft) compile branch _ >mark <mark >< ; immediate
 : over     compile (over) <resolve ; immediate
 
 								\\ Memory
@@ -296,5 +310,4 @@
           1- >|>| >< !						\ ( stack sp )		Decrement stack pointer
           cells + cell+ cell+ @					\ ( stack sp )		Fetch element
           else 05bb bad57ac .abort then ;			\			Stack underflow
-
 
