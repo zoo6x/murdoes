@@ -310,6 +310,7 @@
 								\\ Stack									_stack
 								\ Structure: pointer limit data...
 : stack   0 , | , cells allot does> ;				\ ( n -- ) ( -- stack )	Stack N cells size
+: empty   0 >< ! ;							\ ( s -- )		Empty stack
 : stack@  | @ >| cell+ @ ;					\ ( stack -- stack pointer limit )	Extracts stack parameters onto data stack
 : .stack  | @ | if >< cell+ cell+ >< for | @ . cell+ over _	\ ( stack -- )
           else _ _ then ;
