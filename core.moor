@@ -21,9 +21,9 @@
 : red      1b emit 5b emit 33 emit 31 emit 6d emit ;
 : white    1b emit 5b emit 33 emit 37 emit 6d emit ;
 : .\       0 word count blue type norm 0a emit ;
-: abort"   22 word count 0a emit red type norm 0a emit abort ;
-: .abort   red . . norm abort ;					\ ( code message -- )	Prints code and message as hexadecimal numbers and aborts
 : cr       0a emit ;
+: abort"   22 word count 0a emit red type norm 0a emit abort ;
+: .abort   red . . norm cr abort ;				\ ( code message -- )	Prints code and message as hexadecimal numbers and aborts
 : ..       blue . norm ;
 : ??       dup .. ;
 
@@ -196,7 +196,7 @@
 : break    compile (break) compile -?branch >mark >< ; immediate
 
 								\\ Search									_search
-: '        bl word _ find | if else badd1c 071c .abort then ;	\ ("<name>" -- xt | E )
+: '        bl word _ find | if else badd1c 071cf10d .abort then ;	\ ("<name>" -- xt | E )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
 
 								\\ Improved assembler, r0-15 support						_assembler
@@ -304,6 +304,7 @@
 : aft      compile (aft) compile branch _ >mark <mark >< ; immediate
 : over     compile (over) <resolve ; immediate
 
+: #_       for _ over ;						\ ( a1 ... an n -- )	Drops N elelemns off stack
 								\\ Memory									_memory
 : fill    <<< for >|>| c! 1+ over _ _ ;				\ ( a n c -- )	Fill N bytes from address A with character C
 
