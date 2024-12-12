@@ -6,6 +6,8 @@
 # https://www.complang.tuwien.ac.at/forth/fth79std/FORTH-79.TXT
 # https://www.complang.tuwien.ac.at/forth/fth83std/FORTH83.TXT
 # https://forth-standard.org/standard/words
+# https://www.mpeforth.com/resource-links/downloads/
+# https://iforth.nl/
 
 	.globl _start
 
