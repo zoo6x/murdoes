@@ -25,6 +25,7 @@
 : purple   1b emit 5b emit 33 emit 35 emit 6d emit ;
 : white    1b emit 5b emit 33 emit 37 emit 6d emit ;
 : .\       0 word count blue type norm 0a emit ;
+: .(       29 word count purple type norm ; immediate
 : cr       0a emit ;
 : tab      09 emit ;
 : bs       08 emit ;
@@ -213,7 +214,6 @@
 								\			Syntactic sugar
 								\\ Printing									_print
 : ."       [compile] " compile count compile type ; immediate
-: .(       29 word count type ; immediate
 : abort"   compile cr compile red [compile] ." compile norm compile cr compile abort ; immediate
 
 								\\ Improved assembler, r0-15 support						_assembler
