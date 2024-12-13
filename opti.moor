@@ -22,6 +22,9 @@
 : ASSEMBLING! ASSEMBLING state! ;
 :: ASSEMBLING!!  code rstate ASSEMBLING mov.i, ret, <%		\ ( -- )		Sets state to ASSEMBLING without address interpreter involvement
 
+: DEALLOCING! DEALLOCING state! ;
+:: DEALLOCING!!  code rstate DEALLOCING mov.i, ret, <%		\ ( -- )		Sets state to DEALLOCING without address interpreter involvement
+
 : regalloc REGALLOCING! ' execute interpreting! INTERPRETING! ;	\ ( -- )		Sets STATE to REGALLOCING for the next text interpreter word 
 
 : :%       : compile interpreting! ;
@@ -36,6 +39,7 @@
            then _ #regs I - | ^ ;
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving it on the stack
 : ∨        v ;
+: |∨       | v ;
 
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
@@ -99,30 +103,53 @@
 $ noop     $;
 
 ' exit INTERPRETING >cfa@ ASSEMBLING ' exit does
-' interpreting! INTERPRETING >cfa@ ASSEMBLING ' interpreting! does
+' exit INTERPRETING >cfa@ DEALLOCING ' exit does
 
-: assm ;
+' interpreting! INTERPRETING >cfa@ ASSEMBLING ' interpreting! does
+' interpreting! INTERPRETING >cfa@ DEALLOCING ' interpreting! does
+
+: assm     ;
 $ assm     $;
 
 : %        here (exec) REGALLOCING ' | >r does 			\ ( "<name>" --  )	Creates new semantics for register allocation state,
-           ['] assm ASSEMBLING >cfa@ ASSEMBLING r> | >r does r>
+           ['] assm ASSEMBLING   >cfa@ ASSEMBLING r> | >r does
+           ['] assm INTERPRETING >cfa@ DEALLOCING r> | >r does r>
            compile interpreting! 				\			which equals to execution semantics of its constituents
 	   | opt-xt!
 	   [compile] literal
 	   compile %.debug					\ DEBUG
            ] ;
+
 : %;       compile %.S						\ DEBUG
-	   compile tmp-stack compile >s
+	   
+	   compile >tmp
            compile ASSEMBLING!!
            opt-xt@
 	   compile,
 	   compile interpreting!
-	   compile tmp-stack compile s>
-           compile REGALLOCING!! compile exit [compile] [ ; immediate
+	   compile tmp>
+           
+           compile DEALLOCING!!
+           opt-xt@
+	   compile,
+	   compile interpreting!
 
+	   compile REGALLOCING!!
+
+	   compile exit [compile] [ ; immediate
+
+: ;%								\			Finish REGALLOCING definition and start DEALLOCING definition
+           [compile] %;
+           here (exec) DEALLOCING opt-xt@ does
+	   compile interpreting!
+	   ] ; immediate
+	  
+: ;%;      	  
+	   compile REGALLOCING!!
+
+	   compile exit [compile] [ ; immediate
 
 % noop %;
-
 	   							\\ Register allocation primitives
 : ?∧       ?^ ;
 : ⊻        1- { ∨ } ;						\ ( r # -- #-1 )	Frees a register
@@ -178,12 +205,14 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % I        1+ { cyc> ∧ | >cyc } %;
 % (over)   @skip .. cyc> ∨ %;					\ ( -- )
 
-% +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+\ % +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+% +        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % -        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
-$ +        green ." add" tab yellow ." r" >| . bs ." , " | ." r" . bs norm $;
+\ 1 2 1 -- 2 1 1 -- 
+$ +        >>> >|>| - if abort" RS1<>RD " then >< _ green ." add" tab yellow ." r" . bs ." , " ." r" . bs norm $;
 
 
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
@@ -191,9 +220,16 @@ $ +        green ." add" tab yellow ." r" >| . bs ." , " | ." r" . bs norm $;
 
 								\\ Simpler examples, w/o Phi junctions
 : q + + ;
+1 2 3 q ..
+: qq 1 2 3 q ;
+qq ..
 cold
 :^ ?^ ?^ ?^ 3 ^> q 
 #_
+:^ 0 ^> qq 
+#_
+
+0add 600d .abort
 cold
 : cs-if0 1 >< | if + else - then noop ;
 : cs-if1 1 >< | if 11 + else - 55 then + ;
