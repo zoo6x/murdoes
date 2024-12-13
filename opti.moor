@@ -256,7 +256,6 @@ cold
 :^ ?^ ?^ ?^ 3 ^> q 
 #_
 
-0add 600d .abort
 cold
 : cs-if0 1 >< | if + else - then noop ;
 : cs-if1 1 >< | if 11 + else - 55 then + ;
@@ -284,7 +283,7 @@ cold
 1 cs-for1 ..
 2 cs-for1 ..
 ff cs-for1 ..
-cr
+cr .(  TODO: For destination attempt to first allocate the destination register, if it's available, not the register with the lowest index! )
 :^ ?^ 1 ^> cs-for1 
 #_
 
