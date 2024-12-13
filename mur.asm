@@ -1360,6 +1360,8 @@ _dot:
 # .S ( -- )
 # Prints stacks
 word	dot_s, ".S"
+	call	_qcsp
+
 	call	_dup
 	mov	rtop, 0x53
 	call	emit
@@ -1497,7 +1499,7 @@ _qcsp:
 	ret
 _qcsp_errm:
 	.byte _qcsp_errm$ - _qcsp_errm - 1
-	.ascii	"\r\n\x1b[31mERROR! \x1b[33m\x1b[7m Stack underflow \x1b[0m\r\n"
+	.ascii	"\r\n\r\n\x1b[31mERROR! \x1b[33m\x1b[7m Stack underflow \x1b[0m\r\n"
 _qcsp_errm$:
 
 # .\ ( "ccc<EOL>" -- )
