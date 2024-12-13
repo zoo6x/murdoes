@@ -164,7 +164,7 @@ $ assm     $;
 ;
 								\\ Syntactic sugar
 : :^       regs-init ;
-: ^>       cr %.S regalloc ;
+: ^>       cr %.S regalloc cr %.S ;
 
 								\\ Register allocation implementation
 % |        norm 1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
@@ -175,6 +175,7 @@ $ assm     $;
 % >>>      { >>> } %;						\ ( r1 r2 r3 # -- r2 r3 r1 # )
 % >|       1+ { >| ∧ } %;				 	\ ( r1 r2 # -- r1 r2 r1 #+1 )
 % >>|      1+ { >>| ∧ } %;				 	\ ( r1 r2 r3 # -- r1 r2 r3 r1 #+1 )
+% >|>|     1+ 1+ { >|>| ∧ >< ∧ >< } %;
 
 % >r       1- { >ret } %;
 % r>       1+ { ret> } %;
@@ -207,19 +208,29 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 
 \ % +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % +        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
-% -        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+% -        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
 \ 1 2 1 -- 2 1 1 -- 
-$ +        >>> >|>| - if abort" RS1<>RD " then >< _ green ." add" tab yellow ." r" . bs ." , " ." r" . bs norm $;
+$ +        >>> >|>| - if <<< >|>| -
+           if							\			RD <> RS1, RS2
+	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." add" tab yellow ." r" . bs ." , r" . bs norm 
+           else							\			RD = RS2
+           _ green ." add" tab yellow ." r" . bs ." , r" . bs norm
+	   then
+	   else							\			RD = RS1
+           >< _ green ." add" tab yellow ." r" . bs ." , r" . bs norm
+	   then $;
+
+$ -        >>> >|>| - if abort" -: RS1<>RD " then >< _ green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm $;
 
 
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
 % emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
 
 								\\ Simpler examples, w/o Phi junctions
-: q + + ;
+: q - + ;
 1 2 3 q ..
 : qq 1 2 3 q ;
 qq ..
@@ -227,6 +238,12 @@ cold
 :^ ?^ ?^ ?^ 3 ^> q 
 #_
 :^ 0 ^> qq 
+#_
+: q >| { + + } + ;
+:^ ?^ ?^ ?^ 3 ^> q 
+#_
+: q >|>| { { + + } } + + ;
+:^ ?^ ?^ ?^ 3 ^> q 
 #_
 
 0add 600d .abort
