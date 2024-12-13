@@ -27,8 +27,6 @@
 : ..       blue . norm ;
 : ??       dup .. ;
 
-								\ Compile single byte : aaaa
-: `        c, ;
 								\\ Register assignment. Should be changed if register aliases are changed
 : r0       01 ;							\ rcx = rtop
 : rtop     01 ;
@@ -41,12 +39,16 @@
 : rpc      06 ;							\ rsi = rpc
 : rindex   0a ;							\ r10 = rindex
 : rend     0c ;							\ r12 = rend
+: rnext    0d ;							\ r13 = rnext
 
 : #0 0 ;							\ Offset of the first available stack item
 : #1 8 ;							\ Offset of the second stack item
 : #2 10 ;							\ Offset of the third stack item
 
 								\\ Basic assembler for r0-r7. Stack access is hardcoded
+
+: `        c, ;							\ Compile single byte
+
 : rex,     48 ` ;
 : rex1,    49 ` ;
 
@@ -148,6 +150,7 @@
 :: COMPILING    -2 val
 :: DECOMPILING  -4 val
 :: REGALLOCING  -6 val
+:: ASSEMBLING   -8 val
 								\\ Dictionary structure
 : >cfa     cells + cell - cell - ;				\ ( xt state -- cfa )	Returns CFA for given state for XT
 : cfa@     | @ >< cell + @ >< ;					\ ( cfa -- param code )	Returns param and code for CFA
@@ -196,11 +199,14 @@
 : break    compile (break) compile -?branch >mark >< ; immediate
 
 								\\ Search									_search
-: '        bl word _ find | if else badd1c 071cf10d .abort then ;	\ ("<name>" -- xt | E )
-: [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
-
+: '        bl word _ find					\ ( "<name>" -- xt | E )
+           | if else badd1c 071cf10d .abort then ;
+: compile, , ;							\ ( xt -- )		Compiles XT on the top of the stack into current definition
+: [compile] ' compile, ; immediate					\ ( "<name>" -- )	Compiles XT of the next word in the input stream
+: [']      ' [compile] literal ; immediate			\ ( "<name>" -- )	Compiles XT of the next word in the input stream as a literal
+								\			Syntactic sugar
 								\\ Printing									_print
-: ."       [compile] " count type ; immediate
+: ."       [compile] " compile count compile type ; immediate
 : .(       29 word count type ; immediate
 : abort"   [compile] ." abort ; immediate
 
@@ -225,6 +231,8 @@
            1+ c@  modro ` ;
 : instroi4 c, c, does> >< <<< >< | rexrd.q ` >< | c@ `		 \ ( op1 op2 -- ) ( rd imm32 a  -- )
            1+ c@  modro ` 4, ;
+: instroi1 c, c, does> >< <<< >< | rexrd.q ` >< | c@ `		 \ ( op1 op2 -- ) ( rd imm8 a  -- )
+           1+ c@  modro ` c, ;
 : instpp   c, does> c@ >< | rex? if 41 ` then 7 and or ` ; 	\ ( op -- ) ( rd a -- )	Push/pop instruction
 
 								\\ Condition codes and conditional set instructions
@@ -271,8 +279,11 @@
 
 :: inc,    00 ff instro						\ ( rd -- )		inc	rd
 :: dec,    08 ff instro						\ ( rd -- )		dec	rd
+:: jmp,    e0 ff instro						\ ( rd -- )		jmp	rd
 
 :: mov.i,  00 c7 instroi4					\ ( rd imm32 -- )	mov	rd, imm32
+:: add.i,  c0 83 instroi1
+:: sub.i,  e8 83 instroi1
 
 :: push,   50 instpp						\ ( rs -- )		push	rs
 :: pop,    58 instpp						\ ( rd -- )		pop	rd
@@ -291,6 +302,10 @@
 		rwork inc, rwork inc, rwork inc, rwork inc,
 		rwork inc, rwork inc, rwork inc, rwork inc,
 		rwork push, rtmp push, ret,
+
+:: self    code |, rtop rpc mov, rtop 8 sub.i, ret,		\ ( a -- )		Returns RPC for the calling word
+								\			If SELF if the first compiled word, it returns caller's XT
+
 								\\ Return stack									_return_stack
 :: >r      code r1 pop, r0 push, _, r1 push, ret,		\ ( a -- ) ( R: -- a)	Pushes top of parameter stack onto return stack
 :: r>      code |, r1 pop, r0 pop, r1 push, ret,		\ ( -- a ) ( R: a -- )	Pops top of parameter stack off return stack
@@ -310,7 +325,7 @@
 
 : #_       for _ over ;						\ ( a1 ... an n -- )	Drops N elelemns off stack
 								\\ Memory									_memory
-: fill    <<< for >|>| c! 1+ over _ _ ;				\ ( a n c -- )	Fill N bytes from address A with character C
+: fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )	Fill N bytes from address A with character C
 
 								\\ Stack									_stack
 								\ Structure: pointer limit data...
