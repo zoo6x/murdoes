@@ -508,6 +508,62 @@ _align:
 	and	rhere, -16
 	ret
 
+# CMOVE ( as ad n -- )
+# Move N bytes from as to ad
+word	cmove
+	push	rsi
+	push	rdi
+	mov	rtmp, rtop
+	call	_drop
+	mov	rdi, rtop
+	call	_drop
+	mov	rsi, rtop
+	mov	rcx, rtmp
+	rep	movsb
+
+	call	_drop
+	pop	rdi
+	pop	rsi
+	ret
+
+# (") ( -- a )
+# Returns address of a compiled string
+word	_quot_, "(\")"
+	lodsb
+	movzx	rax, al
+	call	_dup
+	mov	rtop, rpc
+	dec	rtop
+	add	rpc, rax
+	add	rpc, 0xf
+	and	rpc, -16
+	ret	
+
+# " ( "ccc" -- )
+# Compiles a string
+word	quot, "\"", immediate
+	lea	rwork, qword ptr [_quot_]	/* compile (") */
+	stosq
+
+	call	_dup
+	mov	rtop, 0x22
+	call	_word
+	call	_count
+	mov	rtmp, rtop
+	inc	rtmp
+	push	rtmp
+	call	_drop
+	dec	rtop
+	call	_dup
+	mov	rtop, rhere
+	call	_dup
+	mov	rtop, rtmp
+	call	cmove
+	pop	rtmp
+	add	rhere, rtmp
+	call	_align
+	ret
+
 # EMIT ( c -- )
 # Prints a character to stdout
 word	emit
@@ -860,9 +916,9 @@ _cfa_allot:
 word	header
 _header:
 	call	_bl_		# ( bl )
-	call	_word		# ( here ) 
-	call	_dup		# ( here here )
-	call	_count		# ( here here+1 count ) 
+	call	_word		# ( tib ) 
+	call	_dup		# ( tib tib )
+	call	_count		# ( tib tib+1 count ) 
 	test	rtop, rtop
 	jz	6f
 

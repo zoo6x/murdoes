@@ -9,6 +9,7 @@
 \\ _states
 \\ _control
 \\ _search
+\\ _print
 \\ _assembler
 \\ _memory
 \\ _return_stack
@@ -22,7 +23,6 @@
 : white    1b emit 5b emit 33 emit 37 emit 6d emit ;
 : .\       0 word count blue type norm 0a emit ;
 : cr       0a emit ;
-: abort"   22 word count 0a emit red type norm 0a emit abort ;
 : .abort   red . . norm cr abort ;				\ ( code message -- )	Prints code and message as hexadecimal numbers and aborts
 : ..       blue . norm ;
 : ??       dup .. ;
@@ -199,9 +199,13 @@
 : '        bl word _ find | if else badd1c 071cf10d .abort then ;	\ ("<name>" -- xt | E )
 : [compile] ' , ; immediate					\ ("<name>" -- )	Compiles XT of the next word in the input stream
 
+								\\ Printing									_print
+: ."       [compile] " count type ; immediate
+: .(       29 word count type ; immediate
+: abort"   [compile] ." abort ; immediate
+
 								\\ Improved assembler, r0-15 support						_assembler
-\\ TODO: need [compile] and " to make this work : rex      abort" REX is now obsolete, use REXn where n=8, 32, 64" ;
-: rex      abort ;						\ Obsolete
+: rex      150b501e7e 0c0de .abort ;				\ Obsolete
 : rex.     40 ;
 : rex.b    rex. ;						\ REX operand size determined by CS.D
 : rex.q    rex. 08 or ;						\ REX specifies 64-bit operands
