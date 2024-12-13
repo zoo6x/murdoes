@@ -18,11 +18,16 @@
 
 								\\ Comments and debug output
 : norm     1b emit 5b emit 30 emit 6d emit ;
-: blue     1b emit 5b emit 33 emit 34 emit 6d emit ;
 : red      1b emit 5b emit 33 emit 31 emit 6d emit ;
+: green    1b emit 5b emit 33 emit 32 emit 6d emit ;
+: yellow   1b emit 5b emit 33 emit 33 emit 6d emit ;
+: blue     1b emit 5b emit 33 emit 34 emit 6d emit ;
+: purple   1b emit 5b emit 33 emit 35 emit 6d emit ;
 : white    1b emit 5b emit 33 emit 37 emit 6d emit ;
 : .\       0 word count blue type norm 0a emit ;
 : cr       0a emit ;
+: tab      09 emit ;
+: bs       08 emit ;
 : .abort   red . . norm cr abort ;				\ ( code message -- )	Prints code and message as hexadecimal numbers and aborts
 : ..       blue . norm ;
 : ??       dup .. ;
