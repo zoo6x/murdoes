@@ -212,7 +212,6 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
-\ 1 2 1 -- 2 1 1 -- 
 $ +        >>> >|>| - if <<< >|>| -
            if							\			RD <> RS1, RS2
 	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." add" tab yellow ." r" . bs ." , r" . bs norm 
@@ -223,7 +222,15 @@ $ +        >>> >|>| - if <<< >|>| -
            >< _ green ." add" tab yellow ." r" . bs ." , r" . bs norm
 	   then $;
 
-$ -        >>> >|>| - if abort" -: RS1<>RD " then >< _ green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm $;
+$ -        >>> >|>| - if <<< >|>| -
+           if							\			RD <> RS1, RS2
+	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
+	   else							\			RD = RS2
+	   >< _ green ." sub" tab yellow ." r" | . bs ." , " ." r" >< . bs tab green ." neg " tab yellow ." r" . bs norm
+	   then
+	   else							\			RD = RS1
+	   >< _ green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
+	   then  $;
 
 
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
@@ -242,7 +249,10 @@ cold
 : q >| { + + } + ;
 :^ ?^ ?^ ?^ 3 ^> q 
 #_
-: q >|>| { { + + } } + + ;
+: q >|>| { { + + } } + >< + ;
+:^ ?^ ?^ ?^ 3 ^> q 
+#_
+: q >|>| { { - + } } - >< - ;
 :^ ?^ ?^ ?^ 3 ^> q 
 #_
 
