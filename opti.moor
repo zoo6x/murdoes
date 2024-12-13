@@ -72,18 +72,20 @@
 : %.debug  cr >name count white type norm			\ ( xt -- )		Debug print word name and stack
            1b emit 5b emit 31 emit 31 emit 47 emit ;
 : %.S      
-           1b emit 5b emit 31 emit 39 emit 47 emit
-           .S
-           1b emit 5b emit 33 emit 39 emit 47 emit
+           1b emit 5b emit 31 emit 35 emit 47 emit
+           ..S
+           1b emit 5b emit 33 emit 34 emit 47 emit
 	   .regs 
-           1b emit 5b emit 37 emit 35 emit 47 emit
+           1b emit 5b emit 36 emit 37 emit 47 emit
 	   52 emit 3a emit bl emit ret-stack .stack
-           1b emit 5b emit 38 emit 35 emit 47 emit
+           1b emit 5b emit 37 emit 35 emit 47 emit
 	   43 emit 3a emit bl emit cyc-stack .stack
-           1b emit 5b emit 39 emit 35 emit 47 emit
+           1b emit 5b emit 38 emit 33 emit 47 emit
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
-           1b emit 5b emit 31 emit 31 emit 35 emit 47 emit
+           1b emit 5b emit 31 emit 30 emit 35 emit 47 emit
 	   54 emit 3a emit bl emit tmp-stack .stack
+           1b emit 5b emit 31 emit 31 emit 35 emit 47 emit
+           ." |  " 
 	   ;
 
 								\\ Regallocing semantics definitions
@@ -100,7 +102,7 @@ $ noop     $;
 ' interpreting! INTERPRETING >cfa@ ASSEMBLING ' interpreting! does
 
 : assm ;
-$ assm $;
+$ assm     $;
 
 : %        here (exec) REGALLOCING ' | >r does 			\ ( "<name>" --  )	Creates new semantics for register allocation state,
            ['] assm ASSEMBLING >cfa@ ASSEMBLING r> | >r does r>
@@ -110,9 +112,12 @@ $ assm $;
 	   compile %.debug					\ DEBUG
            ] ;
 : %;       compile %.S						\ DEBUG
+	   compile tmp-stack compile >s
            compile ASSEMBLING!!
            opt-xt@
 	   compile,
+	   compile interpreting!
+	   compile tmp-stack compile s>
            compile REGALLOCING!! compile exit [compile] [ ; immediate
 
 
@@ -132,7 +137,7 @@ $ assm $;
 ;
 								\\ Syntactic sugar
 : :^       regs-init ;
-: ^>       regalloc ;
+: ^>       cr %.S regalloc ;
 
 								\\ Register allocation implementation
 % |        norm 1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
@@ -147,7 +152,10 @@ $ assm $;
 % >r       1- { >ret } %;
 % r>       1+ { ret> } %;
 
-% lit      @skip .. 1+ { ?∧ } %;				\ ( # -- r #+1 )	Allocates new register
+:: opt-lit 0 var						\ Holds 1-cell literal, offset or other data between regallocing and assembling
+
+% lit      @skip | opt-lit ! .. 1+ { ?∧ } %;			\ ( # -- r #+1 )	Allocates new register
+$ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 
 % branch   @skip .. %;						\ ( -- )
 % ?branch  @skip .. ⊻ %;					\ ( r # -- #-1 )
@@ -175,6 +183,9 @@ $ assm $;
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
+$ +        green ." add" tab yellow ." r" >| . bs ." , " | ." r" . bs norm $;
+
+
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
 % emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
 
@@ -182,6 +193,7 @@ $ assm $;
 : q + + ;
 cold
 :^ ?^ ?^ ?^ 3 ^> q 
+#_
 cold
 : cs-if0 1 >< | if + else - then noop ;
 : cs-if1 1 >< | if 11 + else - 55 then + ;
@@ -189,10 +201,12 @@ cold
 1 cs-if1 .. 
 2 cs-if1 .. 
 cold
-:^ ?^ 1 ^> cs-if0 #_
+:^ ?^ 1 ^> cs-if0 
+#_
 
 cold
-:^ ?^ 1 ^> cs-if1 #_
+:^ ?^ 1 ^> cs-if1 
+#_
 
 : cs-for0 0 >< for I + over ;
 1 cs-for0 .. 
@@ -200,19 +214,22 @@ cold
 ff cs-for0 .. 
 
 cold
-:^ ?^ 1 ^> cs-for0 #_
+:^ ?^ 1 ^> cs-for0 
+#_
 
 : cs-for1 { 0 1 2 } for I + >>> >< over + + ;
 1 cs-for1 ..
 2 cs-for1 ..
 ff cs-for1 ..
 cr
-:^ ?^ 1 ^> cs-for1 #_
+:^ ?^ 1 ^> cs-for1 
+#_
 
 
 cold
 : fib      | if 0 1 >>> for >| + >< over _ then ;
-:^ ?^ 1 ^> fib #_
+:^ ?^ 1 ^> fib 
+#_  
 
 f00d 600d .abort
 
