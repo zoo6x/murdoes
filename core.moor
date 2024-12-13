@@ -156,6 +156,7 @@
 :: DECOMPILING  -4 val
 :: REGALLOCING  -6 val
 :: ASSEMBLING   -8 val
+:: DEALLOCING   -a val
 								\\ Dictionary structure
 : >cfa     cells + cell - cell - ;				\ ( xt state -- cfa )	Returns CFA for given state for XT
 : cfa@     | @ >< cell + @ >< ;					\ ( cfa -- param code )	Returns param and code for CFA
@@ -213,7 +214,7 @@
 								\\ Printing									_print
 : ."       [compile] " compile count compile type ; immediate
 : .(       29 word count type ; immediate
-: abort"   [compile] ." abort ; immediate
+: abort"   compile cr compile red [compile] ." compile norm compile cr compile abort ; immediate
 
 								\\ Improved assembler, r0-15 support						_assembler
 : rex      150b501e7e 0c0de .abort ;				\ Obsolete
