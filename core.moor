@@ -329,7 +329,7 @@
 : aft      compile (aft) compile branch _ >mark <mark >< ; immediate
 : over     compile (over) <resolve ; immediate
 
-: #_       for _ over ;						\ ( a1 ... an n -- )	Drops N elelemns off stack
+: #_       | if for _ over then ;				\ ( a1 ... an n -- )	Drops N elelemns off stack
 								\\ Memory									_memory
 : fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )	Fill N bytes from address A with character C
 
