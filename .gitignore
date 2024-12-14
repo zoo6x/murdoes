@@ -1,8 +1,9 @@
 moor
 moord
 moordt
-mur.lst
-mur.o
+test
+*.lst
+*.o
 q.moor
 caprecorn.log
 *.swp
