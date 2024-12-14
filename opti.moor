@@ -36,13 +36,18 @@
 :: #regs   10 val						\ Number of CPU registers
 :: regs    adr #regs allot					\ Register alias count
 : ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
-: v        regs + | c@ 1- >< c! ; 				\ ( r -- )		Decrements reference count for a register
+: v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register
+           else a11a501 .abort then ; 
+: v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
+           else a11a502 .abort then ; 
+								\ 			otherwise decrement reference count and return 0
 : ?^       regs #regs for | c@ leave 1+ over			\ ( -- r | ABORT )	Allocates a new register, if one is available
            0add bada110c .abort
            then _ #regs I - | ^ ;
-: ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving it on the stack
+: ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving register on the stack
 : ∨        v ;
-: |∨       | v ;
+: |∨       | v ;						\ ( r -- r )		Decrement reference count for a register, leaving register on the stack
+: ∨∧       | v^ ;						\ ( r -- r 1|0 )	Free register and reallocate it, if it's not aliased
 
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
@@ -194,7 +199,7 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % ?branch  @skip .. ⊻ %;					\ ( r # -- #-1 )
 % -?branch @skip .. ⊻ %;					\ ( r # -- #-1 )
 
-% (if)     >< { 1- phi-stack dirupload } >< 1+ %;			\			Upload stack as if after ?BRANCH
+% (if)     >< { 1- phi-stack dirupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
 % (else-pre) tmp-stack diroffload %;
 % (else-post) phi-stack download tmp-stack download phi-stack revoffload %;
 % (then)   %;
@@ -211,13 +216,17 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % I        1+ { cyc> ∧ | >cyc } %;
 % (over)   @skip .. cyc> ∨ %;					\ ( -- )
 
-\ % +        1- { ∨ ∨ ?∧ } %;					\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
-% +        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+% +        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
+           >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
+	   >< ∨∧ if | else 
+	   ?∧ then then
+           | >tmp } ;% 1- 1- tmp> >< ;%;			\ ( -- rd #-1 )
+
 % -        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
-$ +        >>> >|>| - if <<< >|>| -
+$ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd -- )	Assemble +
            if							\			RD <> RS1, RS2
 	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." add" tab yellow ." r" . bs ." , r" . bs norm 
            else							\			RD = RS2
@@ -298,7 +307,7 @@ cold
 :^ ?^ 1 ^> fib 
 #_  
 
-\ f00d 600d .abort
+f00d 600d .abort
 
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
