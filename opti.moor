@@ -41,9 +41,9 @@
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
            else a11a502 .abort then ; 
 								\ 			otherwise decrement reference count and return 0
-: ?^       regs #regs for | c@ leave 1+ over			\ ( -- r | ABORT )	Allocates a new register, if one is available
+: ?^       regs #regs for | c@ I >< leave _ 1+ over			\ ( -- r | ABORT )	Allocates a new register, if one is available
            0add bada110c .abort
-           then _ #regs I - | ^ ;
+           then >< _ #regs >< - | ^ ;
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving register on the stack
 : ∨        v ;
 : |∨       | v ;						\ ( r -- r )		Decrement reference count for a register, leaving register on the stack
@@ -82,6 +82,9 @@
 :: opt-lit    0 var						\ Holds 1-cell literal, offset or other data between regallocing and assembling
 :: opt-xt     0 var						\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
 :: opt-branch 0 var						\ Holds latest branch offset
+:: opt-phi-move 0 var						\ Flag indicating whether Phi requires moving regiters
+:: opt-phi-temp-reg 0 var					\ Temporary register for Phi moves
+:: opt-phi-save-reg 0 var					\ Saved register for Phi moves
 
 : %.debug 							\ ( xt -- )		Debug print word name and stack
            cr
@@ -226,6 +229,7 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % (for)    1- { >cyc } phi-stack revupload %;			\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
 % I        1+ { cyc> ∧ | >cyc } %;
 % (over)   @skip | opt-branch ! opt-index 1+! .. ;% cyc> ∨ ;%;					\ ( -- )
+% (over-post) %;
 
 % +        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
@@ -285,20 +289,25 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + 1- purple . norm $;
 \ 1 2 3
 
 $ (over)   
+           1 opt-phi-move !
            tmp> | >tmp | phi> | >phi 
 	   - if
 	   fee bad57ac .abort else
            phi-stack download phi-stack dirupload phi-stack diroffload _	\ Make a copy of the register set on the Phi stack      
 	   cr %.S
-	   phi> | { 1+ 2/ for
+	   phi> for
 	   phi> >|>| 
 	   - if
-	   green ." mov" tab yellow ." r" . bs ." , r" . norm tab
-	   else
-	   _ _
-	   then 
+	   opt-phi-move @ if
+           0 opt-phi-move !
+	   ?∧ opt-phi-temp-reg ! 
+	   green ." mov" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . | opt-phi-save-reg ! norm tab
+	   then
+	   \ green ." mov" tab yellow ." r" . bs ." , r" . norm tab
+	     green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm tab
+	   else _ _ then 
 	   over
-	   } 1- 2/ | if for phi-stack s> _ _ over else _ then
+	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
 	   cr %.S
 	   _ phi-stack onload
 	   cr %.S
@@ -310,6 +319,12 @@ $ (over)
 $ (then)   $;
 
 								\\ Simpler examples, w/o Phi junctions
+: cs-for0 0 >< for I + over ;
+1 cs-for0 .. 
+2 cs-for0 .. 
+ff cs-for0 .. 
+
+
 : q - + ;
 1 2 3 q ..
 : qq 1 2 3 q ;
