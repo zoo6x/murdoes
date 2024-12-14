@@ -223,6 +223,7 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
            | >tmp } ;% 1- 1- tmp> >< ;%;			\ ( -- rd #-1 )
 
 % -        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
@@ -246,6 +247,8 @@ $ -        >>> >|>| - if <<< >|>| -
 	   >< _ green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
 	   then  $;
 
+$ 1+       green ." inc" tab yellow ." r" . bs norm $;
+$ 1-       green ." dec" tab yellow ." r" . bs norm $;
 
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
 % emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
@@ -297,7 +300,7 @@ cold
 1 cs-for1 ..
 2 cs-for1 ..
 ff cs-for1 ..
-cr .(  TODO: For destination attempt to first allocate the destination register, if it's available, not the register with the lowest index! )
+cr
 :^ ?^ 1 ^> cs-for1 
 #_
 
