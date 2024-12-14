@@ -185,7 +185,6 @@
 : (again) ;
 : (ahead) ;
 : (while) ;
-: (leave) ;
 : (repeat) ;
 : (continue) ;
 : (break) ;
@@ -203,7 +202,6 @@
 : again    compile (again) compile branch <resolve ; immediate
 : ahead    compile (ahead) compile branch >mark ; immediate
 : while    compile (while) compile ?branch >mark ; immediate
-: leave    compile (leave) compile ?branch >mark >< ; immediate
 : repeat   compile (repeat) compile branch >< <resolve >resolve ; immediate
 : continue compile (continue) compile -?branch | <resolve ; immediate
 : break    compile (break) compile -?branch >mark >< ; immediate
@@ -284,7 +282,8 @@
 :: movzx.op b6 val						\ MOVZX opcode
 : movzx,   rex.q ` 0f ` movzx.op ` modrr ` ;			\ ( rd rs -- )		movzx	rdl, rs
 
-:: mov,    89 instrr						\ ( rd rs -- )		mov	rd, rs	
+:: mov,    89 instrr						\ ( rd rs -- )		mov	rd, rs
+:: test,   85 instrr						\ ( rd rs -- )		test	rd, rs
 
 :: inc,    00 ff instro						\ ( rd -- )		inc	rd
 :: dec,    08 ff instro						\ ( rd -- )		dec	rd
@@ -300,7 +299,7 @@
 : setnz0,  r0 .nz setf,    48 ` 0f ` b6 ` c9 ` ;		\ 			setnz	cl ; movzx rcx, cl
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
-: rpc+=ofs, 48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
+: skip,    48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
 
 :: skip    code rtmp pop, rwork pop, 				\ ( -- )		Skip next address interpreter word TODO: make single ADD
 		rwork inc, rwork inc, rwork inc, rwork inc,
@@ -321,16 +320,30 @@
 : {        compile >r ;	immediate
 : }        compile r> ;	immediate
 								\\ Control structures: loops							_loops
-:: (for)   code rindex r0 mov, _, ret,				\ ( n -- )		mov	rindex, rtop ; drop
+								\ DOC: https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
+:: (for)   code rtmp pop, rwork pop, rindex push,  		\ ( n -- )		push rindex; mov rindex, rtop ; drop
+                rindex r0 mov,
+                rwork push, rtmp push, _, ret,
 : (aft) ;
 :: I       code |, r0 rindex mov, ret,				\ ( -- I )		Returns FOR loop index
-:: (over)  code rindex dec, lodsq, 4 .z j, rpc+=ofs, ret,	\ ( -- )		dec rindex ; lodsq ; jz ret ; rpc+=ofs ; ret
-' branch DECOMPILING >cfa@ DECOMPILING latest does
+:: (over)  code rindex dec, lodsq, 4 .z j, skip, ret,		\ ( -- )		dec rindex ; lodsq ; jz ret ; rpc+=ofs ; ret
+:: (over-post) code
+                rtmp pop, rwork pop, rindex pop, 
+		rwork push, rtmp push, ret,
+' branch DECOMPILING >cfa@ DECOMPILING ' (over) does
 
-								\ DOC: https://github.com/TG9541/stm8ef/wiki/eForth-FOR-..-NEXT
+:: (leave) code 						\ ( f -- )		Leave FOR loop if the flag is false
+           rtmp rtop mov,
+	   _, lodsq, rtmp rtmp test, 1 .z j, ret,
+	   skip,
+	   rtmp pop, rwork pop, rindex pop,
+	   rwork push, rtmp push, ret,
+
+
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      compile (aft) compile branch _ >mark <mark >< ; immediate
-: over     compile (over) <resolve ; immediate
+: leave    compile (leave) >mark >< ; immediate			\ TODO: BUG! Incompatible with nested FORs as it is now
+: over     compile (over) <resolve compile (over-post) ; immediate
 
 : #_       | if for _ over then ;				\ ( a1 ... an n -- )	Drops N elelemns off stack
 								\\ Memory									_memory
