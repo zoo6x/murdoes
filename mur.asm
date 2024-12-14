@@ -16,7 +16,6 @@
 	.equ	INTERPRETING, 0
 	.equ	COMPILING, -2
 	.equ	DECOMPILING, -4
-	.equ	REGALLOCING, -6
 
 				/* Before changing register assignment check usage of low 8-bit parts of these registers: al, bl, cl, dl, rXl etc. */
 				/* TODO: define low byte aliases for needed address interpreter regsters */
@@ -207,7 +206,7 @@ _tib:
 
 	latest_word	= 0
 
-.macro	reserve_cfa does, reserve=(STATES - 4)
+.macro	reserve_cfa does, reserve=(STATES - 3)
 	# Execution semantics can be either code or Forth word
 
 	# Compilation semantics inside Forth words is the same: compile adress of XT
@@ -233,24 +232,6 @@ _tib:
 	.quad	latest_word	/* LFA */
 
 	reserve_cfa
-
-	# REGALLOCING
-.ifc "\regalloc", ""
-	.ifc "\does", "forth"
-		.quad	_\does
-		.ifc	"\param",""
-			.quad	\name
-		.else
-			.quad	\param
-		.endif
-	.else
-		.quad	_state_notimpl
-		.quad	0
-	.endif
-.else
-	.quad	\regalloc
-	.quad	\regalloc_param
-.endif
 
 	# DECOMPILING
 .ifc "\decomp", ""
@@ -1086,12 +1067,6 @@ _forthword:
 	.quad	lit, 0
 	.quad	lit, _decomp
 	.quad	lit, DECOMPILING
-	.quad	latest
-	.quad	does
-
-	.quad	here
-	.quad	lit, _exec
-	.quad	lit, REGALLOCING
 	.quad	latest
 	.quad	does
 
