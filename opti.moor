@@ -10,6 +10,9 @@
 : %>       ' (%>) ;						\ ( "<name>" -- )	Sets register allocation semantics to execution semantics
 : <%       latest (%>) ;					\ ( -- )		Sets latest word's register allocation semantics to execution semantics
 
+: (:)      : ;							\ 			Redefine : to enable REGALLOCING state
+: :        (:) <% ;
+
 : ($>)     | INTERPRETING >cfa@ >>> ASSEMBLING >< does ;	\ ( xt -- )		Sets word's register allocation semantics to its execution semantics
 : $>       ' ($>) ;						\ ( "<name>" -- )	Sets register allocation semantics to execution semantics
 : <$       latest ($>) ;					\ ( -- )		Sets latest word's register allocation semantics to execution semantics
@@ -102,9 +105,11 @@
 
 $ noop     $;
 
+' exit INTERPRETING >cfa@ REGALLOCING ' exit does
 ' exit INTERPRETING >cfa@ ASSEMBLING ' exit does
 ' exit INTERPRETING >cfa@ DEALLOCING ' exit does
 
+' interpreting! INTERPRETING >cfa@ REGALLOCING ' interpreting! does
 ' interpreting! INTERPRETING >cfa@ ASSEMBLING ' interpreting! does
 ' interpreting! INTERPRETING >cfa@ DEALLOCING ' interpreting! does
 
@@ -293,7 +298,7 @@ cold
 :^ ?^ 1 ^> fib 
 #_  
 
-f00d 600d .abort
+\ f00d 600d .abort
 
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
