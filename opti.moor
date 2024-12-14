@@ -60,6 +60,7 @@
 : revoffload revupload offload ;
 
 : download  | s> | { for | s> ∧ >< over _ } ;			\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements off the specified stack onto the data stack
+: onload  | s> | { for | s> >< over _ } ;			\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements w/o changing references
 
 :: tmp-stack 100 stack						\ Temporary stack, for transfers between other stacks
 : >tmp    tmp-stack >s ;
@@ -101,8 +102,6 @@
            1b emit 5b emit 38 emit 33 emit 47 emit
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
            1b emit 5b emit 31 emit 30 emit 35 emit 47 emit
-	   54 emit 3a emit bl emit tmp-stack .stack
-           1b emit 5b emit 31 emit 31 emit 35 emit 47 emit
            ." |  " 
 	   ;
 
@@ -234,7 +233,12 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 	   ?∧ then then
            | >tmp } ;% 1- 1- tmp> >< ;%;			\ ( -- rd #-1 )
 
-% -        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+\ % -        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
+% -        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
+           >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
+	   >< ∨∧ if | else 
+	   ?∧ then then
+           | >tmp } ;% 1- 1- tmp> >< ;%;			\ ( -- rd #-1 )
 
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
@@ -243,6 +247,8 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
 
 								\\ Assembling
+								\ TODO: Symmetric operations might favor register with lower index rather then RS1
+								\ Is it possible to determine an optimal local strategy?
 $ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd -- )	Assemble +
            if							\			RD <> RS1, RS2
 	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." add" tab yellow ." r" . bs ." , r" . bs norm 
@@ -270,7 +276,38 @@ $ (if)     green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
 $ ?branch  green ." jz " tab opt-branch @ opt-index @ + 1- purple . norm $;
 $ -?branch green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
 $ branch   green ." jmp" tab opt-branch @ opt-index @ + 1- purple . norm $;
-$ (over)   green ." dec" cyc> | >cyc tab yellow ." r" . tab green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
+
+
+\ $ (over)   green ." dec" cyc> | >cyc tab yellow ." r" . tab green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
+
+
+\ 3 1 2
+\ 1 2 3
+
+$ (over)   
+           tmp> | >tmp | phi> | >phi 
+	   - if
+	   fee bad57ac .abort else
+           phi-stack download phi-stack dirupload phi-stack diroffload _	\ Make a copy of the register set on the Phi stack      
+	   cr %.S
+	   phi> | { 1+ 2/ for
+	   phi> >|>| 
+	   - if
+	   green ." mov" tab yellow ." r" . bs ." , r" . norm tab
+	   else
+	   _ _
+	   then 
+	   over
+	   } 1- 2/ | if for phi-stack s> _ _ over else _ then
+	   cr %.S
+	   _ phi-stack onload
+	   cr %.S
+           then
+           green ." dec" cyc> | >cyc tab yellow ." r" . tab green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
+
+
+
+$ (then)   $;
 
 								\\ Simpler examples, w/o Phi junctions
 : q - + ;
@@ -295,6 +332,9 @@ cold
 cold
 : cs-if0 1 >< | if + else - then noop ;
 : cs-if1 1 >< | if 11 + else - 55 then + ;
+0 cs-if0 .. 
+1 cs-if0 .. 
+2 cs-if0 .. 
 0 cs-if1 .. 
 1 cs-if1 .. 
 2 cs-if1 .. 
@@ -315,13 +355,17 @@ cold
 :^ ?^ 1 ^> cs-for0 
 #_
 
-: cs-for1 { 0 1 2 } for I + >>> >< over + + ;
+: cs-for1 { 0 1 2 } for I + <<< over + + ;
 1 cs-for1 ..
 2 cs-for1 ..
+3 cs-for1 ..
+4 cs-for1 ..
+5 cs-for1 ..
 ff cs-for1 ..
 cr
 :^ ?^ 1 ^> cs-for1 
 #_
+2600d f00d .abort
 
 
 cold
@@ -329,7 +373,7 @@ cold
 :^ ?^ 1 ^> fib 
 #_  
 
-f00d 600d .abort
+1f00d 600d .abort
 
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
