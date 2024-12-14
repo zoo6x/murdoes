@@ -77,11 +77,17 @@
 : >phi    phi-stack >s ;
 : phi>    phi-stack s> ;
 
-:: opt-xt 0 var							\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
-: opt-xt! opt-xt ! ;
-: opt-xt@ opt-xt @ ;
+:: opt-index  0 var						\ Index inside current word, for branch visualization
+:: opt-lit    0 var						\ Holds 1-cell literal, offset or other data between regallocing and assembling
+:: opt-xt     0 var						\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
+:: opt-branch 0 var						\ Holds latest branch offset
 
-: %.debug  cr >name count white type norm			\ ( xt -- )		Debug print word name and stack
+: %.debug 							\ ( xt -- )		Debug print word name and stack
+           cr
+	   opt-index @ purple . norm
+           1b emit 5b emit 30 emit 33 emit 47 emit
+           >name count white type norm
+
            1b emit 5b emit 31 emit 31 emit 47 emit ;
 : %.S      
            1b emit 5b emit 31 emit 35 emit 47 emit
@@ -125,22 +131,25 @@ $ assm     $;
            ['] assm ASSEMBLING   >cfa@ ASSEMBLING r> | >r does
            ['] assm INTERPRETING >cfa@ DEALLOCING r> | >r does r>
            compile interpreting! 				\			which equals to execution semantics of its constituents
-	   | opt-xt!
+	   | opt-xt !
 	   [compile] literal
 	   compile %.debug					\ DEBUG
            ] ;
 
 : %;       compile %.S						\ DEBUG
+
+	   compile opt-index
+	   compile 1+!
 	   
 	   compile >tmp
            compile ASSEMBLING!!
-           opt-xt@
+           opt-xt @
 	   compile,
 	   compile interpreting!
 	   compile tmp>
            
            compile DEALLOCING!!
-           opt-xt@
+           opt-xt @
 	   compile,
 	   compile interpreting!
 
@@ -150,7 +159,7 @@ $ assm     $;
 
 : ;%								\			Finish REGALLOCING definition and start DEALLOCING definition
            [compile] %;
-           here (exec) DEALLOCING opt-xt@ does
+           here (exec) DEALLOCING opt-xt @ does
 	   compile interpreting!
 	   ] ; immediate
 	  
@@ -174,9 +183,13 @@ $ assm     $;
 ;
 								\\ Syntactic sugar
 : :^       regs-init ;
-: ^>       cr %.S regalloc cr %.S ;
+: ^>
+           cr %.S 
+	   0 opt-index !
+	   regalloc
+	   cr %.S ;
 
-								\\ Register allocation implementation
+								\\ Register allocation
 % |        norm 1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
 % _        ⊻ %;							\ ( r # -- #-1)
 
@@ -190,14 +203,13 @@ $ assm     $;
 % >r       1- { >ret } %;
 % r>       1+ { ret> } %;
 
-:: opt-lit 0 var						\ Holds 1-cell literal, offset or other data between regallocing and assembling
 
-% lit      @skip | opt-lit ! .. 1+ { ?∧ } %;			\ ( # -- r #+1 )	Allocates new register
+% lit      @skip | opt-lit ! opt-index 1+! .. 1+ { ?∧ } %;	\ ( # -- r #+1 )	Allocates new register
 $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 
-% branch   @skip .. %;						\ ( -- )
-% ?branch  @skip .. ⊻ %;					\ ( r # -- #-1 )
-% -?branch @skip .. ⊻ %;					\ ( r # -- #-1 )
+% branch   @skip | opt-branch ! opt-index 1+! .. %;		\ ( -- )
+% ?branch  @skip | opt-branch ! opt-index 1+! .. ⊻ %;		\ ( r # -- #-1 )
+% -?branch @skip | opt-branch ! opt-index 1+! .. ⊻ %;		\ ( r # -- #-1 )
 
 % (if)     >< { 1- phi-stack dirupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
 % (else-pre) tmp-stack diroffload %;
@@ -214,7 +226,7 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % (break) %;
 % (for)    1- { >cyc } phi-stack revupload %;			\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
 % I        1+ { cyc> ∧ | >cyc } %;
-% (over)   @skip .. cyc> ∨ %;					\ ( -- )
+% (over)   @skip | opt-branch ! opt-index 1+! .. ;% cyc> ∨ ;%;					\ ( -- )
 
 % +        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
@@ -227,6 +239,10 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
+% ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
+% emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
+
+								\\ Assembling
 $ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd -- )	Assemble +
            if							\			RD <> RS1, RS2
 	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." add" tab yellow ." r" . bs ." , r" . bs norm 
@@ -250,8 +266,11 @@ $ -        >>> >|>| - if <<< >|>| -
 $ 1+       green ." inc" tab yellow ." r" . bs norm $;
 $ 1-       green ." dec" tab yellow ." r" . bs norm $;
 
-% ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
-% emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
+$ (if)     green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
+$ ?branch  green ." jz " tab opt-branch @ opt-index @ + 1- purple . norm $;
+$ -?branch green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
+$ branch   green ." jmp" tab opt-branch @ opt-index @ + 1- purple . norm $;
+$ (over)   green ." dec" cyc> | >cyc tab yellow ." r" . tab green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
 
 								\\ Simpler examples, w/o Phi junctions
 : q - + ;
