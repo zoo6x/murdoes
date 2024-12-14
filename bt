@@ -1,0 +1,4 @@
+rm -f test.o
+as test.asm -n -g -O0 --64 -am -amhls=test.lst -o test.o
+ld test.o -N -o test
+
