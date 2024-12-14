@@ -109,6 +109,9 @@
 :: +       code #1 r1 load, r1 add, off, ret,			\ ( n1 n2 -- n1+n2 )	mov	r1, [S+8] ; add r0, r1 ; inc rstack
 :: -       code #1 r1 load, r1 sub, r0 r1 mov, off, ret,	\ ( n1 n2 -- n1-n2 )	mov	r1, [S+8] ; sub r1, r0 ; mov r0, r1 ; inc rstack
 
+								\\ Basic math continued
+: 2/       1 sar ;						\ ( n -- n/2)
+
 								\\ Cells									_core_core
 : cell     8 ;							\ ( -- 8 )		Size of one cell
 : cells    3 shl ;						\ ( n -- n*8 )		Convert size in cells to size in bytes
