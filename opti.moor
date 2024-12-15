@@ -28,7 +28,7 @@
 : DEALLOCING! DEALLOCING state! ;
 :: DEALLOCING!!  code rstate DEALLOCING mov.i, ret, <%		\ ( -- )		Sets state to DEALLOCING without address interpreter involvement
 
-: regalloc REGALLOCING! ' execute interpreting! INTERPRETING! ;	\ ( -- )		Sets STATE to REGALLOCING for the next text interpreter word 
+: regalloc REGALLOCING! execute interpreting! INTERPRETING! ;	\ ( xt -- )		Sets STATE to REGALLOCING for the XT 
 
 : :%       : compile interpreting! ;
 
@@ -89,22 +89,22 @@
 : %.debug 							\ ( xt -- )		Debug print word name and stack
            cr
 	   opt-index @ purple . norm
-           1b emit 5b emit 30 emit 33 emit 47 emit
+           1b emit 5b emit 30 emit 34 emit 47 emit
            >name count white type norm
 
-           1b emit 5b emit 31 emit 31 emit 47 emit ;
+           1b emit 5b emit 31 emit 33 emit 47 emit ;
 : %.S      
-           1b emit 5b emit 31 emit 35 emit 47 emit
+           1b emit 5b emit 31 emit 39 emit 47 emit
            ..S
-           1b emit 5b emit 33 emit 34 emit 47 emit
+           1b emit 5b emit 33 emit 39 emit 47 emit
 	   .regs 
-           1b emit 5b emit 36 emit 37 emit 47 emit
+           1b emit 5b emit 37 emit 32 emit 47 emit
 	   52 emit 3a emit bl emit ret-stack .stack
-           1b emit 5b emit 37 emit 35 emit 47 emit
+           1b emit 5b emit 37 emit 39 emit 47 emit
 	   43 emit 3a emit bl emit cyc-stack .stack
-           1b emit 5b emit 38 emit 33 emit 47 emit
+           1b emit 5b emit 38 emit 38 emit 47 emit
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
-           1b emit 5b emit 31 emit 30 emit 35 emit 47 emit
+           1b emit 5b emit 31 emit 31 emit 30 emit 47 emit
            ." |  " 
 	   ;
 
@@ -188,8 +188,8 @@ $ assm     $;
 : ^>
            cr %.S 
 	   0 opt-index !
-	   regalloc
-	   cr %.S ;
+	   ' regalloc 
+	   ['] exit %.debug %.S ;
 
 								\\ Register allocation
 % |        norm 1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
@@ -277,16 +277,9 @@ $ 1+       green ." inc" tab yellow ." r" . bs norm $;
 $ 1-       green ." dec" tab yellow ." r" . bs norm $;
 
 $ (if)     green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
-$ ?branch  green ." jz " tab opt-branch @ opt-index @ + 1- purple . norm $;
-$ -?branch green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
-$ branch   green ." jmp" tab opt-branch @ opt-index @ + 1- purple . norm $;
-
-
-\ $ (over)   green ." dec" cyc> | >cyc tab yellow ." r" . tab green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
-
-
-\ 3 1 2
-\ 1 2 3
+$ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
+$ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
+$ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
 $ (over)   
            1 opt-phi-move !
@@ -294,25 +287,21 @@ $ (over)
 	   - if
 	   fee bad57ac .abort else
            phi-stack download phi-stack dirupload phi-stack diroffload _	\ Make a copy of the register set on the Phi stack      
-	   cr %.S
 	   phi> for
 	   phi> >|>| 
 	   - if
 	   opt-phi-move @ if
            0 opt-phi-move !
 	   ?∧ opt-phi-temp-reg ! 
-	   green ." mov" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . | opt-phi-save-reg ! norm tab
+	   green ." mov" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . | opt-phi-save-reg ! norm cr %.S
 	   then
-	   \ green ." mov" tab yellow ." r" . bs ." , r" . norm tab
-	     green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm tab
+	   green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm cr %.S
 	   else _ _ then 
 	   over
 	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
-	   cr %.S
 	   _ phi-stack onload
-	   cr %.S
            then
-           green ." dec" cyc> | >cyc tab yellow ." r" . tab green ." jnz" tab opt-branch @ opt-index @ + 1- purple . norm $;
+           green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 
 
 
@@ -394,6 +383,9 @@ cold
 7 fib ..  
 8 fib ..  
 9 fib ..  
+
+see fib
+
 cold
 :^ ?^ 1 ^> fib 
 #_  
