@@ -295,7 +295,7 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 	   opt-phi-move @ if
            0 opt-phi-move !
 	   ?∧ opt-phi-temp-reg ! 
-	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . | opt-phi-save-reg ! norm cr %.S
+	   green ." mov" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . | opt-phi-save-reg ! norm cr %.S
 	   then
 	   green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm cr %.S
 	   else _ _ then 
@@ -309,7 +309,9 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
            tmp> | >tmp | phi> | >phi 
 	   - if
 	   fee bad57ac .abort else
-           phi-stack download phi-stack dirupload phi-stack diroffload _	\ Make a copy of the register set on the Phi stack      
+           phi-stack download phi-stack dirupload phi-stack diroffload
+	   phi-stack dirupload offload phi-stack onload
+	   _
 	   phi> for
 	   phi> >|>| ><
 	   - if
@@ -317,7 +319,7 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
            0 opt-phi-move !
 	   ?∧ opt-phi-temp-reg ! 
 	   | opt-phi-temp-reg @ - if
-	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
+	   green ." mov" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
 	   then
 	   | opt-phi-save-reg !
 	   then
@@ -325,7 +327,7 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 	   else _ _ then 
 	   over
 	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
-	   phi-stack onload phi-stack revupload #_ phi-stack onload _
+	   phi-stack onload phi-stack revupload #_ phi-stack download _
            then ;
 
 $ (over)   <φ
