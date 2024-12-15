@@ -170,7 +170,7 @@
 
 								\\ Control structures								_control
 : >mark    here 0 , ;						\ ( -- a )		Address for forward branch fixup
-: >resolve | here >< - cell/ 1- ><  ! ;				\ ( a -- )		Fixup forward branch
+: >resolve | here >< - cell/ 1- >< ! ;				\ ( a -- )		Fixup forward branch
 
 : <mark    here ;						\ ( -- a )		Address for backward branch fixup
 : <resolve here  - cell/ 1- , ;
@@ -210,7 +210,7 @@
 : '        bl word _ find					\ ( "<name>" -- xt | E )
            | if else badd1c 071cf10d .abort then ;
 : compile, , ;							\ ( xt -- )		Compiles XT on the top of the stack into current definition
-: [compile] ' compile, ; immediate					\ ( "<name>" -- )	Compiles XT of the next word in the input stream
+: [compile] ' compile, ; immediate				\ ( "<name>" -- )	Compiles XT of the next word in the input stream
 : [']      ' [compile] literal ; immediate			\ ( "<name>" -- )	Compiles XT of the next word in the input stream as a literal
 								\			Syntactic sugar
 								\\ Printing									_print
