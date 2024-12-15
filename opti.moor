@@ -258,7 +258,7 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 								\ Is it possible to determine an optimal local strategy?
 $ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd -- )	Assemble +
            if							\			RD <> RS1, RS2
-	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." add" tab yellow ." r" . bs ." , r" . bs norm 
+	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." add" tab yellow ." r" . bs ." , r" . bs norm 
            else							\			RD = RS2
            _ green ." add" tab yellow ." r" . bs ." , r" . bs norm
 	   then
@@ -268,9 +268,9 @@ $ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd -- )	Assemble +
 
 $ -        >>> >|>| - if <<< >|>| -
            if							\			RD <> RS1, RS2
-	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm tab green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
+	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
 	   else							\			RD = RS2
-	   >< _ green ." sub" tab yellow ." r" | . bs ." , " ." r" >< . bs tab green ." neg " tab yellow ." r" . bs norm
+	   >< _ green ." sub" tab yellow ." r" | . bs ." , " ." r" >< . bs cr %.S green ." neg " tab yellow ." r" . bs norm
 	   then
 	   else							\			RD = RS1
 	   >< _ green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
@@ -289,8 +289,10 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
            tmp> | >tmp | phi> | >phi 
 	   - if
 	   fee bad57ac .abort else
+	   cr %.S red ." A" norm
            phi-stack download phi-stack dirupload phi-stack diroffload 
-	   opt-phi-forward @ if phi-stack dirupload offload phi-stack onload then
+	   opt-phi-forward @ if tmp-stack dirupload then
+	   cr %.S red ." B" norm
 	   _
 	   phi> for
 	   phi> >|>| 
@@ -300,14 +302,16 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
            0 opt-phi-move !
 	   ?∧ opt-phi-temp-reg ! 
 	   | opt-phi-temp-reg @ - if
-	   green ." mov" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
+	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
 	   then
 	   | opt-phi-save-reg !
 	   then
 	   green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm cr %.S
 	   else _ _ then 
 	   over
+	   cr %.S red ." C" norm
 	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
+	   opt-phi-forward @ if tmp-stack onload offload then
 	   phi-stack onload 
 	   opt-phi-forward @ if phi-stack revupload #_ phi-stack download then
 	   _
@@ -411,7 +415,22 @@ cold
 1 cs-if3 ..
 :^ ?^ 1 ^> cs-if3
 
-1f00d 600d .abort
+: fib3     | if { 0 1 2 } for >>> >>| >>| + + over <<< _ _ then noop ;
+cold
+0 fib3 ..  
+1 fib3 ..  
+2 fib3 ..  
+3 fib3 ..  
+4 fib3 ..  
+5 fib3 ..  
+6 fib3 ..  
+7 fib3 ..  
+8 fib3 ..  
+9 fib3 ..  
+
+cold
+:^ ?^ 1 ^> fib3
+
 
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
@@ -431,15 +450,6 @@ cold
 cold
 :^ ?^ 1 ^> cs50 #_
 
-								\\ Fibonacci sequence generator
-								\ 0, 1, 2, 3, 4, 5, 6,  7,  8,  9
-								\ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34
-								\ n	Fn = Fn-1 + Fn-2
-: fib3     | if { 0 1 2 } 1- 1- for >>> >>| >>| + + over <<< _ _ then noop ;
-								\ 0, 1, 2, 3, 4,  5,  6,  7
-								\ 0, 1, 2, 3, 6, 11, 20, 37
 
-cold
-
-\ 600df00d 0c0de .abort
+600df00d 0c0de .abort
 
