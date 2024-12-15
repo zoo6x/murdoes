@@ -85,6 +85,7 @@
 :: opt-phi-move     0 var					\ Flag indicating whether φ requires moving regiters
 :: opt-phi-temp-reg 0 var					\ Temporary register for φ moves
 :: opt-phi-save-reg 0 var					\ Saved register for φ moves
+:: opt-phi-dest-reg 0 var					\ Register to be assigned from the saved register
 :: opt-phi-forward  0 var					\ Flag indicating whether the φ-junction is forward or backward
 
 : %.debug 							\ ( xt -- )		Debug print word name and stack
@@ -284,15 +285,17 @@ $ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
 $ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
+\ φ-junction
+\ 2 3 1 -- 1 2 3
+
 : φ
            1 opt-phi-move !
+	   -1 opt-phi-save-reg !
            tmp> | >tmp | phi> | >phi 
 	   - if
 	   fee bad57ac .abort else
-	   cr %.S red ." A" norm
            phi-stack download phi-stack dirupload phi-stack diroffload 
-	   opt-phi-forward @ if tmp-stack dirupload then
-	   cr %.S red ." B" norm
+	   tmp-stack dirupload
 	   _
 	   phi> for
 	   phi> >|>| 
@@ -303,25 +306,34 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 	   ?∧ opt-phi-temp-reg ! 
 	   | opt-phi-temp-reg @ - if
 	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
+	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
 	   then
 	   | opt-phi-save-reg !
 	   then
-	   green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm cr %.S
+           | opt-phi-save-reg @ - if
+	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
+	   else
+	   | opt-phi-dest-reg !
+	   then
 	   else _ _ then 
 	   over
-	   cr %.S red ." C" norm
+	   opt-phi-save-reg @ 1+ if
+	   green ." mov#" tab yellow ." r" opt-phi-dest-reg @ . bs ." , r" opt-phi-temp-reg @ . norm cr %.S
+	   then
 	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
-	   opt-phi-forward @ if tmp-stack onload offload then
+	   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
 	   phi-stack onload 
-	   opt-phi-forward @ if phi-stack revupload #_ phi-stack download then
+	   opt-phi-forward @ if phi-stack revupload #_ phi-stack download else #_ then
 	   _
            then ;
 
 : <φ       0 opt-phi-forward ! φ ;
 : >φ       1 opt-phi-forward ! φ ;
 
-$ (over)   <φ
-           green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
+$ (over)   
+           green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jz" tab opt-index @ 1+ purple . norm cr %.S
+           <φ
+           cr %.S green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
 $ (then)   >φ $;
 
@@ -377,7 +389,7 @@ cold
 :^ ?^ 1 ^> cs-if1 
 #_
 
-: cs-for1 { 0 1 2 } for I + <<< over + + ;
+: cs-for1 { 0 1 2 } for I + <<< over - + ;
 1 cs-for1 ..
 2 cs-for1 ..
 3 cs-for1 ..
@@ -415,7 +427,11 @@ cold
 1 cs-if3 ..
 :^ ?^ 1 ^> cs-if3
 
-: fib3     | if { 0 1 2 } for >>> >>| >>| + + over <<< _ _ then noop ;
+% cr %;
+% ?? %;
+% .S %;
+
+: fib3     | if { 0 1 2 } for cr .S >>> >>| >>| 7c emit .S + + over <<< _ _ then noop ;
 cold
 0 fib3 ..  
 1 fib3 ..  
