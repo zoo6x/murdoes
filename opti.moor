@@ -37,7 +37,7 @@
 :: regs    adr #regs allot					\ Register alias count
 : ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register
-           else a11a501 .abort then ; 
+           else .. a11a501 .abort then ; 
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
            else a11a502 .abort then ; 
 								\ 			otherwise decrement reference count and return 0
@@ -104,7 +104,9 @@
 	   43 emit 3a emit bl emit cyc-stack .stack
            1b emit 5b emit 38 emit 38 emit 47 emit
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
-           1b emit 5b emit 31 emit 31 emit 30 emit 47 emit
+           1b emit 5b emit 31 emit 30 emit 39 emit 47 emit
+	   54 emit 3a emit bl emit tmp-stack .stack
+           1b emit 5b emit 31 emit 31 emit 38 emit 47 emit
            ." |  " 
 	   ;
 
@@ -237,7 +239,6 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 	   ?∧ then then
            | >tmp } ;% 1- 1- tmp> >< ;%;			\ ( -- rd #-1 )
 
-\ % -        1+ { |∨ >< |∨ >< ?∧ | >tmp } ;% 1- 1- tmp> >< ;%;	\ ( r1 r2 # -- r3 #-1 )	Frees two registers and allocates one
 % -        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
 	   >< ∨∧ if | else 
@@ -281,7 +282,7 @@ $ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
 $ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
-$ (over)   
+: φ
            1 opt-phi-move !
            tmp> | >tmp | phi> | >phi 
 	   - if
@@ -299,13 +300,13 @@ $ (over)
 	   else _ _ then 
 	   over
 	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
-	   _ phi-stack onload
-           then
+	   ?csp phi-stack onload _
+           then ;
+
+$ (over)   φ
            green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 
-
-
-$ (then)   $;
+$ (then)   φ cr %.S $;
 
 								\\ Simpler examples, w/o Phi junctions
 : cs-for0 0 >< for I + over ;
@@ -333,6 +334,15 @@ cold
 :^ ?^ ?^ ?^ 3 ^> q 
 #_
 
+: cs-for0 0 >< for I + over ;
+1 cs-for0 .. 
+2 cs-for0 .. 
+ff cs-for0 .. 
+
+cold
+:^ ?^ 1 ^> cs-for0 
+#_
+
 cold
 : cs-if0 1 >< | if + else - then noop ;
 : cs-if1 1 >< | if 11 + else - 55 then + ;
@@ -348,15 +358,6 @@ cold
 
 cold
 :^ ?^ 1 ^> cs-if1 
-#_
-
-: cs-for0 0 >< for I + over ;
-1 cs-for0 .. 
-2 cs-for0 .. 
-ff cs-for0 .. 
-
-cold
-:^ ?^ 1 ^> cs-for0 
 #_
 
 : cs-for1 { 0 1 2 } for I + <<< over + + ;
