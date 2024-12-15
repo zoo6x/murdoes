@@ -156,6 +156,7 @@ $ assm     $;
            opt-xt @
 	   compile,
 	   compile interpreting!
+	   compile %.S
 
 	   compile REGALLOCING!!
 
@@ -215,8 +216,8 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % ?branch  @skip | opt-branch ! opt-index 1+! .. ⊻ %;		\ ( r # -- #-1 )
 % -?branch @skip | opt-branch ! opt-index 1+! .. ⊻ %;		\ ( r # -- #-1 )
 
-% (if)     >< { 1- phi-stack dirupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
-% (else-pre) tmp-stack diroffload %;
+% (if)     >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
+% (else-pre) cr %.S tmp-stack diroffload %;
 % (else-post) phi-stack download tmp-stack download phi-stack revoffload %;
 % (then)   %;
 % (begin)  %;
@@ -282,7 +283,7 @@ $ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
 $ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
-: φ
+: <φ
            1 opt-phi-move !
            tmp> | >tmp | phi> | >phi 
 	   - if
@@ -294,19 +295,43 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 	   opt-phi-move @ if
            0 opt-phi-move !
 	   ?∧ opt-phi-temp-reg ! 
-	   green ." mov" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . | opt-phi-save-reg ! norm cr %.S
+	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . | opt-phi-save-reg ! norm cr %.S
 	   then
 	   green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm cr %.S
 	   else _ _ then 
 	   over
 	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
-	   ?csp phi-stack onload _
+	   phi-stack onload _
            then ;
 
-$ (over)   φ
+: >φ
+           1 opt-phi-move !
+           tmp> | >tmp | phi> | >phi 
+	   - if
+	   fee bad57ac .abort else
+           phi-stack download phi-stack dirupload phi-stack diroffload _	\ Make a copy of the register set on the Phi stack      
+	   phi> for
+	   phi> >|>| ><
+	   - if
+	   opt-phi-move @ if
+           0 opt-phi-move !
+	   ?∧ opt-phi-temp-reg ! 
+	   | opt-phi-temp-reg @ - if
+	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
+	   then
+	   | opt-phi-save-reg !
+	   then
+	   green ." mov" tab yellow ." r" . bs ." , r" | opt-phi-save-reg @ - if else _ opt-phi-temp-reg @ then . norm cr %.S
+	   else _ _ then 
+	   over
+	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
+	   phi-stack onload phi-stack revupload #_ phi-stack onload _
+           then ;
+
+$ (over)   <φ
            green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 
-$ (then)   φ cr %.S $;
+$ (then)   >φ $;
 
 								\\ Simpler examples, w/o Phi junctions
 : cs-for0 0 >< for I + over ;
@@ -374,6 +399,7 @@ cr
 
 cold
 : fib      | if 0 1 >>> for >| + >< over _ then ;
+cold
 0 fib ..  
 1 fib ..  
 2 fib ..  
@@ -390,6 +416,12 @@ see fib
 cold
 :^ ?^ 1 ^> fib 
 #_  
+
+cold
+: cs-if3 { 11 22 33 } if <<< then - + noop ;
+0 cs-if3 ..
+1 cs-if3 ..
+:^ ?^ 1 ^> cs-if3
 
 1f00d 600d .abort
 
