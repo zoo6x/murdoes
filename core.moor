@@ -362,10 +362,12 @@
 	  >| - if						\ ( a stack sp limit )	Check if stack about to overflow
 	  >|>| 1+ >< !						\ ( a stack sp )	Increment stack pointer
           cells + cell+ cell+ !					\ ( a stack sp )	Store element
-	  else 0add bad57ac .abort then	;			\ 			Stack overflow
+	  else _ >name count type bl emit
+	  0add bad57ac .abort then ;				\ 			Stack overflow
 
 : s>      | @ | if						\ ( stack -- a | E )	Pops element off stack or aborts on underflow
           1- >|>| >< !						\ ( stack sp )		Decrement stack pointer
           cells + cell+ cell+ @					\ ( stack sp )		Fetch element
-          else 05bb bad57ac .abort then ;			\			Stack underflow
+	  else _ >name count type bl emit
+	  05bb bad57ac .abort then ;				\			Stack underflow
 
