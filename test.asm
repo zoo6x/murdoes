@@ -27,14 +27,15 @@ _start:
 	add	r5, r3 
 	add	r1, r5 
 	dec	r0 
-	jz	15f
+	jz	15f 
 	mov	r5, r3 
 	mov	r3, r1 
-	mov	r2, r5 
 	mov	r1, r2 
-	jmp	1b 
+	mov	r2, r5 
 
+	jmp	1b
 15:
+	mov	r0, r0 
 	mov	r0, r1 
 
 19:
