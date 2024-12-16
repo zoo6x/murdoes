@@ -13,24 +13,32 @@
 .text
 
 _start:
-	mov	r0, 0
-
-	mov	r1, 11 
-	mov	r2, 22 
-	mov	r3, 33 
+	mov	r0, 9
 
 	test	r0, r0 
-	jz 	1f
+	jz 	19f 
 
-	mov	r0, r3 
-	mov	r3, r2 
-	mov	r2, r1 
-	mov	r1, r0 
+	mov	r1, 0 
+	mov	r2, 1 
+	mov	r3, 2 
+
 1:
-	sub	r2, r1 
-	add	r3, r2 
+	mov	r5, r2 
+	add	r5, r3 
+	add	r1, r5 
+	dec	r0 
+	jz	15f
+	mov	r5, r3 
+	mov	r3, r1 
+	mov	r2, r5 
+	mov	r1, r2 
+	jmp	1b 
 
-	mov	rdi, r1
+15:
+	mov	r0, r1 
+
+19:
+	mov	rdi, r0
 	mov	rax, 60
 _bye:
 	syscall
