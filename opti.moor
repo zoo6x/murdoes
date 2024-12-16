@@ -1,4 +1,4 @@
-\
+
 \\ Optimizer
 \
 								\\ Debug output
@@ -158,7 +158,6 @@ $ assm     $;
            opt-xt @
 	   compile,
 	   compile interpreting!
-	   compile %.S
 
 	   compile REGALLOCING!!
 
@@ -219,8 +218,8 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % -?branch @skip | opt-branch ! opt-index 1+! .. ⊻ %;		\ ( r # -- #-1 )
 
 % (if)     >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
-% (else-pre) cr %.S tmp-stack diroffload %;
-% (else-post) phi-stack download tmp-stack download phi-stack revoffload %;
+% (else-pre) tmp-stack diroffload %;
+% (else-post) phi-stack download phi-stack revoffload phi-stack download tmp-stack download phi-stack revoffload %;
 % (then)   %;
 % (begin)  %;
 % (until)  %;
@@ -306,11 +305,11 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 	   ?∧ opt-phi-temp-reg ! 
 	   | opt-phi-temp-reg @ - if
 	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
-	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
+	   green ." mov@" tab yellow ." r" . bs ." , r" . norm cr %.S
 	   then
-	   | opt-phi-save-reg !
+	   | opt-phi-save-reg ! |
 	   then
-           | opt-phi-save-reg @ - if
+           >| opt-phi-save-reg @ - if
 	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
 	   else
 	   | opt-phi-dest-reg !
@@ -375,15 +374,22 @@ cold
 cold
 : cs-if0 1 >< | if + else - then noop ;
 : cs-if1 1 >< | if 11 + else - 55 then + ;
+: cs-if2 1 >< | if >< then noop - ;
 0 cs-if0 .. 
 1 cs-if0 .. 
 2 cs-if0 .. 
 0 cs-if1 .. 
 1 cs-if1 .. 
 2 cs-if1 .. 
+0 cs-if2 .. 
+1 cs-if2 .. 
+2 cs-if2 .. 
+cold
+:^ ?^ 1 ^> cs-if2 
 cold
 :^ ?^ 1 ^> cs-if0 
 #_
+bad c0de .abort
 
 cold
 :^ ?^ 1 ^> cs-if1 
