@@ -108,7 +108,7 @@
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
            1b emit 5b emit 31 emit 30 emit 39 emit 47 emit
 	   54 emit 3a emit bl emit tmp-stack .stack
-           1b emit 5b emit 31 emit 31 emit 38 emit 47 emit
+           1b emit 5b emit 31 emit 32 emit 38 emit 47 emit
            ." |  " 
 	   ;
 
@@ -285,45 +285,47 @@ $ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
 \ φ-junction
-\ 2 3 1 -- 1 2 3
 
 : φ
            1 opt-phi-move !
 	   -1 opt-phi-save-reg !
-           tmp> | >tmp | phi> | >phi 
-	   - if
-	   fee bad57ac .abort else
-           phi-stack download phi-stack dirupload phi-stack diroffload 
-	   tmp-stack dirupload
-	   _
-	   phi> for
-	   phi> >|>| 
-	   opt-phi-forward @ if >< then
-	   - if
-	   opt-phi-move @ if
-           0 opt-phi-move !
-	   ?∧ opt-phi-temp-reg ! 
-	   | opt-phi-temp-reg @ - if
-	   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
-	   green ." mov@" tab yellow ." r" . bs ." , r" . norm cr %.S
-	   then
-	   | opt-phi-save-reg ! |
-	   then
-           >| opt-phi-save-reg @ - if
-	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
+	   -1 opt-phi-temp-reg !
+	   -1 opt-phi-dest-reg !
+           tmp> | >tmp | phi> | >phi - if
+		   fee bad57ac .abort
 	   else
-	   | opt-phi-dest-reg !
-	   then
-	   else _ _ then 
-	   over
-	   opt-phi-save-reg @ 1+ if
-	   green ." mov#" tab yellow ." r" opt-phi-dest-reg @ . bs ." , r" opt-phi-temp-reg @ . norm cr %.S
-	   then
-	   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
-	   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
-	   phi-stack onload 
-	   opt-phi-forward @ if phi-stack revupload #_ phi-stack download else #_ then
-	   _
+		   phi-stack download phi-stack dirupload phi-stack diroffload
+		   tmp-stack dirupload
+		   _
+		   phi> for
+			   phi> >|>|
+			   - if
+				   opt-phi-move @ if
+					   0 opt-phi-move !
+					   ?∧ opt-phi-temp-reg !
+					   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
+					   | opt-phi-save-reg !
+					   green ." mov@" tab yellow ." r" . bs ." , r" . norm cr %.S
+				   else
+					   >| opt-phi-save-reg @ - if
+						   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
+					   else
+						   | opt-phi-dest-reg !
+						   _ _
+					   then
+				   then
+			   else
+				   _ _
+			   then
+		   over
+		   opt-phi-dest-reg @ 1+ if
+			   green ." mov#" tab yellow ." r" opt-phi-dest-reg @ . bs ." , r" opt-phi-temp-reg @ . norm cr %.S
+		   then
+		   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
+		   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
+		   phi-stack onload
+		   opt-phi-forward @ if phi-stack revupload #_ phi-stack download else #_ then
+		   _
            then ;
 
 : <φ       0 opt-phi-forward ! φ ;
@@ -389,11 +391,20 @@ cold
 cold
 :^ ?^ 1 ^> cs-if0 
 #_
-bad c0de .abort
 
 cold
 :^ ?^ 1 ^> cs-if1 
 #_
+
+: cs-if3 2 >< | | if 1 >< - then - - ;
+cold 0 cs-if3 .S 
+cold 1 cs-if3 .S 
+cold 2 cs-if3 .S 
+cold 3 cs-if3 .S 
+cold
+:^ ?^ 1 ^> cs-if3 
+#_
+.( φ *** FALSE branch has two copies of a value [ 1 0 0 ], while TRUE branch produces different values [ 1 0 2 ]. How to merge these?  )
 
 : cs-for1 { 0 1 2 } for I + <<< over - + ;
 1 cs-for1 ..
@@ -426,18 +437,30 @@ see fib
 cold
 :^ ?^ 1 ^> fib 
 #_  
+.( φ *** Temporary register should be allocated only if swap is to be performed. How to detect it? )
 
 cold
 : cs-if3 { 11 22 33 } if <<< then - + noop ;
 0 cs-if3 ..
 1 cs-if3 ..
 :^ ?^ 1 ^> cs-if3
+#_
+
+: <<<< \ a b c d -- d a b c
+  >< >r <<< r> ;
+cold 11 22 33 44 <<<< .S
+: cs-if4 { 11 22 33 44 } if <<<< then - + - noop ;
+0 cs-if4 ..
+1 cs-if4 ..
+cold
+:^ ?^ 1 ^> cs-if4
+#_
 
 % cr %;
 % ?? %;
 % .S %;
 
-: fib3     | if { 0 1 2 } for cr .S >>> >>| >>| 7c emit .S + + over <<< _ _ then noop ;
+: fib3     | if { 0 1 2 } for >>> >>| >>| + + over <<< _ _ then noop ;
 cold
 0 fib3 ..  
 1 fib3 ..  
@@ -453,6 +476,9 @@ cold
 cold
 :^ ?^ 1 ^> fib3
 
+.(  φ Fib3 WORKS!!! Well, mov r0, r0... But this is another problem. Let's look for more serious ones first )
+
+bad c0de .abort
 
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
