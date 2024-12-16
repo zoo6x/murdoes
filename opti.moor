@@ -254,9 +254,14 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
 
 								\\ Assembling
+								
+								\ CAUTION! Assembling words should leave the stack as it was passed, do not add or drop items!
+
+
 								\ TODO: Symmetric operations might favor register with lower index rather then RS1
 								\ Is it possible to determine an optimal local strategy?
-$ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd -- )	Assemble +
+
+$ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
            if							\			RD <> RS1, RS2
 	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." add" tab yellow ." r" . bs ." , r" . bs norm 
            else							\			RD = RS2
@@ -276,8 +281,8 @@ $ -        >>> >|>| - if <<< >|>| -
 	   >< _ green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
 	   then  $;
 
-$ 1+       green ." inc" tab yellow ." r" . bs norm $;
-$ 1-       green ." dec" tab yellow ." r" . bs norm $;
+$ 1+       green ." inc" tab yellow ." r" | . bs norm $;
+$ 1-       green ." dec" tab yellow ." r" | . bs norm $;
 
 $ (if)     green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
 $ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
@@ -478,12 +483,10 @@ cold
 
 .(  φ Fib3 WORKS!!! Well, mov r0, r0... But this is another problem. Let's look for more serious ones first )
 
-bad c0de .abort
-
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
 \ : cs5 41 3 begin 30 emit { 1+ ?? } 1- | continue 31 emit { 1+ ?? } 2 pick break 32 emit { 1+ ?? } | while 33 emit { 1+ ?? } repeat 34 emit { 1+ ?? } then _ 35 emit emit _ 36 emit ;
-: cs5 41 3 begin 30 emit .S { 1+ } 1- | continue 31 emit .S { 1+ } >>| break 32 emit { 1+ } | 1+ while .S 33 emit _ >< _ 1 >< 2 .S repeat 34 emit { 1+ } then _ 35 emit red emit norm _ 36 emit ;
+: cs5 41 3 begin 30 emit { 1+ } 1- | continue 31 emit { 1+ } >>| break 32 emit { 1+ } | 1+ while 33 emit _ >< _ 1 >< 2 repeat 34 emit { 1+ } then _ 35 emit red emit norm _ 36 emit ;
 : cs50 41 3 begin { 1+ } 1- | continue { 1+ } >>| break { 1+ } | 1+ while _ >< _ 1 >< 2 repeat { 1+ } then _ emit _ ;
 0 cs4 
 1 cs4
