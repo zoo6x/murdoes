@@ -365,7 +365,6 @@ $ emit     { green ." emit" tab yellow ." r" | . bs norm } $;
 		   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
 		   phi-stack onload
 		   opt-phi-forward @ if phi-stack revupload #_ phi-stack download else #_ then
-		   \ _
            then 
 	   ;
 
