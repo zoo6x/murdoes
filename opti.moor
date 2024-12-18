@@ -36,7 +36,7 @@
 								\\ Register allocation
 :: #regs   10 val						\ Number of CPU registers
 :: regs    adr #regs allot					\ Register alias count
-:: uregs   adr #regs allot					\ iUsed registers
+:: uregs   adr #regs allot					\ Used registers
 : #r       regs + c@ ;						\ ( r -- #r )		Returns number of references for a register
 : ^        | regs + | c@ 1+ >< c!  uregs + 1 >< c! ;		\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register. TODO: Or just use cells, not bytes
