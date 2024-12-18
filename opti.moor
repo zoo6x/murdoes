@@ -1,3 +1,4 @@
+\\ TODO: Allocate new register on write if destination is aliased: +, -, 1+, 1-. Write examples!
 
 \\ Optimizer
 \
@@ -48,11 +49,12 @@
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving register on the stack
 : ∨        v ;
 : |∨       | v ;						\ ( r -- r )		Decrement reference count for a register, leaving register on the stack
-: ∨∧       | v^ ;						\ ( r -- r 1|0 )	Free register and reallocate it, if it's not aliased
+: ∨∧       | v^ ;						\ ( r -- r 1|0 )	Free register and reallocate it, if it's not aliased. If aliased, returns 1
 : ?∧       ?^ ;
 : ⊻        1- { ∨ } ;						\ ( r # -- #-1 )	Frees a register
 : &^       | #r 1- if _ ?^ then ;				\ ( r -- r|r` )         Returns the same register if it has exactly one reference, or a new one
 : &∧       &^ ;
+: ∨?∧      ∨∧ if else _ ?∧ then ;				\ ( r -- r|r')		Allocates new register, if R is aliased
 
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
@@ -190,7 +192,7 @@ $ assm     $;
 	   phi-stack empty
            rsp ∧ _						\ 			RSP should not be used as a general-purpose register
 ;
-								\\ Syntactic sugar
+
 : :^       regs-init ;
 : ^>
 	   0 opt-index !
@@ -260,23 +262,23 @@ $ assm     $;
 % +        { 							\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
 	   >< ∨∧ if | else 
-	   ?∧ then then
-           } 1+ cr ;%
-	   { { _ _ } } 1- 1- ;%;			\ ( -- rd #-1 )
+	   ?∧ then then }
+	   1+ ;%
+	   { { _ _ } } 1- 1- ;%;				\ ( -- rd #-1 )
 
 % -        { 							\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
 	   >< ∨∧ if | else 
-	   ?∧ then then
-           } 1+ ;%
-	   { { _ _ } } 1- 1- ;%;			\ ( -- rd #-1 )
+	   ?∧ then then }
+	   1+ ;%
+	   { { _ _ } } 1- 1- ;%;				\ ( -- rd #-1 )
 
-% 1+       %;							\ 			Increment and decrement do not change register allocation
-% 1-       %;
+% 1+       { | ∨?∧ } ;% { >< _ } ;%;				\ 			Increment and decrement do not change register allocation
+% 1-       { | ∨?∧ } ;% { >< _ } ;%;				\			Although, a new register is allocated if the destination is aliased
 
 								\\ Stubs to ignore debug output words in the optimizer for now
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
-% emit     ;% ⊻ ;%;							\ ( r # -- #-1 )	Frees the parameter 
+% emit     ;% ⊻ ;%;						\ ( r # -- #-1 )	Frees the parameter 
 
 % cr %;
 % ??       %;							\ ( r # -- #-1 )	Frees the parameter
@@ -315,8 +317,8 @@ $ -        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble -
 	   <<< >|>| green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
 	   then } cr %.S $;
 
-$ 1+       { green ." inc" tab yellow ." r" | . bs norm } $;
-$ 1-       { green ." dec" tab yellow ." r" | . bs norm } $;
+$ 1+       cr %.S { >|>| - if >|>| green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S then green ." inc" tab yellow ." r" | . bs norm } $;
+$ 1-       cr %.S { >|>| - if >|>| green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S then green ." dec" tab yellow ." r" | . bs norm } $;
 
 $ lit      { green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm } $;
 $ emit     { green ." emit" tab yellow ." r" | . bs norm } $;
@@ -400,6 +402,11 @@ qq ..
 cold
 :^ ?^ ?^ ?^ 3 ^> q 
 #_
+: q 1 | | | 1+ + >< 1+ + >< 1+ 1+ 1+ + 1+ 1+ ;
+q ..
+:^ 0 ^> q
+#_
+
 :^ 0 ^> qq 
 #_
 : q >| { + + } + ;
