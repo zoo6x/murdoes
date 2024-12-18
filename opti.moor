@@ -35,19 +35,24 @@
 								\\ Register allocation
 :: #regs   10 val						\ Number of CPU registers
 :: regs    adr #regs allot					\ Register alias count
+: #r       regs + c@ ;						\ ( r -- #r )		Returns number of references for a register
 : ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register
            else .. a11a501 .abort then ; 
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
            else a11a502 .abort then ; 
 								\ 			otherwise decrement reference count and return 0
-: ?^       regs #regs for | c@ I >< leave _ 1+ over			\ ( -- r | ABORT )	Allocates a new register, if one is available
+: ?^       regs #regs for | c@ I >< leave _ 1+ over		\ ( -- r | ABORT )	Allocates a new register, if one is available
            0add bada110c .abort
            then >< _ #regs >< - | ^ ;
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving register on the stack
 : ∨        v ;
 : |∨       | v ;						\ ( r -- r )		Decrement reference count for a register, leaving register on the stack
 : ∨∧       | v^ ;						\ ( r -- r 1|0 )	Free register and reallocate it, if it's not aliased
+: ?∧       ?^ ;
+: ⊻        1- { ∨ } ;						\ ( r # -- #-1 )	Frees a register
+: &^       | #r 1- if _ ?^ then ;				\ ( r -- r|r` )         Returns the same register if it has exactly one reference, or a new one
+: &∧       &^ ;
 
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
@@ -177,9 +182,6 @@ $ assm     $;
 
 % noop %;
 	   							\\ Register allocation primitives
-: ?∧       ?^ ;
-: ⊻        1- { ∨ } ;						\ ( r # -- #-1 )	Frees a register
-
 : regs-init							\ ( -- )		Initializes array of referenced registers
            regs #regs 0 fill
 	   tmp-stack empty
@@ -231,29 +233,40 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % (repeat-pre) phi-stack download tmp-stack revoffload %;
 % (repeat-post) offload tmp-stack download %;
 % (continue) %;
-% (break) %;
-% (for)    1- { >cyc } phi-stack revupload %;			\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
+% (break)  %;
+% (for)    1- { | &∧ | >cyc }					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
+           <<< { { phi-stack revupload } } >>> ;%
+           { _ _ } ;%; 
 % I        1+ { cyc> ∧ | >cyc } %;
-% (over)   @skip | opt-branch ! opt-index 1+! .. ;% cyc> ∨ ;%;					\ ( -- )
+% (over)   @skip | opt-branch ! opt-index 1+! .. ;% cyc> ∨ ;%;	\ ( -- )
 % (over-post) %;
 
 % +        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
 	   >< ∨∧ if | else 
 	   ?∧ then then
-           | >tmp } ;% 1- 1- tmp> >< ;%;			\ ( -- rd #-1 )
+           | >tmp } ;%
+	   1- 1- tmp> >< ;%;					\ ( -- rd #-1 )
 
 % -        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
 	   >< ∨∧ if | else 
 	   ?∧ then then
-           | >tmp } ;% 1- 1- tmp> >< ;%;			\ ( -- rd #-1 )
+           | >tmp } ;%
+	   1- 1- tmp> >< ;%;					\ ( -- rd #-1 )
 
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
+								\\ Stubs to ignore debug output words in the optimizer for now
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
 % emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
+
+% cr %;
+% ??       ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
+% ..       ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
+% .S %;
+
 
 								\\ Assembling
 								
@@ -339,10 +352,13 @@ $ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
 $ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
 $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
-$ (over)   
+$ (for)    >|>| - if
+           >|>| green ." mov" tab yellow ." r" . bs ." , r" . norm
+           then $;
+$ (over)
            green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jz" tab opt-index @ 1+ purple . norm cr %.S
            <φ
-           cr %.S green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
+           cr %.S green ." jmp" tab opt-branch @ opt-index @ + 1+ purple . norm $;
 
 $ (while)  green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
 
@@ -386,6 +402,18 @@ ff cs-for0 ..
 cold
 :^ ?^ 1 ^> cs-for0 
 #_
+
+: cs-for2 cr | for I >< | for >| I + .. over >< _ cr over _ ;
+1 cs-for2 cr 
+2 cs-for2 cr 
+3 cs-for2 cr 
+4 cs-for2 cr 
+
+cold
+:^ ?^ 1 ^> cs-for2 
+#_
+
+c0de 600d .abort
 
 cold
 : cs-if0 1 >< | if + else - then noop ;
@@ -469,10 +497,6 @@ cold 11 22 33 44 <<<< .S
 cold
 :^ ?^ 1 ^> cs-if4
 #_
-
-% cr %;
-% ?? %;
-% .S %;
 
 : fib3     | if { 0 1 2 } for >>> >>| >>| + + over <<< _ _ then noop ;
 cold
