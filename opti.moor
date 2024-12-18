@@ -38,7 +38,7 @@
 : #r       regs + c@ ;						\ ( r -- #r )		Returns number of references for a register
 : ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register
-           else .. a11a501 .abort then ; 
+           else a11a501 .abort then ; 
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
            else a11a502 .abort then ; 
 								\ 			otherwise decrement reference count and return 0
@@ -57,15 +57,17 @@
 : .regs    regs #regs for | c@ .. 1+ over _ ;
 
 								\\ Stacks for control structures
-: dirupload >< | { | for | { I - 1+ #| >| >s } over _ } | <<< >< >s  ; \ ( an ... a1 n s -- a1 ... an n )  Copy N elements from data stack onto the specified stack
-: revupload >< | { for | I 1+ #| >< >s over } | <<< >< >s  ;	\ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
+: dirupload >< | { | | if for | { I - 1+ #| >| >s } over _	\ ( an ... a1 n s -- a1 ... an n )  Copy N elements from data stack onto the specified stack
+            else _ _ then } | <<< >< >s  ;
+: revupload >< | { | if for | I 1+ #| >< >s over		\ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
+            else _ then } | <<< >< >s  ;
 
-: offload   for ∨ over ;
+: offload   | if for ∨ over else _ then ;
 : diroffload dirupload offload ;				\ ( an ... a1 n s -- an ... a1 n )  Push N elements from data stack onto the specified stack
 : revoffload revupload offload ;
 
-: download  | s> | { for | s> ∧ >< over _ } ;			\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements off the specified stack onto the data stack
-: onload  | s> | { for | s> >< over _ } ;			\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements w/o changing references
+: download | s> | { | if for | s> ∧ >< over _ else _ _ then } ; \ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements off the specified stack onto the data stack
+: onload  | s> | { | if for | s> >< over _ else _ _ then } ;	\ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements w/o changing references
 
 :: tmp-stack 100 stack						\ Temporary stack, for transfers between other stacks
 : >tmp    tmp-stack >s ;
@@ -150,12 +152,10 @@ $ assm     $;
 
 : %;       compile %.S						\ DEBUG
 
-	   compile >tmp
            compile ASSEMBLING!!
            opt-xt @
 	   compile,
 	   compile interpreting!
-	   compile tmp>
            
            compile DEALLOCING!!
            opt-xt @
@@ -214,90 +214,112 @@ $ assm     $;
 
 
 % lit      @skip | opt-lit ! opt-index 1+! .. 1+ { ?∧ } %;	\ ( # -- r #+1 )	Allocates new register
-$ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 
 % branch   @skip | opt-branch ! opt-index 1+! .. %;		\ ( -- )
 % ?branch  @skip | opt-branch ! opt-index 1+! .. ⊻ %;		\ ( r # -- #-1 )
 % -?branch @skip | opt-branch ! opt-index 1+! .. ⊻ %;		\ ( r # -- #-1 )
 
 % (if)     >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
-% (else-pre) tmp-stack diroffload %;
-% (else-post) phi-stack download phi-stack revoffload phi-stack download tmp-stack download phi-stack revoffload %;
+% (else-pre)
+           tmp-stack diroffload %;
+% (else-post) 
+           phi-stack download
+	   phi-stack revoffload
+	   phi-stack download
+	   tmp-stack download
+	   phi-stack revoffload %;
 % (then)   %;
 % (begin)  phi-stack revupload %;				\			Upload stack as it is now
 % (until)  %;
 % (again)  %;
 % (ahead)  %;
 % (while)  >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
-% (-leave)  %;
-% (repeat-pre) phi-stack download tmp-stack revoffload %;
-% (repeat-post) offload tmp-stack download %;
+% (-leave) >< { 1- 
+           tmp-stack revupload 
+	   phi-stack onload
+	   tmp-stack onload 
+	   phi-stack revupload #_
+	   phi-stack revupload #_ } >< 1+
+           @skip | opt-branch ! opt-index 1+! .. ⊻ %;
+% (repeat-pre)
+           phi-stack download
+	   tmp-stack revoffload %;
+% (repeat-post)
+           offload
+	   tmp-stack download %;
 % (continue) %;
 % (break)  %;
 % (for)    1- { | &∧ | >cyc }					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
            <<< { { phi-stack revupload } } >>> ;%
            { _ _ } ;%; 
 % I        1+ { cyc> ∧ | >cyc } %;
-% (over)   @skip | opt-branch ! opt-index 1+! .. ;% cyc> ∨ ;%;	\ ( -- )
+% (over)   @skip | opt-branch ! opt-index 1+! .. ;%
+           { cyc> ∨ } ;%;
 % (over-post) %;
 
-% +        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
+% +        { 							\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
 	   >< ∨∧ if | else 
 	   ?∧ then then
-           | >tmp } ;%
-	   1- 1- tmp> >< ;%;					\ ( -- rd #-1 )
+           } 1+ cr ;%
+	   { { _ _ } } 1- 1- ;%;			\ ( -- rd #-1 )
 
-% -        1+ { 						\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
+% -        { 							\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
 	   >< ∨∧ if | else 
 	   ?∧ then then
-           | >tmp } ;%
-	   1- 1- tmp> >< ;%;					\ ( -- rd #-1 )
+           } 1+ ;%
+	   { { _ _ } } 1- 1- ;%;			\ ( -- rd #-1 )
 
 % 1+       %;							\ 			Increment and decrement do not change register allocation
 % 1-       %;
 
 								\\ Stubs to ignore debug output words in the optimizer for now
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
-% emit     ⊻ %;							\ ( r # -- #-1 )	Frees the parameter 
+% emit     ;% ⊻ ;%;							\ ( r # -- #-1 )	Frees the parameter 
 
 % cr %;
-% ??       ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
+% ??       %;							\ ( r # -- #-1 )	Frees the parameter
 % ..       ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
+% .        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
 % .S %;
+% yellow   %;
+% norm     %;
 
 
 								\\ Assembling
 								
 								\ CAUTION! Assembling words should leave the stack as it was passed, do not add or drop items!
-
+								\          Deallocing semantics should set up the stack properly, if needed
 
 								\ TODO: Symmetric operations might favor register with lower index rather then RS1
 								\ Is it possible to determine an optimal local strategy?
 
-$ +        >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
-           if							\			RD <> RS1, RS2
-	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." add" tab yellow ." r" . bs ." , r" . bs norm 
+$ +        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
+           if							\			RD <> RS1, RS2		mov rd, rs1	add rd, rs1
+	   { >|>| } | { <<< } >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." add" tab yellow ." r" . bs ." , r" . bs norm 
            else							\			RD = RS2
-           _ green ." add" tab yellow ." r" . bs ." , r" . bs norm
+           <<< >|>| green ." add" tab yellow ." r" . bs ." , r" . bs norm
 	   then
 	   else							\			RD = RS1
-           >< _ green ." add" tab yellow ." r" . bs ." , r" . bs norm
-	   then $;
+           <<< >|>| green ." add" tab yellow ." r" . bs ." , r" . bs norm
+	   then } cr %.S $;
 
-$ -        >>> >|>| - if <<< >|>| -
-           if							\			RD <> RS1, RS2
-	   >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
+$ -        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble -
+           if							\			RD <> RS1, RS2		mov rd, rs1	sub rd, rs1
+	   { >|>| } | { <<< } >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
 	   else							\			RD = RS2
 	   >< _ green ." sub" tab yellow ." r" | . bs ." , " ." r" >< . bs cr %.S green ." neg " tab yellow ." r" . bs norm
 	   then
 	   else							\			RD = RS1
-	   >< _ green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
-	   then  $;
+	   <<< >|>| green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
+	   then } cr %.S $;
 
-$ 1+       green ." inc" tab yellow ." r" | . bs norm $;
-$ 1-       green ." dec" tab yellow ." r" | . bs norm $;
+$ 1+       { green ." inc" tab yellow ." r" | . bs norm } $;
+$ 1-       { green ." dec" tab yellow ." r" | . bs norm } $;
+
+$ lit      { green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm } $;
+$ emit     { green ." emit" tab yellow ." r" | . bs norm } $;
 
 \ φ-junction
 
@@ -306,14 +328,16 @@ $ 1-       green ." dec" tab yellow ." r" | . bs norm $;
 	   -1 opt-phi-save-reg !
 	   -1 opt-phi-temp-reg !
 	   -1 opt-phi-dest-reg !
-           tmp> | >tmp | phi> | >phi
+           | phi> | >phi
 	   - if
 		   fee bad57ac .abort
 	   else
-		   phi-stack download phi-stack dirupload phi-stack diroffload
+		   phi-stack download
+		   phi-stack dirupload
+		   phi-stack diroffload
 		   tmp-stack dirupload
 		   _
-		   phi> for
+		   phi> | if for
 			   phi> >|>|
 			   - if
 				   opt-phi-move @ if
@@ -333,7 +357,7 @@ $ 1-       green ." dec" tab yellow ." r" | . bs norm $;
 			   else
 				   _ _
 			   then
-		   over
+		   over else _ then
 		   opt-phi-dest-reg @ 1+ if
 			   green ." mov#" tab yellow ." r" opt-phi-dest-reg @ . bs ." , r" opt-phi-temp-reg @ . norm cr %.S
 		   then
@@ -341,26 +365,27 @@ $ 1-       green ." dec" tab yellow ." r" | . bs norm $;
 		   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
 		   phi-stack onload
 		   opt-phi-forward @ if phi-stack revupload #_ phi-stack download else #_ then
-		   _
-           then ;
+		   \ _
+           then 
+	   ;
 
 : <φ       0 opt-phi-forward ! φ ;
 : >φ       1 opt-phi-forward ! φ ;
 
-$ (if)     green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
-$ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
-$ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
-$ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
+$ (if)     { green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm } $;
+$ ?branch  { green ." jz " tab opt-branch @ opt-index @ + purple . norm } $;
+$ -?branch { green ." jnz" tab opt-branch @ opt-index @ + purple . norm } $;
+$ branch   { green ." jmp" tab opt-branch @ opt-index @ + purple . norm } $;
 
-$ (for)    >|>| - if
+$ (for)    { >|>| - if
            >|>| green ." mov" tab yellow ." r" . bs ." , r" . norm
-           then $;
+           then } $;
 $ (over)
-           green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jz" tab opt-index @ 1+ purple . norm cr %.S
+           { green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jz" tab opt-index @ 1+ purple . norm cr %.S }
            <φ
-           cr %.S green ." jmp" tab opt-branch @ opt-index @ + 1+ purple . norm $;
+           { cr %.S green ." jmp" tab opt-branch @ opt-index @ + 1+ purple . norm } cr %.S $;
 
-$ (while)  green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
+$ (while)  { green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm } $;
 
 $ (then)   >φ $;
 $ (again)  <φ $;
@@ -369,12 +394,6 @@ $ (repeat-post) $;
 
 
 								\\ Simpler examples, w/o Phi junctions
-: cs-for0 0 >< for I + over ;
-1 cs-for0 .. 
-2 cs-for0 .. 
-ff cs-for0 .. 
-
-
 : q - + ;
 1 2 3 q ..
 : qq 1 2 3 q ;
@@ -402,6 +421,27 @@ ff cs-for0 ..
 cold
 :^ ?^ 1 ^> cs-for0 
 #_
+
+: cs-for00 for over ;
+1 cs-for00 .S 
+2 cs-for00 .S 
+
+cold
+:^ ?^ 1 ^> cs-for00
+#_
+
+: cs-for1 for I ?? | 1- 1- -leave yellow . norm over 2a emit | then 2b emit _ ;
+1 cs-for1 .S 
+2 cs-for1 .S 
+3 cs-for1 .S 
+4 cs-for1 .S 
+
+see cs-for1
+cold
+:^ ?^ 1 ^> cs-for1 
+#_
+
+\ 4444 c0de .abort
 
 : cs-for2 cr | for I >< | for >| I + .. over >< _ cr over _ ;
 1 cs-for2 cr 
