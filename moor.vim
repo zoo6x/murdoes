@@ -453,7 +453,7 @@ hi def link forthVocs Statement
 hi def link forthEscape Special
 hi def link forthString String
 hi def link forthComment forthCommentNorm
-hi def link forthComment2 forthCommentBold
+hi def link forthComment2 forthCommentTodo
 hi def link forthComment3 forthCommentTodo
 hi def link forthClassDef Define
 hi def link forthEndOfClassDef Define
