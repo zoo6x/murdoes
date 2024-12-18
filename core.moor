@@ -339,14 +339,17 @@
 	   skip,
 	   rtmp pop, rwork pop, rindex pop,
 	   rwork push, rtmp push, ret,
+' branch DECOMPILING >cfa@ DECOMPILING ' (-leave) does
 
 
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
+								\ TODO: ?FOR would be nice to have, but it's needed to pass a flag to OVER to compile THEN
+								\       This can be implemented after there is a control stack with checks and other flags
 : aft      compile (aft) compile branch _ >mark <mark >< ; immediate
 : -leave   compile (-leave) >mark >< ; immediate		\ TODO: BUG! Incompatible with nested FORs as it is now
 : over     compile (over) <resolve compile (over-post) ; immediate
 
-: #_       | if for _ over then ;				\ ( a1 ... an n -- )	Drops N elelemns off stack
+: #_       | if for _ over else _ then ;			\ ( a1 ... an n -- )	Drops N elelemns off stack (including count)
 								\\ Memory									_memory
 : fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )	Fill N bytes from address A with character C
 : 1+!      | @ 1+ >< ! ;				 	\ ( a -- )		Increment variable at A
