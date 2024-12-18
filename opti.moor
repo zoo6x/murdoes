@@ -42,7 +42,7 @@
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
            else a11a502 .abort then ; 
 								\ 			otherwise decrement reference count and return 0
-: ?^       regs #regs for | c@ I >< leave _ 1+ over		\ ( -- r | ABORT )	Allocates a new register, if one is available
+: ?^       regs #regs for | c@ I >< -leave _ 1+ over		\ ( -- r | ABORT )	Allocates a new register, if one is available
            0add bada110c .abort
            then >< _ #regs >< - | ^ ;
 : ∧        | ^ ;						\ ( r -- r )		Increments reference count for a register, leaving register on the stack
@@ -229,7 +229,7 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % (again)  %;
 % (ahead)  %;
 % (while)  >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
-% (leave)  %;
+% (-leave)  %;
 % (repeat-pre) phi-stack download tmp-stack revoffload %;
 % (repeat-post) offload tmp-stack download %;
 % (continue) %;
@@ -412,8 +412,6 @@ cold
 cold
 :^ ?^ 1 ^> cs-for2 
 #_
-
-c0de 600d .abort
 
 cold
 : cs-if0 1 >< | if + else - then noop ;

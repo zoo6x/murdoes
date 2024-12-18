@@ -333,7 +333,7 @@
 		rwork push, rtmp push, ret,
 ' branch DECOMPILING >cfa@ DECOMPILING ' (over) does
 
-:: (leave) code 						\ ( f -- )		Leave FOR loop if the flag is false
+:: (-leave) code 						\ ( f -- )		Leave FOR loop if the flag is false
            rtmp rtop mov,
 	   _, lodsq, rtmp rtmp test, 1 .z j, ret,
 	   skip,
@@ -343,7 +343,7 @@
 
 : for      compile (for) <mark ; immediate			\ ... n for ... [ aft ] ... [ then ] ... over ...
 : aft      compile (aft) compile branch _ >mark <mark >< ; immediate
-: leave    compile (leave) >mark >< ; immediate			\ TODO: BUG! Incompatible with nested FORs as it is now
+: -leave   compile (-leave) >mark >< ; immediate		\ TODO: BUG! Incompatible with nested FORs as it is now
 : over     compile (over) <resolve compile (over-post) ; immediate
 
 : #_       | if for _ over then ;				\ ( a1 ... an n -- )	Drops N elelemns off stack
