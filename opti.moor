@@ -293,7 +293,8 @@ $ 1-       green ." dec" tab yellow ." r" | . bs norm $;
 	   -1 opt-phi-save-reg !
 	   -1 opt-phi-temp-reg !
 	   -1 opt-phi-dest-reg !
-           tmp> | >tmp | phi> | >phi - if
+           tmp> | >tmp | phi> | >phi
+	   - if
 		   fee bad57ac .abort
 	   else
 		   phi-stack download phi-stack dirupload phi-stack diroffload
