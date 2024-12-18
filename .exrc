@@ -7,6 +7,8 @@ set incsearch
 nnoremap <silent> <PageUp> 25<Up>
 nnoremap <silent> <PageDown> 25<Down>
 
+command W write
+
 iabbrev up <C-v>u2227
 iabbrev down <C-v>u2228
 iabbrev down2 <C-v>u22bb
