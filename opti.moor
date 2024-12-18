@@ -36,9 +36,10 @@
 								\\ Register allocation
 :: #regs   10 val						\ Number of CPU registers
 :: regs    adr #regs allot					\ Register alias count
+:: uregs   adr #regs allot					\ iUsed registers
 : #r       regs + c@ ;						\ ( r -- #r )		Returns number of references for a register
-: ^        regs + | c@ 1+ >< c! ; 				\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
-: v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register
+: ^        | regs + | c@ 1+ >< c!  uregs + 1 >< c! ;		\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
+: v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register. TODO: Or just use cells, not bytes
            else a11a501 .abort then ; 
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
            else a11a502 .abort then ; 
@@ -56,7 +57,8 @@
 : &∧       &^ ;
 : ∨?∧      ∨∧ if else _ ?∧ then ;				\ ( r -- r|r')		Allocates new register, if R is aliased
 
-: .regs    regs #regs for | c@ .. 1+ over _ ;
+: .regs    regs #regs for | c@ . 1+ over _ ;
+: .uregs   uregs #regs for | c@ . 1+ over _ ;
 
 								\\ Stacks for control structures
 : dirupload >< | { | | if for | { I - 1+ #| >| >s } over _	\ ( an ... a1 n s -- a1 ... an n )  Copy N elements from data stack onto the specified stack
@@ -108,7 +110,7 @@
            1b emit 5b emit 31 emit 39 emit 47 emit
            ..S
            1b emit 5b emit 33 emit 39 emit 47 emit
-	   .regs 
+	   blue .regs norm
            1b emit 5b emit 37 emit 32 emit 47 emit
 	   52 emit 3a emit bl emit ret-stack .stack
            1b emit 5b emit 37 emit 39 emit 47 emit
@@ -121,6 +123,10 @@
            ." | "
            1b emit 5b emit 31 emit 33 emit 30 emit 47 emit
 	   ;
+
+: %.uregs  cr
+           1b emit 5b emit 33 emit 39 emit 47 emit
+	   yellow .uregs norm cr ;
 
 								\\ Regallocing semantics definitions
 : noop ;
@@ -191,6 +197,7 @@ $ assm     $;
 	   cyc-stack empty
 	   phi-stack empty
            rsp ∧ _						\ 			RSP should not be used as a general-purpose register
+           uregs #regs 0 fill
 ;
 
 : :^       regs-init ;
@@ -198,7 +205,9 @@ $ assm     $;
 	   0 opt-index !
            cr %.S
 	   ' regalloc 
-	   ['] exit %.debug %.S ;
+	   ['] exit %.debug %.S %.uregs
+	   ;
+
 
 								\\ Register allocation
 % |        norm 1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
