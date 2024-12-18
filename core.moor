@@ -185,7 +185,8 @@
 : (again) ;
 : (ahead) ;
 : (while) ;
-: (repeat) ;
+: (repeat-pre) ;
+: (repeat-post) ;
 : (continue) ;
 : (break) ;
 								\ ... begin ... -? until ...
@@ -202,7 +203,7 @@
 : again    compile (again) compile branch <resolve ; immediate
 : ahead    compile (ahead) compile branch >mark ; immediate
 : while    compile (while) compile ?branch >mark ; immediate
-: repeat   compile (repeat) compile branch >< <resolve >resolve ; immediate
+: repeat   compile (repeat-pre) compile branch >< <resolve compile (repeat-post) >resolve ; immediate
 : continue compile (continue) compile -?branch | <resolve ; immediate
 : break    compile (break) compile -?branch >mark >< ; immediate
 

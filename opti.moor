@@ -109,7 +109,8 @@
            1b emit 5b emit 31 emit 30 emit 39 emit 47 emit
 	   54 emit 3a emit bl emit tmp-stack .stack
            1b emit 5b emit 31 emit 32 emit 38 emit 47 emit
-           ." |  " 
+           ." | "
+           1b emit 5b emit 31 emit 33 emit 30 emit 47 emit
 	   ;
 
 								\\ Regallocing semantics definitions
@@ -144,9 +145,6 @@ $ assm     $;
 
 : %;       compile %.S						\ DEBUG
 
-	   compile opt-index
-	   compile 1+!
-	   
 	   compile >tmp
            compile ASSEMBLING!!
            opt-xt @
@@ -158,6 +156,9 @@ $ assm     $;
            opt-xt @
 	   compile,
 	   compile interpreting!
+
+	   compile opt-index
+	   compile 1+!
 
 	   compile REGALLOCING!!
 
@@ -190,8 +191,8 @@ $ assm     $;
 								\\ Syntactic sugar
 : :^       regs-init ;
 : ^>
-           cr %.S 
 	   0 opt-index !
+           cr %.S
 	   ' regalloc 
 	   ['] exit %.debug %.S ;
 
@@ -221,13 +222,14 @@ $ lit      green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm $;
 % (else-pre) tmp-stack diroffload %;
 % (else-post) phi-stack download phi-stack revoffload phi-stack download tmp-stack download phi-stack revoffload %;
 % (then)   %;
-% (begin)  %;
+% (begin)  phi-stack revupload %;				\			Upload stack as it is now
 % (until)  %;
 % (again)  %;
 % (ahead)  %;
-% (while)  %;
+% (while)  >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
 % (leave)  %;
-% (repeat) %;
+% (repeat-pre) phi-stack download tmp-stack revoffload %;
+% (repeat-post) offload tmp-stack download %;
 % (continue) %;
 % (break) %;
 % (for)    1- { >cyc } phi-stack revupload %;			\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
@@ -284,11 +286,6 @@ $ -        >>> >|>| - if <<< >|>| -
 $ 1+       green ." inc" tab yellow ." r" | . bs norm $;
 $ 1-       green ." dec" tab yellow ." r" | . bs norm $;
 
-$ (if)     green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
-$ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
-$ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
-$ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
-
 \ φ-junction
 
 : φ
@@ -336,12 +333,23 @@ $ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 : <φ       0 opt-phi-forward ! φ ;
 : >φ       1 opt-phi-forward ! φ ;
 
+$ (if)     green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
+$ ?branch  green ." jz " tab opt-branch @ opt-index @ + purple . norm $;
+$ -?branch green ." jnz" tab opt-branch @ opt-index @ + purple . norm $;
+$ branch   green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
+
 $ (over)   
            green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jz" tab opt-index @ 1+ purple . norm cr %.S
            <φ
            cr %.S green ." jmp" tab opt-branch @ opt-index @ + purple . norm $;
 
+$ (while)  green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm $;
+
 $ (then)   >φ $;
+$ (again)  <φ $;
+$ (repeat-pre) <φ $;
+$ (repeat-post) $;
+
 
 								\\ Simpler examples, w/o Phi junctions
 : cs-for0 0 >< for I + over ;
@@ -482,6 +490,21 @@ cold
 :^ ?^ 1 ^> fib3
 
 .(  φ Fib3 WORKS!!! Well, mov r0, r0... But this is another problem. Let's look for more serious ones first )
+
+: cs-1 1 2 begin >< again ;
+cold
+:^ 0 ^> cs-1 
+
+
+: cs-2 { 11 33 } begin 1- | while { >< } repeat _ - ;
+1 cs-2 .. 
+2 cs-2 .. 
+3 cs-2 .. 
+4 cs-2 .. 
+cold
+:^ ?^ 1 ^> cs-2  
+
+c0de 42 .abort
 
 cold
 : cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
