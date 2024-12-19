@@ -1,5 +1,4 @@
-\\ TODO: Allocate new register on write if destination is aliased: +, -, 1+, 1-. Write examples!
-
+\
 \\ Optimizer
 \
 								\\ Debug output
@@ -300,39 +299,61 @@ $ assm     $;
 
 								\\ Assembling
 								
+								\ Arithmetic and logic
+								
 								\ CAUTION! Assembling words should leave the stack as it was passed, do not add or drop items!
 								\          Deallocing semantics should set up the stack properly, if needed
 
-								\ TODO: Symmetric operations might favor register with lower index rather then RS1
-								\ Is it possible to determine an optimal local strategy?
 
-$ +        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
+$ +        { cr %.S red ." (" norm >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
            if							\			RD <> RS1, RS2		mov rd, rs1	add rd, rs1
-	   { >|>| } | { <<< } >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." add" tab yellow ." r" . bs ." , r" . bs norm 
-           else							\			RD = RS2
-           <<< >|>| green ." add" tab yellow ." r" . bs ." , r" . bs norm
+	   { >|>| } | { <<< } cr %.S
+	   >>> >< >|
+	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S 
+	   green ." add" tab yellow ." r" . bs ." , r" . bs norm 
+           else	 cr %.S						\			RD = RS2
+           <<< >|>|
+	   green ." add" tab yellow ." r" . bs ." , r" . bs norm
 	   then
-	   else							\			RD = RS1
-           <<< >|>| green ." add" tab yellow ." r" . bs ." , r" . bs norm
-	   then } cr %.S $;
+	   else	 cr %.S						\			RD = RS1
+           <<< >|>|
+	   green ." add" tab yellow ." r" . bs ." , r" . bs norm
+	   then cr %.S red ." )" norm } $;
 
-$ -        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble -
+$ -        { cr %.S red ." (" norm >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble -
            if							\			RD <> RS1, RS2		mov rd, rs1	sub rd, rs1
-	   { >|>| } | { <<< } >>> >< green ." mov" tab yellow ." r" | . bs ." , r" >< . norm cr %.S green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
-	   else							\			RD = RS2
-	   >< _ green ." sub" tab yellow ." r" | . bs ." , " ." r" >< . bs cr %.S green ." neg " tab yellow ." r" . bs norm
+	   { >|>| } | { <<< } cr %.S
+	   >>> >< >|
+	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
+	   green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
+	   else	 cr %.S						\			RD = RS2
+	   >< <<< >|
+	   green ." sub" tab yellow ." r"  . bs ." , " ." r" . bs cr %.S
+	   green ." neg" tab yellow ." r" . bs norm
 	   then
-	   else							\			RD = RS1
-	   <<< >|>| green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
-	   then } cr %.S $;
+	   else	 cr %.S						\			RD = RS1
+	   <<< >|>|
+	   green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
+	   then cr %.S red ." )" norm } $;
 
-$ 1+       cr %.S { >|>| - if >|>| green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S then green ." inc" tab yellow ." r" | . bs norm } $;
-$ 1-       cr %.S { >|>| - if >|>| green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S then green ." dec" tab yellow ." r" | . bs norm } $;
+$ 1+       { >|>| - if >|>| 
+           green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S 
+	   then |
+	   green ." inc" tab yellow ." r" . bs norm } $;
 
-$ lit      { green ." mov" tab yellow ." r" | . bs ." , " opt-lit @ .. norm } $;
-$ emit     { green ." emit" tab yellow ." r" | . bs norm } $;
+$ 1-       { >|>| - if >|>|
+           green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S
+	   then |
+	   green ." dec" tab yellow ." r" . bs norm } $;
 
-\ φ-junction
+$ lit      { |
+           green ." mov" tab yellow ." r" . bs ." , " opt-lit @ .. norm
+	   } $;
+$ emit     { |
+           green ." emit" tab yellow ." r" . bs norm 
+	   } $;
+
+								\ φ-junction
 
 : φ
            1 opt-phi-move !
@@ -382,226 +403,39 @@ $ emit     { green ." emit" tab yellow ." r" | . bs norm } $;
 : <φ       0 opt-phi-forward ! φ ;
 : >φ       1 opt-phi-forward ! φ ;
 
-$ (if)     { green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm } $;
+								\ Control
+
+$ (if)     { | |
+           green ." test" tab yellow ." r" . bs ." , " ." r" . bs norm
+	   } $;
+
 $ ?branch  { green ." jz " tab opt-branch @ opt-index @ + purple . norm } $;
 $ -?branch { green ." jnz" tab opt-branch @ opt-index @ + purple . norm } $;
 $ branch   { green ." jmp" tab opt-branch @ opt-index @ + purple . norm } $;
 
 $ (for)    { >|>| - if
-           >|>| green ." mov" tab yellow ." r" . bs ." , r" . norm
+           >|>|
+	   green ." mov" tab yellow ." r" . bs ." , r" . norm
            then } $;
 $ (over)
-           { green ." dec" cyc> | >cyc tab yellow ." r" . norm cr %.S green ." jz" tab opt-index @ 1+ purple . norm cr %.S }
+           {
+	   cyc> | >cyc 
+	   green ." dec" tab yellow ." r" . norm cr %.S
+           opt-index @ 1+
+	   green ." jz" tab purple . norm cr %.S 
+	   }
            <φ
-           { cr %.S green ." jmp" tab opt-branch @ opt-index @ + 1+ purple . norm } cr %.S $;
+           { cr %.S
+           opt-branch @ opt-index @ + 1+
+	   green ." jmp" tab  purple . norm 
+	   } cr %.S $;
 
-$ (while)  { green ." test" tab yellow ." r" | . bs ." , " ." r" | . bs norm } $;
+$ (while)  { | |
+           green ." test" tab yellow ." r" . bs ." , " ." r" . bs norm
+	   } $;
 
 $ (then)   >φ $;
 $ (again)  <φ $;
 $ (repeat-pre) <φ $;
 $ (repeat-post) $;
-
-
-								\\ Simpler examples, w/o Phi junctions
-: q - + ;
-1 2 3 q ..
-: qq 1 2 3 q ;
-qq ..
-cold
-:^ ?^ ?^ ?^ 3 ^> q 
-#_
-: q 1 | | | 1+ + >< 1+ + >< 1+ 1+ 1+ + 1+ 1+ ;
-q ..
-:^ 0 ^> q
-#_
-
-:^ 0 ^> qq 
-#_
-: q >| { + + } + ;
-:^ ?^ ?^ ?^ 3 ^> q 
-#_
-: q >|>| { { + + } } + >< + ;
-:^ ?^ ?^ ?^ 3 ^> q 
-#_
-: q >|>| { { - + } } - >< - ;
-:^ ?^ ?^ ?^ 3 ^> q 
-#_
-
-: cs-for0 0 >< for I + over ;
-1 cs-for0 .. 
-2 cs-for0 .. 
-ff cs-for0 .. 
-
-cold
-:^ ?^ 1 ^> cs-for0 
-#_
-
-: cs-for00 for over ;
-1 cs-for00 .S 
-2 cs-for00 .S 
-
-cold
-:^ ?^ 1 ^> cs-for00
-#_
-
-: cs-for1 for I ?? | 1- 1- -leave yellow . norm over 2a emit | then 2b emit _ ;
-1 cs-for1 .S 
-2 cs-for1 .S 
-3 cs-for1 .S 
-4 cs-for1 .S 
-
-see cs-for1
-cold
-:^ ?^ 1 ^> cs-for1 
-#_
-
-\ 4444 c0de .abort
-
-: cs-for2 cr | for I >< | for >| I + .. over >< _ cr over _ ;
-1 cs-for2 cr 
-2 cs-for2 cr 
-3 cs-for2 cr 
-4 cs-for2 cr 
-
-cold
-:^ ?^ 1 ^> cs-for2 
-#_
-
-cold
-: cs-if0 1 >< | if + else - then noop ;
-: cs-if1 1 >< | if 11 + else - 55 then + ;
-: cs-if2 1 >< | if >< then noop - ;
-0 cs-if0 .. 
-1 cs-if0 .. 
-2 cs-if0 .. 
-0 cs-if1 .. 
-1 cs-if1 .. 
-2 cs-if1 .. 
-0 cs-if2 .. 
-1 cs-if2 .. 
-2 cs-if2 .. 
-cold
-:^ ?^ 1 ^> cs-if2 
-cold
-:^ ?^ 1 ^> cs-if0 
-#_
-
-cold
-:^ ?^ 1 ^> cs-if1 
-#_
-
-: cs-if3 2 >< | | if 1 >< - then - - ;
-cold 0 cs-if3 .S 
-cold 1 cs-if3 .S 
-cold 2 cs-if3 .S 
-cold 3 cs-if3 .S 
-cold
-:^ ?^ 1 ^> cs-if3 
-#_
-.( φ *** FALSE branch has two copies of a value [ 1 0 0 ], while TRUE branch produces different values [ 1 0 2 ]. How to merge these?  )
-
-: cs-for1 { 0 1 2 } for I + <<< over - + ;
-1 cs-for1 ..
-2 cs-for1 ..
-3 cs-for1 ..
-4 cs-for1 ..
-5 cs-for1 ..
-ff cs-for1 ..
-cr
-:^ ?^ 1 ^> cs-for1 
-#_
-
-
-cold
-: fib      | if 0 1 >>> for >| + >< over _ then ;
-cold
-0 fib ..  
-1 fib ..  
-2 fib ..  
-3 fib ..  
-4 fib ..  
-5 fib ..  
-6 fib ..  
-7 fib ..  
-8 fib ..  
-9 fib ..  
-
-see fib
-
-cold
-:^ ?^ 1 ^> fib 
-#_  
-.( φ *** Temporary register should be allocated only if swap is to be performed. How to detect it? )
-
-cold
-: cs-if3 { 11 22 33 } if <<< then - + noop ;
-0 cs-if3 ..
-1 cs-if3 ..
-:^ ?^ 1 ^> cs-if3
-#_
-
-: <<<< \ a b c d -- d a b c
-  >< >r <<< r> ;
-cold 11 22 33 44 <<<< .S
-: cs-if4 { 11 22 33 44 } if <<<< then - + - noop ;
-0 cs-if4 ..
-1 cs-if4 ..
-cold
-:^ ?^ 1 ^> cs-if4
-#_
-
-: fib3     | if { 0 1 2 } for >>> >>| >>| + + over <<< _ _ then noop ;
-cold
-0 fib3 ..  
-1 fib3 ..  
-2 fib3 ..  
-3 fib3 ..  
-4 fib3 ..  
-5 fib3 ..  
-6 fib3 ..  
-7 fib3 ..  
-8 fib3 ..  
-9 fib3 ..  
-
-cold
-:^ ?^ 1 ^> fib3
-
-.(  φ Fib3 WORKS!!! Well, mov r0, r0... But this is another problem. Let's look for more serious ones first )
-
-: cs-1 1 2 begin >< again ;
-cold
-:^ 0 ^> cs-1 
-
-
-: cs-2 { 11 33 } begin 1- | while { >< } repeat _ - ;
-1 cs-2 .. 
-2 cs-2 .. 
-3 cs-2 .. 
-4 cs-2 .. 
-cold
-:^ ?^ 1 ^> cs-2  
-
-c0de 42 .abort
-
-cold
-: cs4 3 begin 30 emit 1- | continue 31 emit >< | break 32 emit | 1+ while 33 emit _ 1 1 repeat 34 emit then 35 emit ;
-\ : cs5 41 3 begin 30 emit { 1+ ?? } 1- | continue 31 emit { 1+ ?? } 2 pick break 32 emit { 1+ ?? } | while 33 emit { 1+ ?? } repeat 34 emit { 1+ ?? } then _ 35 emit emit _ 36 emit ;
-: cs5 41 3 begin 30 emit { 1+ } 1- | continue 31 emit { 1+ } >>| break 32 emit { 1+ } | 1+ while 33 emit _ >< _ 1 >< 2 repeat 34 emit { 1+ } then _ 35 emit red emit norm _ 36 emit ;
-: cs50 41 3 begin { 1+ } 1- | continue { 1+ } >>| break { 1+ } | 1+ while _ >< _ 1 >< 2 repeat { 1+ } then _ emit _ ;
-0 cs4 
-1 cs4
-cold
-0 cs5 .S 
-cold
-1 cs5 .S 
-cold
-0 cs50 .S 
-cold
-1 cs50 .S 
-cold
-:^ ?^ 1 ^> cs50 #_
-
-
-600df00d 0c0de .abort
 
