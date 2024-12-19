@@ -1,6 +1,7 @@
 .intel_syntax	noprefix
 
 # TODO: https://wiki.osdev.org/X86-64_Instruction_Encoding
+# https://github.com/chip-red-pill/uCodeDisasm
 # https://www.forwardcom.info/
 # https://jacobfilipp.com/DrDobbs/articles/DDJ/1988/8810/8810b/8810b.htm
 # https://www.complang.tuwien.ac.at/forth/fth79std/FORTH-79.TXT
@@ -8,6 +9,9 @@
 # https://forth-standard.org/standard/words
 # https://www.mpeforth.com/resource-links/downloads/
 # https://iforth.nl/
+# TODO: Benchmarks
+# https://github.com/quepas/Compiler-benchmark-suites
+# https://github.com/embench/embench-iot/
 
 	.globl _start
 
