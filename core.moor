@@ -349,7 +349,9 @@
 : -leave   compile (-leave) >mark >< ; immediate		\ TODO: BUG! Incompatible with nested FORs as it is now
 : over     compile (over) <resolve compile (over-post) ; immediate
 
+								\\ Stack manipulation, continued
 : #_       | if for _ over else _ then ;			\ ( a1 ... an n -- )	Drops N elelemns off stack (including count)
+: >|>|>|   { >|>| } | { <<< } ; 				\ ( a b c -- a b c a b c ) 3OVER
 								\\ Memory									_memory
 : fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )	Fill N bytes from address A with character C
 : 1+!      | @ 1+ >< ! ;				 	\ ( a -- )		Increment variable at A
