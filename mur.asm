@@ -1336,6 +1336,20 @@ _dot:
 	call	_emit
 	ret
 
+# .0 ( n -- )
+# Prints number with a leading '0', if it's < 10h (for dump)
+word	dot0, ".0"
+	cmp	rtop, 0x10
+	jnb	3f
+	
+	call	_dup
+	mov	rtop, 0x30
+	call	_emit
+
+	3:
+	call	_dot
+	ret
+
 # .S ( -- )
 # Prints stacks
 word	dot_s, ".S"
@@ -1508,7 +1522,7 @@ _dump:
 	movzx	rtop, byte ptr [rwork]
 	push	rwork
 	push	rtmp
-	call	_dot
+	call	dot0
 	pop	rtmp
 	pop	rwork
 	dec	rtmp
