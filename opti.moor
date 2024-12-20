@@ -385,12 +385,13 @@ $ emit     { |
 				   opt-phi-move @ if
 					   0 opt-phi-move !
 					   ?∧ opt-phi-temp-reg !
-					   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm .---
+					   |  opt-phi-temp-reg @
+					   .movrr .---
 					   | opt-phi-save-reg !
-					   green ." mov@" tab yellow ." r" . bs ." , r" . norm .---
+					   .movrr .---
 				   else
 					   >| opt-phi-save-reg @ - if
-						   green ." mov" tab yellow ." r" . bs ." , r" . norm .---
+						   .movrr norm .---
 					   else
 						   | opt-phi-dest-reg !
 						   _ _
@@ -401,7 +402,8 @@ $ emit     { |
 			   then
 		   over else _ then
 		   opt-phi-dest-reg @ 1+ if
-			   green ." mov#" tab yellow ." r" opt-phi-dest-reg @ . bs ." , r" opt-phi-temp-reg @ . norm .---
+		   	   opt-phi-dest-reg @  opt-phi-temp-reg @
+			   .movrr .---
 		   then
 		   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
 		   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
