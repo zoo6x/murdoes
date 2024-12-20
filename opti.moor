@@ -99,7 +99,7 @@
 
 : branch-adr cells label-offset + @ start-adr @ + ;		\ ( index -- adr )	Returns absolute address for the index
 : branch-mark  | purple . norm >bfx here >bfx ;			\ ( branch-index -- )	Puts current code address and branch index onto the branch fixup stack
-: branch-resolve branch-adr >| - green | . norm  >< 4 - 4! ;			\ ( addr index -- )	Fixes branch offset at ADDR-4, generating offset pointing to branch-index
+: branch-resolve branch-adr >| - >< 4 - 4! ;			\ ( addr index -- )	Fixes branch offset at ADDR-4, generating offset pointing to branch-index
 : branch-offset	 branch-adr here - ;				\ ( index -- )		Computes offset in bytes between HERE and byte offset of instruction at index
 : fixup-branches begin bfx> bfx> | 1+ while branch-resolve  repeat _ _ ;
 
