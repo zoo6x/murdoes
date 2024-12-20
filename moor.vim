@@ -211,6 +211,7 @@ syn match forthInteger '\<%-\=[01abcdef]\+\.\=\>'
 
 " Words that end with " are assumed to start string parsing.
 " This includes standard words: S" ."
+syn region forthString matchgroup=forthString start=+"+ end=+"+ end=+$+ contains=@Spell
 syn region forthString matchgroup=forthString start=+\<\S\+"\s+ end=+"+ end=+$+ contains=@Spell
   " extension words
 syn region forthString matchgroup=forthString start=+\<C"\s+ end=+"+ end=+$+ contains=@Spell
