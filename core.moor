@@ -277,18 +277,30 @@
 : setf,    rex.b ` 0f ` setf.op or ` rd rr or ` ;		\ ( rd cond -- )	set.cc rd
 
 :: j.op    70 val						\ Jcc opcode
-: j,       j.op or ` ` ;					\ ( offset cond -- )	j.cc	offset
+: j,       j.op or ` ` ;					\ ( offset cond -- )	j.cc	offset8
 
+:: lj.op   80 val						\ lJcc opcode		Long jump conditional
+: lj,      0f ` lj.op or ` 4, ;					\ ( offset cond -- )	j.cc	offset32
+
+: ljmp,    e9 ` 4, ;						\ ( offset -- )         Long/near jump
 								\\ Arithmetic, logic and moves
 :: movzx.op b6 val						\ MOVZX opcode
 : movzx,   rex.q ` 0f ` movzx.op ` modrr ` ;			\ ( rd rs -- )		movzx	rdl, rs
 
 :: mov,    89 instrr						\ ( rd rs -- )		mov	rd, rs
 :: test,   85 instrr						\ ( rd rs -- )		test	rd, rs
+:: add,    01 instrr						\ ( rd rs -- )		add	rd, rs
+:: sub,    29 instrr						\ ( rd rs -- )		sub	rd, rs
+:: or,     09 instrr						\ ( rd rs -- )		or	rd, rs
+:: and,    21 instrr						\ ( rd rs -- )		and	rd, rs
+:: xor,    31 instrr						\ ( rd rs -- )		xor	rd, rs
+:: cmp,    39 instrr						\ ( rd rs -- )		cmp	rd, rs
 
 :: inc,    00 ff instro						\ ( rd -- )		inc	rd
 :: dec,    08 ff instro						\ ( rd -- )		dec	rd
 :: jmp,    e0 ff instro						\ ( rd -- )		jmp	rd
+:: neg,    d8 f7 instro						\ ( rd -- )		neg	rd
+:: not,    d0 f7 instro						\ ( rd -- )		not	rd
 
 :: mov.i,  00 c7 instroi4					\ ( rd imm32 -- )	mov	rd, imm32
 :: add.i,  c0 83 instroi1
@@ -352,6 +364,10 @@
 								\\ Stack manipulation, continued
 : #_       | if for _ over else _ then ;			\ ( a1 ... an n -- )	Drops N elelemns off stack (including count)
 : >|>|>|   { >|>| } | { <<< } ; 				\ ( a b c -- a b c a b c ) 3OVER
+
+								\\ Arithmetic and logic, continued
+:: not     code r0 not, ret,
+:: negate  code r0 neg, ret,
 								\\ Memory									_memory
 : fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )	Fill N bytes from address A with character C
 : 1+!      | @ 1+ >< ! ;				 	\ ( a -- )		Increment variable at A
