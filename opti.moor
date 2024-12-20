@@ -28,7 +28,7 @@
 : DEALLOCING! DEALLOCING state! ;
 :: DEALLOCING!!  code rstate DEALLOCING mov.i, ret, <%		\ ( -- )		Sets state to DEALLOCING without address interpreter involvement
 
-: regalloc REGALLOCING! execute interpreting! INTERPRETING! ;	\ ( xt -- )		Sets STATE to REGALLOCING for the XT 
+: regalloc REGALLOCING! execute interpreting! INTERPRETING! ;	\ ( xt -- )		Sets STATE to REGALLOCING for the XT
 
 : :%       : compile interpreting! ;
 
@@ -39,9 +39,9 @@
 : #r       regs + c@ ;						\ ( r -- #r )		Returns number of references for a register
 : ^        | regs + | c@ 1+ >< c!  uregs + 1 >< c! ;		\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register. TODO: Or just use cells, not bytes
-           else a11a501 .abort then ; 
+           else a11a501 .abort then ;
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
-           else a11a502 .abort then ; 
+           else a11a502 .abort then ;
 								\ 			otherwise decrement reference count and return 0
 : ?^       regs #regs for | c@ I >< -leave _ 1+ over		\ ( -- r | ABORT )	Allocates a new register, if one is available
            0add bada110c .abort
@@ -88,6 +88,7 @@
 : >phi    phi-stack >s ;
 : phi>    phi-stack s> ;
 
+:: opt-debug        0 var					\ Specifies whether debug output is enabled
 :: opt-index        0 var					\ Index inside current word, for branch visualization
 :: opt-lit          0 var					\ Holds 1-cell literal, offset or other data between regallocing and assembling
 :: opt-xt           0 var					\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
@@ -105,7 +106,7 @@
            >name count white type norm
 
            1b emit 5b emit 31 emit 33 emit 47 emit ;
-: %.S      
+: %.S
            1b emit 5b emit 31 emit 39 emit 47 emit
            ..S
            1b emit 5b emit 33 emit 39 emit 47 emit
@@ -163,7 +164,7 @@ $ assm     $;
            opt-xt @
 	   compile,
 	   compile interpreting!
-           
+
            compile DEALLOCING!!
            opt-xt @
 	   compile,
@@ -181,8 +182,8 @@ $ assm     $;
            here (exec) DEALLOCING opt-xt @ does
 	   compile interpreting!
 	   ] ; immediate
-	  
-: ;%;      	  
+
+: ;%;
 	   compile REGALLOCING!!
 
 	   compile exit [compile] [ ; immediate
@@ -203,7 +204,7 @@ $ assm     $;
 : ^>
 	   0 opt-index !
            cr %.S
-	   ' regalloc 
+	   ' regalloc
 	   ['] exit %.debug %.S %.uregs
 	   ;
 
@@ -232,7 +233,7 @@ $ assm     $;
 % (if)     >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
 % (else-pre)
            tmp-stack diroffload %;
-% (else-post) 
+% (else-post)
            phi-stack download
 	   phi-stack revoffload
 	   phi-stack download
@@ -244,10 +245,10 @@ $ assm     $;
 % (again)  %;
 % (ahead)  %;
 % (while)  >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
-% (-leave) >< { 1- 
-           tmp-stack revupload 
+% (-leave) >< { 1-
+           tmp-stack revupload
 	   phi-stack onload
-	   tmp-stack onload 
+	   tmp-stack onload
 	   phi-stack revupload #_
 	   phi-stack revupload #_ } >< 1+
            @skip | opt-branch ! opt-index 1+! .. ⊻ %;
@@ -261,7 +262,7 @@ $ assm     $;
 % (break)  %;
 % (for)    1- { | &∧ | >cyc }					\ ( r # -- #-1 )	Takes counter off the stack TODO: Save counter on another stack
            <<< { { phi-stack revupload } } >>> ;%
-           { _ _ } ;%; 
+           { _ _ } ;%;
 % I        1+ { cyc> ∧ | >cyc } %;
 % (over)   @skip | opt-branch ! opt-index 1+! .. ;%
            { cyc> ∨ } ;%;
@@ -269,14 +270,14 @@ $ assm     $;
 
 % +        { 							\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
-	   >< ∨∧ if | else 
+	   >< ∨∧ if | else
 	   ?∧ then then }
 	   1+ ;%
 	   { { _ _ } } 1- 1- ;%;				\ ( -- rd #-1 )
 
 % -        { 							\ ( rs1 rs2 # -- rs1 rs2 rd #+1 )
            >< ∨∧ if | <<< >< |∨ >< else				\			Try to allocate rs1 as rd, then rs2, then a new register
-	   >< ∨∧ if | else 
+	   >< ∨∧ if | else
 	   ?∧ then then }
 	   1+ ;%
 	   { { _ _ } } 1- 1- ;%;				\ ( -- rd #-1 )
@@ -286,7 +287,7 @@ $ assm     $;
 
 								\\ Stubs to ignore debug output words in the optimizer for now
 % ,        ⊻ %;							\ ( r # -- #-1 )	Frees the parameter
-% emit     ;% ⊻ ;%;						\ ( r # -- #-1 )	Frees the parameter 
+% emit     ;% ⊻ ;%;						\ ( r # -- #-1 )	Frees the parameter
 
 % cr %;
 % ??       %;							\ ( r # -- #-1 )	Frees the parameter
@@ -304,48 +305,50 @@ $ assm     $;
 								\ CAUTION! Assembling words should leave the stack as it was passed, do not add or drop items!
 								\          Deallocing semantics should set up the stack properly, if needed
 
+: .((      compile opt-debug compile @ [compile] if ; immediate \			Words between .(( and )) will be executed if opt-debug flag is set
+: ))((     [compile] else ; immediate
+: ))       [compile] then ; immediate
 : .---     cr %.S ;
 : .label   purple . norm ;
+: .lit     blue . norm ;
 : .r       yellow ." r" . bs norm ;
 : .r,      yellow ." r" . bs ." , " norm ;
 : .rr      yellow ." r" . bs ." , r" . norm ;
-: .inst    green count type tab ;				\ ( str -- )		Print instruction string
+: .inst    green count type tab ;			\ ( str -- )		Print instruction string
+
 : .mov     " mov" .inst ;
 : .movrr   .mov .rr ;
 
 $ +        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
            if							\			RD <> RS1, RS2		mov rd, rs1	add rd, rs1
-	   { >|>| } | { <<< } .---
+	   { >|>| } | { <<< }
 	   >>> >< >|
-	   .movrr .--- 
-	   " add" .inst .rr
-           else	 .---						\			RD = RS2
+	   .--- .movrr .--- " add" .inst .rr
+           else							\			RD = RS2
            <<< >|>|
-	   " add" .inst .rr
+	   .--- " add" .inst .rr
 	   then
-	   else	 .---						\			RD = RS1
+	   else							\			RD = RS1
            <<< >|>|
-	   " add" .inst .rr
+	   .--- " add" .inst .rr
 	   then } $;
 
 $ -        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble -
            if							\			RD <> RS1, RS2		mov rd, rs1	sub rd, rs1
-	   { >|>| } | { <<< } .---
+	   { >|>| } | { <<< }
 	   >>> >< >|
-	   .movrr .---
-	   " sub" .inst .rr 
-	   else	 .---						\			RD = RS2
+	   .--- .movrr .--- " sub" .inst .rr
+	   else							\			RD = RS2
 	   >< <<< >|
-	   " sub" .inst .rr .---
-	   " neg" .inst .r
+	   .--- " sub" .inst .rr .--- " neg" .inst .r
 	   then
-	   else	 .---						\			RD = RS1
+	   else							\			RD = RS1
 	   <<< >|>|
-	   " sub" .inst .rr
+	   .--- " sub" .inst .rr
 	   then } $;
 
-$ 1+       { >|>| - if >|>| 
-           .movrr .--- 
+$ 1+       { >|>| - if >|>|
+           .movrr .---
 	   then |
 	   " inc" .inst .r
 	   } $;
@@ -357,7 +360,7 @@ $ 1-       { >|>| - if >|>|
 	   } $;
 
 $ lit      { |
-           .mov .r, opt-lit @ .. norm
+           .mov .r, opt-lit @ .lit
 	   } $;
 $ emit     { |
            " emit" .inst .r
@@ -409,7 +412,7 @@ $ emit     { |
 		   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
 		   phi-stack onload
 		   opt-phi-forward @ if phi-stack revupload #_ phi-stack download else #_ then
-           then 
+           then
 	   ;
 
 : <φ       0 opt-phi-forward ! φ ;
@@ -421,9 +424,9 @@ $ (if)     { | |
            " test" .inst .rr
 	   } $;
 
-$ ?branch  { " jz " .inst opt-branch @ opt-index @ + .label } $;
-$ -?branch { " jnz" .inst opt-branch @ opt-index @ + .label } $;
-$ branch   { " jmp" .inst opt-branch @ opt-index @ + .label } $;
+$ ?branch  { opt-branch @ opt-index @ + " jz " .inst .label } $;
+$ -?branch { opt-branch @ opt-index @ + " jnz" .inst .label } $;
+$ branch   { opt-branch @ opt-index @ + " jmp" .inst .label } $;
 
 $ (for)    { >|>| - if
            >|>|
@@ -431,15 +434,15 @@ $ (for)    { >|>| - if
            then } $;
 $ (over)
            {
-	   cyc> | >cyc 
+	   cyc> | >cyc
 	   " dec" .inst .r .---
            opt-index @ 1+
-	   " jz" .inst .label .--- 
+	   " jz" .inst .label .---
 	   }
            <φ
            { .---
            opt-branch @ opt-index @ + 1+
-	   " jmp" .inst .label 
+	   " jmp" .inst .label
 	   } $;
 
 $ (while)  { | |
