@@ -88,6 +88,22 @@
 : >phi    phi-stack >s ;
 : phi>    phi-stack s> ;
 
+								\\ Branch fixup
+:: #labels 100 val						\ TODO: Check if running out of label space. Need '>' to be implemented			
+:: label-offset adr #labels cells allot	
+:: start-adr 0 var						\ Address of the beginning of compiled word (16-bypes aligned preferably)
+
+:: bfx-stack 100 stack						\ Branch fixup stack
+: >bfx    bfx-stack >s ;
+: bfx>    bfx-stack s> ;
+
+: branch-adr cells label-offset + @ start-adr @ + ;		\ ( index -- adr )	Returns absolute address for the index
+: branch-mark  | purple . norm >bfx here >bfx ;			\ ( branch-index -- )	Puts current code address and branch index onto the branch fixup stack
+: branch-resolve branch-adr >| - green | . norm  >< 4 - 4! ;			\ ( addr index -- )	Fixes branch offset at ADDR-4, generating offset pointing to branch-index
+: branch-offset	 branch-adr here - ;				\ ( index -- )		Computes offset in bytes between HERE and byte offset of instruction at index
+: fixup-branches begin bfx> bfx> | 1+ while branch-resolve  repeat _ _ ;
+
+								\\ Variables
 :: opt-debug        0 var					\ Specifies whether debug output is enabled
 :: opt-index        0 var					\ Index inside current word, for branch visualization
 :: opt-index0       0 var					\ Index of the beginning of the word
@@ -101,9 +117,6 @@
 :: opt-phi-forward  0 var					\ Flag indicating whether the φ-junction is forward or backward
 
 								\ Assembling: labels
-:: #labels 100 val						\ TODO: Check if running out of label space. Need '>' to be implemented			
-:: label-offset adr #labels cells allot	
-:: start-adr 0 var						\ Address of the beginning of compiled word (16-bypes aligned preferably)
 
 : .((     compile opt-debug compile @ [compile] if ; immediate  \			Words between .(( and )) will be executed if opt-debug flag is set
 : ).(     [compile] else ; immediate
@@ -136,7 +149,7 @@
            1b emit 5b emit 31 emit 32 emit 38 emit 47 emit
            ." | "
            1b emit 5b emit 31 emit 33 emit 30 emit 47 emit
-	   .(( ).( label-offset opt-index0 @ cells + @ .. ))
+	   .(( ).( label-offset opt-index0 @ cells + @ .0 here .. ))
 	   \ )) 
 	   ;
 
@@ -220,6 +233,8 @@ $ assm     $;
 	   ret-stack empty
 	   cyc-stack empty
 	   phi-stack empty
+	   bfx-stack empty
+	   -1 -1 >bfx >bfx
            rsp ∧ _						\ 			RSP should not be used as a general-purpose register
            uregs #regs 0 fill
 ;
@@ -237,6 +252,7 @@ $ assm     $;
            0 opt-debug !
 	   0 opt-index !
 	   ' regalloc
+	   fixup-branches
 	   ;
 
 								\\ Register allocation
@@ -346,8 +362,6 @@ $ assm     $;
 : .movrr   .mov .rr ;
 
 : ¦        >< ;							\ Swap source and destination registers, in optimizer they are in reverse order compared to assembler
-: branch-offset							\ ( index -- )		Computes offset in bytes between HERE and byte offset of instruction at index
-           cells label-offset + @ start-adr @ + here - ;	\			Must be corrected by offset size length (imm8 or imm32)
 
 $ +        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
            if							\			RD <> RS1, RS2		mov rd, rs1	add rd, rs1
@@ -470,15 +484,15 @@ $ (if)     { | |
 
 $ ?branch  { opt-branch @ opt-index @ +
            .(( " jz " .inst .label
-	   ).( branch-offset 4 + .z lj, ))
+	   ).( 0 .z lj, branch-mark ))
 	   } $;
 $ -?branch { opt-branch @ opt-index @ +
            .(( " jnz" .inst .label
-	   ).( branch-offset 4 + .nz lj, ))
+	   ).( 0 .nz lj, branch-mark ))
 	   } $;
 $ branch   { opt-branch @ opt-index @ +
            .(( " jmp" .inst .label
-	   ).( branch-offset 4 + ljmp, ))
+	   ).( 0 ljmp, branch-mark ))
 	   } $;
 
 
@@ -494,13 +508,13 @@ $ (over)
 	   ).( dec, ))
            opt-index @ 1+
 	   .(( " jz" .inst .label .---
-	   ).( branch-offset 1+ .z j, ))
+	   ).( 0 .z lj, branch-mark ))
 	   }
            <φ
            { .---
            opt-branch @ opt-index @ + 1+
 	   .(( " jmp" .inst .label
-	   ).( branch-offset 5 - ljmp, ))
+	   ).( 0 ljmp, branch-mark ))
 	   } $;
 
 $ (while)  { | |
