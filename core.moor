@@ -146,6 +146,8 @@
 
 :: !       code #1 r1 load, rex, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
            #0 r0 load, ret,					\			mov	r0, [S+8]
+:: 4!       code #1 r1 load, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
+           #0 r0 load, ret,					\			mov	r0, [S+8]
 :: c!      code #1 r1 load, rex, 88 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
            #0 r0 load, ret,					\			mov	r0, [S+8]
 
