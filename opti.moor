@@ -304,53 +304,63 @@ $ assm     $;
 								\ CAUTION! Assembling words should leave the stack as it was passed, do not add or drop items!
 								\          Deallocing semantics should set up the stack properly, if needed
 
+: .---     cr %.S ;
+: .label   purple . norm ;
+: .r       yellow ." r" . bs norm ;
+: .r,      yellow ." r" . bs ." , " norm ;
+: .rr      yellow ." r" . bs ." , r" . norm ;
+: .inst    green count type tab ;				\ ( str -- )		Print instruction string
+: .mov     " mov" .inst ;
+: .movrr   .mov .rr ;
 
-$ +        { cr %.S red ." (" norm >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
+$ +        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
            if							\			RD <> RS1, RS2		mov rd, rs1	add rd, rs1
-	   { >|>| } | { <<< } cr %.S
+	   { >|>| } | { <<< } .---
 	   >>> >< >|
-	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S 
-	   green ." add" tab yellow ." r" . bs ." , r" . bs norm 
-           else	 cr %.S						\			RD = RS2
+	   .movrr .--- 
+	   " add" .inst .rr
+           else	 .---						\			RD = RS2
            <<< >|>|
-	   green ." add" tab yellow ." r" . bs ." , r" . bs norm
+	   " add" .inst .rr
 	   then
-	   else	 cr %.S						\			RD = RS1
+	   else	 .---						\			RD = RS1
            <<< >|>|
-	   green ." add" tab yellow ." r" . bs ." , r" . bs norm
-	   then cr %.S red ." )" norm } $;
+	   " add" .inst .rr
+	   then } $;
 
-$ -        { cr %.S red ." (" norm >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble -
+$ -        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble -
            if							\			RD <> RS1, RS2		mov rd, rs1	sub rd, rs1
-	   { >|>| } | { <<< } cr %.S
+	   { >|>| } | { <<< } .---
 	   >>> >< >|
-	   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
-	   green ." sub" tab yellow ." r" . bs ." , r" . bs norm 
-	   else	 cr %.S						\			RD = RS2
+	   .movrr .---
+	   " sub" .inst .rr 
+	   else	 .---						\			RD = RS2
 	   >< <<< >|
-	   green ." sub" tab yellow ." r"  . bs ." , " ." r" . bs cr %.S
-	   green ." neg" tab yellow ." r" . bs norm
+	   " sub" .inst .rr .---
+	   " neg" .inst .r
 	   then
-	   else	 cr %.S						\			RD = RS1
+	   else	 .---						\			RD = RS1
 	   <<< >|>|
-	   green ." sub" tab yellow ." r" . bs ." , " ." r" . bs norm
-	   then cr %.S red ." )" norm } $;
+	   " sub" .inst .rr
+	   then } $;
 
 $ 1+       { >|>| - if >|>| 
-           green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S 
+           .movrr .--- 
 	   then |
-	   green ." inc" tab yellow ." r" . bs norm } $;
+	   " inc" .inst .r
+	   } $;
 
 $ 1-       { >|>| - if >|>|
-           green ." mov" tab yellow ." r" . bs ." , r" . bs norm cr %.S
+           .movrr .---
 	   then |
-	   green ." dec" tab yellow ." r" . bs norm } $;
+	   " dec" .inst .r
+	   } $;
 
 $ lit      { |
-           green ." mov" tab yellow ." r" . bs ." , " opt-lit @ .. norm
+           .mov .r, opt-lit @ .. norm
 	   } $;
 $ emit     { |
-           green ." emit" tab yellow ." r" . bs norm 
+           " emit" .inst .r
 	   } $;
 
 								\ φ-junction
@@ -375,12 +385,12 @@ $ emit     { |
 				   opt-phi-move @ if
 					   0 opt-phi-move !
 					   ?∧ opt-phi-temp-reg !
-					   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm cr %.S
+					   green ." mov!" tab yellow ." r" opt-phi-temp-reg @ . bs ." , r" | . norm .---
 					   | opt-phi-save-reg !
-					   green ." mov@" tab yellow ." r" . bs ." , r" . norm cr %.S
+					   green ." mov@" tab yellow ." r" . bs ." , r" . norm .---
 				   else
 					   >| opt-phi-save-reg @ - if
-						   green ." mov" tab yellow ." r" . bs ." , r" . norm cr %.S
+						   green ." mov" tab yellow ." r" . bs ." , r" . norm .---
 					   else
 						   | opt-phi-dest-reg !
 						   _ _
@@ -391,7 +401,7 @@ $ emit     { |
 			   then
 		   over else _ then
 		   opt-phi-dest-reg @ 1+ if
-			   green ." mov#" tab yellow ." r" opt-phi-dest-reg @ . bs ." , r" opt-phi-temp-reg @ . norm cr %.S
+			   green ." mov#" tab yellow ." r" opt-phi-dest-reg @ . bs ." , r" opt-phi-temp-reg @ . norm .---
 		   then
 		   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then
 		   opt-phi-forward @ if tmp-stack onload offload else tmp-stack onload then
@@ -406,32 +416,32 @@ $ emit     { |
 								\ Control
 
 $ (if)     { | |
-           green ." test" tab yellow ." r" . bs ." , " ." r" . bs norm
+           " test" .inst .rr
 	   } $;
 
-$ ?branch  { green ." jz " tab opt-branch @ opt-index @ + purple . norm } $;
-$ -?branch { green ." jnz" tab opt-branch @ opt-index @ + purple . norm } $;
-$ branch   { green ." jmp" tab opt-branch @ opt-index @ + purple . norm } $;
+$ ?branch  { " jz " .inst opt-branch @ opt-index @ + .label } $;
+$ -?branch { " jnz" .inst opt-branch @ opt-index @ + .label } $;
+$ branch   { " jmp" .inst opt-branch @ opt-index @ + .label } $;
 
 $ (for)    { >|>| - if
            >|>|
-	   green ." mov" tab yellow ." r" . bs ." , r" . norm
+	   .movrr
            then } $;
 $ (over)
            {
 	   cyc> | >cyc 
-	   green ." dec" tab yellow ." r" . norm cr %.S
+	   " dec" .inst .r .---
            opt-index @ 1+
-	   green ." jz" tab purple . norm cr %.S 
+	   " jz" .inst .label .--- 
 	   }
            <φ
-           { cr %.S
+           { .---
            opt-branch @ opt-index @ + 1+
-	   green ." jmp" tab  purple . norm 
-	   } cr %.S $;
+	   " jmp" .inst .label 
+	   } $;
 
 $ (while)  { | |
-           green ." test" tab yellow ." r" . bs ." , " ." r" . bs norm
+           " test" .inst .rr
 	   } $;
 
 $ (then)   >φ $;
