@@ -214,7 +214,7 @@ $ assm     $;
 	   							\\ Register allocation primitives
 : regalloc-init							\ ( -- )		Initializes array of referenced registers
            regs #regs 0 fill
-	   label-offset #labels cells 0 fill
+	   label-offset #labels cells -1 fill
 	   here start-adr !
 	   tmp-stack empty
 	   ret-stack empty
@@ -346,6 +346,8 @@ $ assm     $;
 : .movrr   .mov .rr ;
 
 : ¦        >< ;							\ Swap source and destination registers, in optimizer they are in reverse order compared to assembler
+: branch-offset							\ ( index -- )		Computes offset in bytes between HERE and byte offset of instruction at index
+           cells label-offset + @ start-adr @ + here - ;	\			Must be corrected by offset size length (imm8 or imm32)
 
 $ +        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
            if							\			RD <> RS1, RS2		mov rd, rs1	add rd, rs1
@@ -468,15 +470,15 @@ $ (if)     { | |
 
 $ ?branch  { opt-branch @ opt-index @ +
            .(( " jz " .inst .label
-	   ).( .z lj, ))
+	   ).( branch-offset 4 + .z lj, ))
 	   } $;
 $ -?branch { opt-branch @ opt-index @ +
            .(( " jnz" .inst .label
-	   ).( .nz lj, ))
+	   ).( branch-offset 4 + .nz lj, ))
 	   } $;
 $ branch   { opt-branch @ opt-index @ +
            .(( " jmp" .inst .label
-	   ).( ljmp, ))
+	   ).( branch-offset 4 + ljmp, ))
 	   } $;
 
 
@@ -492,13 +494,13 @@ $ (over)
 	   ).( dec, ))
            opt-index @ 1+
 	   .(( " jz" .inst .label .---
-	   ).( .z lj, ))
+	   ).( branch-offset 1+ .z j, ))
 	   }
            <φ
            { .---
            opt-branch @ opt-index @ + 1+
 	   .(( " jmp" .inst .label
-	   ).( ljmp, ))
+	   ).( branch-offset 5 - ljmp, ))
 	   } $;
 
 $ (while)  { | |
