@@ -60,13 +60,13 @@
 : .uregs   uregs #regs for | c@ . 1+ over _ ;
 
 								\\ Stacks for control structures
-: dirupload >< | { | | if for | { I - 1+ #| >| >s } over _	\ ( an ... a1 n s -- a1 ... an n )  Copy N elements from data stack onto the specified stack
+: dirupload >< | { | | if for | { I - 1+ #| >| >s } over _	\ ( an ... a1 n s -- a1 ... an n )	Copy N elements from data stack onto the specified stack
             else _ _ then } | <<< >< >s  ;
-: revupload >< | { | if for | I 1+ #| >< >s over		\ ( an ... a1 n s -- an ... a1 n )  Copy N elements from data stack onto the specified stack
+: revupload >< | { | if for | I 1+ #| >< >s over		\ ( an ... a1 n s -- an ... a1 n )	Copy N elements from data stack onto the specified stack
             else _ then } | <<< >< >s  ;
 
 : offload   | if for ∨ over else _ then ;
-: diroffload dirupload offload ;				\ ( an ... a1 n s -- an ... a1 n )  Push N elements from data stack onto the specified stack
+: diroffload dirupload offload ;				\ ( an ... a1 n -- an ... a1 n )	Decrease reference count for registers in sequence
 : revoffload revupload offload ;
 
 : download | s> | { | if for | s> ∧ >< over _ else _ _ then } ; \ ( s -- a1 ... an n ) (s: a1 ... an n -- ) Pop N elements off the specified stack onto the data stack
@@ -93,6 +93,7 @@
 :: opt-index        0 var					\ Index inside current word, for branch visualization
 :: opt-index-word   0 var					\ Index of the beginning of the word
 :: opt-index-last   0 var					\ Last index in the current register allocation and assembling invocation
+:: opt-pass         0 var					\ Optimization pass: 0 - initial code generation, 1 - prologue/epilogue and jump size optimization
 :: opt-lit          0 var					\ Holds 1-cell literal, offset or other data between regallocing and assembling
 :: opt-xt           0 var					\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
 :: opt-branch       0 var					\ Holds latest branch offset
@@ -106,13 +107,21 @@
 :: #labels 100 val						\ TODO: Check if running out of label space. Need '>' to be implemented			
 :: label-offset adr #labels cells allot	
 :: start-adr 0 var						\ Address of the beginning of compiled word (16-bytes aligned preferably)
-
+: opt-index-word!  opt-index @ opt-index-word ! ;
+: label-offset@ cells label-offset + @ ; \ ( index -- ofs )
+: label-offset! opt-pass @ if else
+		  start-adr @ here >< - 
+		  label-offset opt-index @ cells + !
+	        then ;
 : shift-label-offsets						\ ( shift start-label -- )	Increase label offsets by SHIFT starting with the specified label
-          | cells label-offset + >< opt-index-word @ ><
+          | cells label-offset + >< opt-index-last @ ><
 	  - | if for
 	  	| @ | 1+ if >>| + >< | <<< ! else _ then cell+
-	  over _ else _ _ then _
-;
+	  over _ else _ _ then _ ;
+: ofs-is-long  ffffffffffffff00 and ; 				\ ( ofs -- 1|0)	Return 0 if ofs is [-128d, 127d]
+
+: .dump
+  start-adr @ | here >< - dump ;
 
 :: bfx-stack 100 stack						\ Branch fixup stack
 : >bfx    bfx-stack >s ;
@@ -185,8 +194,6 @@ $ noop     $;
 : assm     ;
 $ assm     $;
 
-: label-offset!  start-adr @ here >< - label-offset opt-index @ cells + !  opt-index @ opt-index-word ! ;
-
 : %        here (exec) REGALLOCING ' | >r does 			\ ( "<name>" --  )	Creates new semantics for register allocation state,
            ['] assm ASSEMBLING   >cfa@ ASSEMBLING r> | >r does
            ['] assm INTERPRETING >cfa@ DEALLOCING r> | >r does r>
@@ -194,6 +201,7 @@ $ assm     $;
 	   | opt-xt !
 
 	   compile label-offset! 
+	   compile opt-index-word! 
 
 	   [compile] literal
 	   compile %.debug
@@ -249,6 +257,8 @@ $ assm     $;
 : :^       regalloc-init ;
 : ^.>
            1 opt-debug !
+
+	   0 opt-pass !
 	   0 opt-index !
 	   0 opt-index-word !
            cr %.S
@@ -258,13 +268,30 @@ $ assm     $;
 
 : ^>
            0 opt-debug !
+
+	   0 opt-pass !
 	   0 opt-index !
 	   0 opt-index-word !
-	   ' | >r regalloc
-	   opt-index-word @  opt-index-last !
-	   fixup-branches
-	   \ 10 0 shift-label-offsets
 
+	   tmp-stack dirupload
+	   cr %.S
+	   ' | >r regalloc
+	   opt-index-word @ 1+ opt-index-last !
+	   fixup-branches
+	   cr .dump
+	   cr %.S
+	   \ 10 0 shift-label-offsets
+           cr
+
+	   1 opt-pass !
+	   0 opt-index !
+	   0 opt-index-word !
+	   offload
+	   tmp-stack download
+	   cr %.S
+           rsp ∧ _
+           uregs #regs 0 fill
+	   start-adr @ here!
 	   r> regalloc
 ;
 
@@ -497,11 +524,24 @@ $ (if)     { | |
 
 $ ?branch  { opt-branch @ opt-index @ +
            .(( " jz " .inst .label
-	   ).( 0 .z lj, branch-mark ))
+	   ).(
+	   \ 0 .z lj, branch-mark
+	   opt-pass @ 1- if 0 .z lj, branch-mark else
+	   	red ." BRANCH " norm | label-offset@ ??
+		ofs-is-long if label-offset@ ." LONG" .z lj, 
+		else
+                -4 opt-index-word @ shift-label-offsets 
+		label-offset@
+		opt-index-word @ label-offset@ - 6 - ." SHORT" .z j, 
+		then 
+	   then 
+	   ))
 	   } $;
 $ -?branch { opt-branch @ opt-index @ +
            .(( " jnz" .inst .label
-	   ).( 0 .nz lj, branch-mark ))
+	   ).(
+	   0 .nz lj, branch-mark 
+	   ))
 	   } $;
 $ branch   { opt-branch @ opt-index @ +
            .(( " jmp" .inst .label
@@ -521,13 +561,35 @@ $ (over)
 	   ).( dec, ))
            opt-index @ 1+
 	   .(( " jz" .inst .label .---
-	   ).( 0 .z lj, branch-mark ))
+	   ).(
+	   \ 0 .z lj, branch-mark
+	   opt-pass @ 1- if 0 .z lj, branch-mark else
+	   	red ." BRANCH " norm | label-offset@ ??
+		ofs-is-long if label-offset@ ." LONG" .z lj, 
+		else
+                -4 opt-index-word @ shift-label-offsets 
+		label-offset@
+		opt-index-word @ label-offset@ - 6 - ." SHORT" .z j, 
+		then 
+	   then 
+	   ))
 	   }
            <φ
            { .---
            opt-branch @ opt-index @ + 1+
 	   .(( " jmp" .inst .label
-	   ).( 0 ljmp, branch-mark ))
+	   ).(
+	   \ 0 ljmp, branch-mark
+	   opt-pass @ 1- if 0 ljmp, branch-mark else
+	   	red ." BRANCH " norm | label-offset@ ??
+		ofs-is-long if label-offset@ ." LONG" ljmp, 
+		else
+                -4 opt-index-word @ shift-label-offsets 
+		label-offset@
+		opt-index-word @ label-offset@ - 6 - ." SHORT" sjmp, 
+		then 
+	   then 
+	   ))
 	   } $;
 
 $ (while)  { | |

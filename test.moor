@@ -6,9 +6,6 @@ cr
 
 								\\ Simpler examples, w/o Phi junctions
 
-: .dump
-  start-adr @ | here >< - dump ;
-
 
 : q  1 3 | <<< >| - ;
 q ..
@@ -24,11 +21,10 @@ cold
 qq ..
 cold
 :^ ?^ ?^ ?^ ?^ 4 ^.> q 
+cold
 :^ ?^ ?^ ?^ ?^ 4 ^> q 
 #_
 .dump
-
-aa bb .abort
 
 : q 1 | | | 1+ + >< 1+ + >< 1+ 1+ 1+ + 1+ 1+ ;
 q ..
