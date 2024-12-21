@@ -3,6 +3,7 @@
 # TODO: https://wiki.osdev.org/X86-64_Instruction_Encoding
 # https://github.com/chip-red-pill/uCodeDisasm
 # https://stackoverflow.com/questions/48046814/what-methods-can-be-used-to-efficiently-extend-instruction-length-on-modern-x86
+# https://stackoverflow.com/questions/36510095/inc-instruction-vs-add-1-does-it-matter
 # https://www.forwardcom.info/
 # https://jacobfilipp.com/DrDobbs/articles/DDJ/1988/8810/8810b/8810b.htm
 # https://www.complang.tuwien.ac.at/forth/fth79std/FORTH-79.TXT
@@ -13,7 +14,7 @@
 # TODO: Benchmarks
 # https://github.com/quepas/Compiler-benchmark-suites
 # https://github.com/embench/embench-iot/
-
+# https://gist.github.com/FredEckert/3425429  Writing to framebuffer directly
 	.globl _start
 
 .text
