@@ -42,11 +42,13 @@
 : rwork    00 ;
 : rstate   03 ;							\ rbx = rstate
 : rsp      04 ;							\ rsp
+: rstack   05 ;							\ rbp = rstack
 : rpc      06 ;							\ rsi = rpc
 : rhere    07 ;							\ rdi = rhere
 : rindex   0a ;							\ r10 = rindex
 : rend     0c ;							\ r12 = rend
 : rnext    0d ;							\ r13 = rnext
+: rstack0  0f ;							\ r15 = rstack0
 
 : #0 0 ;							\ Offset of the first available stack item
 : #1 8 ;							\ Offset of the second stack item
