@@ -93,7 +93,6 @@
 :: opt-index        0 var					\ Index inside current word, for branch visualization
 :: opt-index-word   0 var					\ Index of the beginning of the word
 :: opt-index-last   0 var					\ Last index in the current register allocation and assembling invocation
-:: opt-pass         0 var					\ Optimization pass: 0 - initial code generation, 1 - prologue/epilogue and jump size optimization
 :: opt-lit          0 var					\ Holds 1-cell literal, offset or other data between regallocing and assembling
 :: opt-xt           0 var					\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
 :: opt-branch       0 var					\ Holds latest branch offset
@@ -103,25 +102,33 @@
 :: opt-phi-dest-reg 0 var					\ Register to be assigned from the saved register
 :: opt-phi-forward  0 var					\ Flag indicating whether the φ-junction is forward or backward
 
+:: opt-pass         0 var					\ Optimization pass
+:: OPT-PASS-INITCODEGEN 0 val					\ 0 = Initial code generation
+:: OPT-PASS-BRANCHLEN   2 val					\ 2 = Branch length optimization (can run multiple times)
+
 								\\ Branch fixup
-:: #labels 100 val						\ TODO: Check if running out of label space. Need '>' to be implemented			
+:: #labels 1000 val						\ TODO: Check if running out of label space. Need '>' to be implemented			
 :: label-offset adr #labels cells allot	
+:: branch-size adr #labels allot
 :: start-adr 0 var						\ Address of the beginning of compiled word (16-bytes aligned preferably)
 : opt-index-word!  opt-index @ opt-index-word ! ;
-: label-offset@ cells label-offset + @ ; \ ( index -- ofs )
-: label-offset! opt-pass @ if else
+: label-offset@ cells label-offset + @ ; 			\ ( index -- ofs )
+: label-offset! opt-pass @ OPT-PASS-INITCODEGEN = if
 		  start-adr @ here >< - 
 		  label-offset opt-index @ cells + !
 	        then ;
+: branch-is-short@ branch-size + c@ ;				\ ( index -- 1|0 )	Returns whether the compiled branch at index is short (1) or long (0)
+: branch-is-short! branch-size + 1 >< c! ;			\ ( index -- )		Marks branch as short
 : shift-label-offsets						\ ( shift start-label -- )	Increase label offsets by SHIFT starting with the specified label
           | cells label-offset + >< opt-index-last @ ><
 	  - | if for
 	  	| @ | 1+ if >>| + >< | <<< ! else _ then cell+
 	  over _ else _ _ then _ ;
-: ofs-is-long  ffffffffffffff00 and ; 				\ ( ofs -- 1|0)	Return 0 if ofs is [-128d, 127d]
+: ofs-is-long ffffffffffffff80 and | if ffffffffffffff80 - then ;	\ ( ofs -- 1|0)	Return 0 if ofs is [-128d, 127d]
 
 : .dump
-  start-adr @ | here >< - dump ;
+  cr ." ==== " latest >name count type cr
+  start-adr @ | here >< - 22 emit dump 22 emit cr ;
 
 :: bfx-stack 100 stack						\ Branch fixup stack
 : >bfx    bfx-stack >s ;
@@ -180,8 +187,6 @@
            compile interpreting!
 	   ] ;
 : $;       compile ASSEMBLING!! compile exit [compile] [ ; immediate
-
-$ noop     $;
 
 ' exit INTERPRETING >cfa@ REGALLOCING ' exit does
 ' exit INTERPRETING >cfa@ ASSEMBLING ' exit does
@@ -243,6 +248,7 @@ $ assm     $;
 : regalloc-init							\ ( -- )		Initializes array of referenced registers
            regs #regs 0 fill
 	   label-offset #labels cells -1 fill
+	   branch-size #labels 0 fill
 	   here start-adr !
 	   tmp-stack empty
 	   ret-stack empty
@@ -258,7 +264,7 @@ $ assm     $;
 : ^.>
            1 opt-debug !
 
-	   0 opt-pass !
+	   OPT-PASS-INITCODEGEN opt-pass !
 	   0 opt-index !
 	   0 opt-index-word !
            cr %.S
@@ -269,7 +275,7 @@ $ assm     $;
 : ^>
            0 opt-debug !
 
-	   0 opt-pass !
+	   OPT-PASS-INITCODEGEN opt-pass !
 	   0 opt-index !
 	   0 opt-index-word !
 
@@ -283,7 +289,21 @@ $ assm     $;
 	   \ 10 0 shift-label-offsets
            cr
 
-	   1 opt-pass !
+	   OPT-PASS-BRANCHLEN opt-pass !
+	   0 opt-index !
+	   0 opt-index-word !
+	   offload
+	   tmp-stack download
+	   tmp-stack dirupload
+	   cr %.S
+           rsp ∧ _
+           uregs #regs 0 fill
+	   start-adr @ here!
+	   r> | >r regalloc
+	   cr %.S
+	   cr .dump
+
+	   OPT-PASS-BRANCHLEN opt-pass !
 	   0 opt-index !
 	   0 opt-index-word !
 	   offload
@@ -293,6 +313,8 @@ $ assm     $;
            uregs #regs 0 fill
 	   start-adr @ here!
 	   r> regalloc
+	   cr %.S
+	   cr .dump
 ;
 
 								\\ Register allocation
@@ -402,6 +424,8 @@ $ assm     $;
 : .movrr   .mov .rr ;
 
 : ¦        >< ;							\ Swap source and destination registers, in optimizer they are in reverse order compared to assembler
+
+$ noop     .(( " nop" .inst ).( nop, )) $;
 
 $ +        { >>> >|>| - if <<< >|>| -				\ ( rs1 rs2 rd )	Assemble +
            if							\			RD <> RS1, RS2		mov rd, rs1	add rd, rs1
@@ -525,15 +549,19 @@ $ (if)     { | |
 $ ?branch  { opt-branch @ opt-index @ +
            .(( " jz " .inst .label
 	   ).(
-	   \ 0 .z lj, branch-mark
-	   opt-pass @ 1- if 0 .z lj, branch-mark else
-	   	red ." BRANCH " norm | label-offset@ ??
+	   opt-pass @
+	   | OPT-PASS-INITCODEGEN = if _
+	   	0 .z lj, branch-mark
+	   else
+	   | OPT-PASS-BRANCHLEN = if _
+	   	red ." BRANCH1 " norm | label-offset@ ??
 		ofs-is-long if label-offset@ ." LONG" .z lj, 
 		else
-                -4 opt-index-word @ shift-label-offsets 
+		opt-index-word @ branch-is-short@ if else yellow ." SHORTEN " norm -4 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
 		label-offset@
-		opt-index-word @ label-offset@ - 6 - ." SHORT" .z j, 
-		then 
+		here 2 + start-adr @ - - ." SHORT" .z j, 
+		then
+	   then 
 	   then 
 	   ))
 	   } $;
@@ -562,16 +590,20 @@ $ (over)
            opt-index @ 1+
 	   .(( " jz" .inst .label .---
 	   ).(
-	   \ 0 .z lj, branch-mark
-	   opt-pass @ 1- if 0 .z lj, branch-mark else
-	   	red ." BRANCH " norm | label-offset@ ??
+	   opt-pass @
+	   | OPT-PASS-INITCODEGEN = if _
+	   	0 .z lj, branch-mark
+	   else
+	   | OPT-PASS-BRANCHLEN = if _
+	   	red ." BRANCH2 " norm | label-offset@ ??
 		ofs-is-long if label-offset@ ." LONG" .z lj, 
 		else
-                -4 opt-index-word @ shift-label-offsets 
+		opt-index-word @ branch-is-short@ if else yellow ." SHORTEN " norm -4 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
 		label-offset@
-		opt-index-word @ label-offset@ - 6 - ." SHORT" .z j, 
-		then 
-	   then 
+		here 2 + start-adr @ - - ." SHORT" .z j, 
+		then
+	   then
+	   then
 	   ))
 	   }
            <φ
@@ -579,16 +611,20 @@ $ (over)
            opt-branch @ opt-index @ + 1+
 	   .(( " jmp" .inst .label
 	   ).(
-	   \ 0 ljmp, branch-mark
-	   opt-pass @ 1- if 0 ljmp, branch-mark else
-	   	red ." BRANCH " norm | label-offset@ ??
+	   opt-pass @
+	   | OPT-PASS-INITCODEGEN = if _
+	   	0 ljmp, branch-mark
+	   else
+	   | OPT-PASS-BRANCHLEN = if _
+	   	red ." BRANCH3 " norm | label-offset@ ??
 		ofs-is-long if label-offset@ ." LONG" ljmp, 
 		else
-                -4 opt-index-word @ shift-label-offsets 
+		opt-index-word @ 1+ branch-is-short@ if else yellow ." SHORTEN " norm -3 opt-index-word @ 1+ shift-label-offsets opt-index-word @ 1+ branch-is-short! then
 		label-offset@
-		opt-index-word @ label-offset@ - 6 - ." SHORT" sjmp, 
-		then 
-	   then 
+		here 2 + start-adr @ - - ." SHORT" sjmp, 
+		then
+	   then
+	   then
 	   ))
 	   } $;
 
