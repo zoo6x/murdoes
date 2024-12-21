@@ -3,6 +3,17 @@ cr
 .\ **** TESTS ****
 cr
 cr
+cold
+10 ofs-is-long .. 
+-10 ofs-is-long .. 
+ff ofs-is-long .. 
+100 ofs-is-long .. 
+7f ofs-is-long .. 
+80 ofs-is-long .. 
+-7f ofs-is-long .. 
+-80 ofs-is-long .. 
+-81 ofs-is-long .. 
+
 
 								\\ Simpler examples, w/o Phi junctions
 
@@ -12,7 +23,6 @@ q ..
 cold
 :^ 0 ^.> q
 #_
-.dump
 
 
 : q  - + | { - } - ;
@@ -24,7 +34,6 @@ cold
 cold
 :^ ?^ ?^ ?^ ?^ 4 ^> q 
 #_
-.dump
 
 : q 1 | | | 1+ + >< 1+ + >< 1+ 1+ 1+ + 1+ 1+ ;
 q ..
@@ -53,7 +62,6 @@ cold
 cold
 :^ ?^ 1 ^> cs-for0 
 #_
-.dump
 
 : cs-for00 for over ;
 1 cs-for00 .S 
@@ -75,7 +83,6 @@ cold
 cold
 :^ ?^ 1 ^> cs-for1 
 #_
-.dump
 
 : cs-for2 cr | for I >< | for >| I + .. over >< _ cr over _ ;
 1 cs-for2 cr 
@@ -128,6 +135,9 @@ cold
 5 cs-for1 ..
 ff cs-for1 ..
 cr
+cold
+:^ ?^ 1 ^.> cs-for1 
+cold
 :^ ?^ 1 ^> cs-for1 
 #_
 
@@ -188,7 +198,6 @@ cold
 cold
 :^ ?^ 1 ^> fib3
 #_
-.dump
 
 c0de f1b .abort
 
