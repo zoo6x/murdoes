@@ -1,0 +1,1 @@
+./t | grep -e "^====" -A 1 | while IFS= read -r s; do echo $s; read -r s1; echo $s1; cstool x64 "$s1"; read -r s2; done
