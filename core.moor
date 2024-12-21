@@ -43,6 +43,7 @@
 : rstate   03 ;							\ rbx = rstate
 : rsp      04 ;							\ rsp
 : rpc      06 ;							\ rsi = rpc
+: rhere    07 ;							\ rdi = rhere
 : rindex   0a ;							\ r10 = rindex
 : rend     0c ;							\ r12 = rend
 : rnext    0d ;							\ r13 = rnext
@@ -284,6 +285,7 @@
 :: lj.op   80 val						\ lJcc opcode		Long jump conditional
 : lj,      0f ` lj.op or ` 4, ;					\ ( offset cond -- )	j.cc	offset32
 
+: sjmp,    eb ` ` ;						\ ( offset -- )         Short jump
 : ljmp,    e9 ` 4, ;						\ ( offset -- )         Long/near jump
 								\\ Arithmetic, logic and moves
 :: movzx.op b6 val						\ MOVZX opcode
@@ -329,6 +331,8 @@
 :: self    code |, rtop rpc mov, rtop 8 sub.i, ret,		\ ( a -- )		Returns RPC for the calling word
 								\			If SELF if the first compiled word, it returns caller's XT
 
+								\\ Here
+:: here!   code rhere rtop mov, _, ret,
 								\\ Return stack									_return_stack
 :: >r      code r1 pop, r0 push, _, r1 push, ret,		\ ( a -- ) ( R: -- a)	Pushes top of parameter stack onto return stack
 :: r>      code |, r1 pop, r0 pop, r1 push, ret,		\ ( -- a ) ( R: a -- )	Pops top of parameter stack off return stack
