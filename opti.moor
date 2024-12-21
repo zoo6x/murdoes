@@ -33,11 +33,12 @@
 : :%       : compile interpreting! ;
 
 								\\ Register allocation
-:: #regs   10 val						\ Number of CPU registers
-:: regs    adr #regs allot					\ Register alias count
-:: uregs   adr #regs allot					\ Used registers
+:: #regs     10 val						\ Number of CPU registers
+:: regs      adr #regs allot					\ Register alias count
+:: used-regs adr #regs allot					\ Used registers
+:: save-regs adr #regs allot					\ Save registers
 : #r       regs + c@ ;						\ ( r -- #r )		Returns number of references for a register
-: ^        | regs + | c@ 1+ >< c!  uregs + 1 >< c! ;		\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
+: ^        | regs + | c@ 1+ >< c!  used-regs + 1 >< c! ;	\ ( r -- )		Increments reference count for a register. TODO: Add overflow/underflow checks
 : v        regs + | c@ | if 1- >< c!				\ ( r -- )		Decrements reference count for a register. TODO: Or just use cells, not bytes
            else a11a501 .abort then ;
 : v^       regs + | c@ | if 1- | if >< c! 0 else _ _ 1 then 	\ ( r -- 1|0 )		If register is not aliased, then it can be reused
@@ -57,7 +58,7 @@
 : ∨?∧      ∨∧ if else _ ?∧ then ;				\ ( r -- r|r')		Allocates new register, if R is aliased
 
 : .regs    regs #regs for | c@ . 1+ over _ ;
-: .uregs   uregs #regs for | c@ . 1+ over _ ;
+: .used-regs used-regs #regs for | c@ . 1+ over _ ;
 
 								\\ Stacks for control structures
 : dirupload >< | { | | if for | { I - 1+ #| >| >s } over _	\ ( an ... a1 n s -- a1 ... an n )	Copy N elements from data stack onto the specified stack
@@ -140,7 +141,6 @@
 : branch-offset	 branch-adr here - ;				\ ( index -- )		Computes offset in bytes between HERE and byte offset of instruction at index
 : fixup-branches begin bfx> bfx> | 1+ while branch-resolve  repeat _ _ ;
 
-
 : .((     compile opt-debug compile @ [compile] if ; immediate  \			Words between .(( and )) will be executed if opt-debug flag is set
 : ).(     [compile] else ; immediate
 : ))      [compile] then ; immediate
@@ -176,9 +176,12 @@
 	   \ )) 
 	   ;
 
-: %.uregs  .(( cr
+: %.used-regs  \ .(( 
+           cr
            1b emit 5b emit 33 emit 39 emit 47 emit
-	   yellow .uregs norm cr )) ;
+	   yellow .used-regs norm cr
+	   \ )) 
+	   ;
 
 								\\ Regallocing semantics definitions
 : noop ;
@@ -245,78 +248,6 @@ $ assm     $;
 
 % noop %;
 	   							\\ Register allocation primitives
-: regalloc-init							\ ( -- )		Initializes array of referenced registers
-           regs #regs 0 fill
-	   label-offset #labels cells -1 fill
-	   branch-size #labels 0 fill
-	   here start-adr !
-	   tmp-stack empty
-	   ret-stack empty
-	   cyc-stack empty
-	   phi-stack empty
-	   bfx-stack empty
-	   -1 -1 >bfx >bfx
-           rsp ∧ _						\ 			RSP should not be used as a general-purpose register
-           uregs #regs 0 fill
-;
-
-: :^       regalloc-init ;
-: ^.>
-           1 opt-debug !
-
-	   OPT-PASS-INITCODEGEN opt-pass !
-	   0 opt-index !
-	   0 opt-index-word !
-           cr %.S
-	   ' regalloc
-	   ['] exit %.debug %.S %.uregs
-;
-
-: ^>
-           0 opt-debug !
-
-	   OPT-PASS-INITCODEGEN opt-pass !
-	   0 opt-index !
-	   0 opt-index-word !
-
-	   tmp-stack dirupload
-	   cr %.S
-	   ' | >r regalloc
-	   opt-index-word @ 1+ opt-index-last !
-	   fixup-branches
-	   cr .dump
-	   cr %.S
-	   \ 10 0 shift-label-offsets
-           cr
-
-	   OPT-PASS-BRANCHLEN opt-pass !
-	   0 opt-index !
-	   0 opt-index-word !
-	   offload
-	   tmp-stack download
-	   tmp-stack dirupload
-	   cr %.S
-           rsp ∧ _
-           uregs #regs 0 fill
-	   start-adr @ here!
-	   r> | >r regalloc
-	   cr %.S
-	   cr .dump
-
-	   OPT-PASS-BRANCHLEN opt-pass !
-	   0 opt-index !
-	   0 opt-index-word !
-	   offload
-	   tmp-stack download
-	   cr %.S
-           rsp ∧ _
-           uregs #regs 0 fill
-	   start-adr @ here!
-	   r> regalloc
-	   cr %.S
-	   cr .dump
-;
-
 								\\ Register allocation
 % |        1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
 % _        ⊻ %;							\ ( r # -- #-1)
@@ -334,9 +265,9 @@ $ assm     $;
 
 % lit      @skip | opt-lit ! opt-index 1+! .(( .. ).( _ )) 1+ { ?∧ } %;	\ ( # -- r #+1 )	Allocates new register
 
-% branch   @skip | opt-branch ! opt-index 1+! .(( .. ).( _ )) %;		\ ( -- )
-% ?branch  @skip | opt-branch ! opt-index 1+! .(( .. ).( _ )) ⊻ %;		\ ( r # -- #-1 )
-% -?branch @skip | opt-branch ! opt-index 1+! .(( .. ).( _ )) ⊻ %;		\ ( r # -- #-1 )
+% branch   @skip 1+ | opt-branch ! opt-index 1+! .(( .. ).( _ )) %;		\ ( -- )
+% ?branch  @skip 1+ | opt-branch ! opt-index 1+! .(( .. ).( _ )) ⊻ %;		\ ( r # -- #-1 )
+% -?branch @skip 1+ | opt-branch ! opt-index 1+! .(( .. ).( _ )) ⊻ %;		\ ( r # -- #-1 )
 
 % (if)     >< { 1- phi-stack revupload } >< 1+ %;		\			Upload stack as if after ?BRANCH
 % (else-pre)
@@ -418,12 +349,42 @@ $ assm     $;
 : .r       yellow ." r" . bs norm ;
 : .r,      yellow ." r" . bs ." , " norm ;
 : .rr      yellow ." r" . bs ." , r" . norm ;
-: .inst    green count type tab ;				\ ( str -- )		Print instruction string
+: .inst    green count type norm tab ;				\ ( str -- )		Print instruction string
 
 : .mov     " mov" .inst ;
 : .movrr   .mov .rr ;
 
 : ¦        >< ;							\ Swap source and destination registers, in optimizer they are in reverse order compared to assembler
+
+								\\ Prologue and epilogue
+: prologue,							\ ( an ... a1 n -- )	Based on input parameters and used register map compiles a prologue
+          " |," .inst |, cr %.S
+          used-regs #regs for | c@ if				\			Push all used registers, but not parameters and outputs
+	  	" push" .inst | used-regs - | .r push,
+		cr { %.S }
+	  then 1+ over _					
+          | if for						\			Load input parameters from Forth stack into registers
+	  	" load" .inst | .r
+		#0 >< load, off,
+		cr %.S
+	  over else _ then
+;
+
+: epilogue,
+	  | if for						\			Store output parameters onto Forth stack
+	  	" store" .inst | .r
+		| #0 >< store, on, ∨ 
+		cr %.S 
+          over else _ then								
+	  " _," .inst _, cr %.S
+          used-regs #regs + 1- #regs for | c@ if		\			Push all pushed registers (not parameters and outputs)
+	  	" pop" .inst | used-regs - | .r pop,
+		cr { %.S }
+	  then 1- over _					
+
+	  " ret" .inst ret, cr %.S
+								\			Move TOS into rtop, if needed
+;
 
 $ noop     .(( " nop" .inst ).( nop, )) $;
 
@@ -671,4 +632,79 @@ $ (then)   >φ $;
 $ (again)  <φ $;
 $ (repeat-pre) <φ $;
 $ (repeat-post) $;
+								
+								\\ Register allocation and assembling
+: regalloc-init							\ ( -- )		Initializes array of referenced registers
+           regs #regs 0 fill
+	   label-offset #labels cells -1 fill
+	   branch-size #labels 0 fill
+	   here start-adr !
+	   tmp-stack empty
+	   ret-stack empty
+	   cyc-stack empty
+	   phi-stack empty
+	   bfx-stack empty
+	   -1 -1 >bfx >bfx
+           rsp ∧ _						\ 			RSP should not be used as a general-purpose register
+	   rstack0 ∧ _
+	   rstack ∧ _
+           used-regs #regs 0 fill
+;
+
+: :^       regalloc-init ;
+: ^.>
+           1 opt-debug !
+
+	   OPT-PASS-INITCODEGEN opt-pass !
+	   0 opt-index !
+	   0 opt-index-word !
+           cr %.S
+	   ' regalloc
+	   ['] exit %.debug %.S %.used-regs
+;
+
+: ^>
+           0 opt-debug !
+
+	   OPT-PASS-INITCODEGEN opt-pass !
+	   0 opt-index !
+	   0 opt-index-word !
+
+	   tmp-stack dirupload
+	   cr %.S
+	   ' | >r regalloc
+	   opt-index-word @ 1+ opt-index-last !
+	   fixup-branches
+	   ['] exit %.debug %.S cr %.used-regs
+	   cr .dump
+
+	   OPT-PASS-BRANCHLEN opt-pass !
+	   0 opt-index !
+	   0 opt-index-word !
+	   offload
+	   cr %.S
+	   tmp-stack download
+	   tmp-stack dirupload
+	   cr %.S
+	   start-adr @ here!
+	   tmp-stack onload
+	   tmp-stack dirupload
+	   cr %.S
+	   prologue,
+	   r> | >r regalloc
+	   cr %.S
+	   epilogue,
+	   ['] exit %.debug %.S %.used-regs
+	   cr .dump
+
+	   OPT-PASS-BRANCHLEN opt-pass !
+	   0 opt-index !
+	   0 opt-index-word !
+	   tmp-stack download
+	   cr %.S
+	   start-adr @ here!
+	   r> regalloc
+	   ['] exit %.debug %.S %.used-regs
+	   cr .dump
+;
 

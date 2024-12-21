@@ -23,6 +23,9 @@ q ..
 cold
 :^ 0 ^.> q
 #_
+cold
+:^ 0 ^> q
+#_
 
 
 : q  - + | { - } - ;
@@ -34,6 +37,8 @@ cold
 cold
 :^ ?^ ?^ ?^ ?^ 4 ^> q 
 #_
+
+1017 c0de .abort
 
 : q 1 | | | 1+ + >< 1+ + >< 1+ 1+ 1+ + 1+ 1+ ;
 q ..
@@ -111,12 +116,16 @@ cold
 1 cs-if2 .. 
 2 cs-if2 .. 
 cold
+:^ ?^ 1 ^.> cs-if0 
+cold
+:^ ?^ 1 ^> cs-if0 
+#_
+
+cold
 :^ ?^ 1 ^.> cs-if2 
-.( φ IF should jump to the word after (THEN) 
 cold
 :^ ?^ 1 ^> cs-if2 
 #_
-1 1 .abort
 cold
 :^ ?^ 1 ^> cs-if0 
 #_
@@ -151,7 +160,7 @@ cold
 
 
 cold
-: fib      | if 0 1 >>> for >| + >< over _ then ;
+: fib      | if 0 1 >>> for >| + >< over _ then noop ;
 cold
 0 fib ..  
 1 fib ..  
@@ -167,8 +176,11 @@ cold
 see fib
 
 cold
+:^ ?^ 1 ^.> fib 
+cold
 :^ ?^ 1 ^> fib 
 #_  
+.( φ *** NOOP is added because EXIT is not compiled yet. This will be solved later )
 .( φ *** Temporary register should be allocated only if swap is to be performed. How to detect it? )
 
 cold
@@ -207,8 +219,6 @@ cold
 :^ ?^ 1 ^> fib3
 #_
 
-c0de f1b .abort
-
 .(  φ Fib3 WORKS!!! Well, mov r0, r0... But this is another problem. Let's look for more serious ones first )
 
 : cs-1 1 2 begin >< again ;
@@ -223,6 +233,7 @@ cold
 4 cs-2 .. 
 cold
 :^ ?^ 1 ^> cs-2  
+#_
 
 c0de 42 .abort
 
