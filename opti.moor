@@ -88,10 +88,31 @@
 : >phi    phi-stack >s ;
 : phi>    phi-stack s> ;
 
+								\\ Variables
+:: opt-debug        0 var					\ Specifies whether debug output is enabled
+:: opt-index        0 var					\ Index inside current word, for branch visualization
+:: opt-index-word   0 var					\ Index of the beginning of the word
+:: opt-index-last   0 var					\ Last index in the current register allocation and assembling invocation
+:: opt-lit          0 var					\ Holds 1-cell literal, offset or other data between regallocing and assembling
+:: opt-xt           0 var					\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
+:: opt-branch       0 var					\ Holds latest branch offset
+:: opt-phi-move     0 var					\ Flag indicating whether φ requires moving regiters
+:: opt-phi-temp-reg 0 var					\ Temporary register for φ moves
+:: opt-phi-save-reg 0 var					\ Saved register for φ moves
+:: opt-phi-dest-reg 0 var					\ Register to be assigned from the saved register
+:: opt-phi-forward  0 var					\ Flag indicating whether the φ-junction is forward or backward
+
 								\\ Branch fixup
 :: #labels 100 val						\ TODO: Check if running out of label space. Need '>' to be implemented			
 :: label-offset adr #labels cells allot	
-:: start-adr 0 var						\ Address of the beginning of compiled word (16-bypes aligned preferably)
+:: start-adr 0 var						\ Address of the beginning of compiled word (16-bytes aligned preferably)
+
+: shift-label-offsets						\ ( shift start-label -- )	Increase label offsets by SHIFT starting with the specified label
+          | cells label-offset + >< opt-index-word @ ><
+	  - | if for
+	  	| @ | 1+ if >>| + >< | <<< ! else _ then cell+
+	  over _ else _ _ then _
+;
 
 :: bfx-stack 100 stack						\ Branch fixup stack
 : >bfx    bfx-stack >s ;
@@ -103,20 +124,6 @@
 : branch-offset	 branch-adr here - ;				\ ( index -- )		Computes offset in bytes between HERE and byte offset of instruction at index
 : fixup-branches begin bfx> bfx> | 1+ while branch-resolve  repeat _ _ ;
 
-								\\ Variables
-:: opt-debug        0 var					\ Specifies whether debug output is enabled
-:: opt-index        0 var					\ Index inside current word, for branch visualization
-:: opt-index0       0 var					\ Index of the beginning of the word
-:: opt-lit          0 var					\ Holds 1-cell literal, offset or other data between regallocing and assembling
-:: opt-xt           0 var					\ Holds XT of the currently executing REGALLOCING/ASEMBLING word
-:: opt-branch       0 var					\ Holds latest branch offset
-:: opt-phi-move     0 var					\ Flag indicating whether φ requires moving regiters
-:: opt-phi-temp-reg 0 var					\ Temporary register for φ moves
-:: opt-phi-save-reg 0 var					\ Saved register for φ moves
-:: opt-phi-dest-reg 0 var					\ Register to be assigned from the saved register
-:: opt-phi-forward  0 var					\ Flag indicating whether the φ-junction is forward or backward
-
-								\ Assembling: labels
 
 : .((     compile opt-debug compile @ [compile] if ; immediate  \			Words between .(( and )) will be executed if opt-debug flag is set
 : ).(     [compile] else ; immediate
@@ -149,7 +156,7 @@
            1b emit 5b emit 31 emit 32 emit 38 emit 47 emit
            ." | "
            1b emit 5b emit 31 emit 33 emit 30 emit 47 emit
-	   .(( ).( label-offset opt-index0 @ cells + @ .0 here .. ))
+	   .(( ).( label-offset opt-index-word @ cells + @ .0 here .. ))
 	   \ )) 
 	   ;
 
@@ -178,7 +185,7 @@ $ noop     $;
 : assm     ;
 $ assm     $;
 
-: label-offset!  start-adr @ here >< - label-offset opt-index @ cells + !  opt-index @ opt-index0 ! ;
+: label-offset!  start-adr @ here >< - label-offset opt-index @ cells + !  opt-index @ opt-index-word ! ;
 
 : %        here (exec) REGALLOCING ' | >r does 			\ ( "<name>" --  )	Creates new semantics for register allocation state,
            ['] assm ASSEMBLING   >cfa@ ASSEMBLING r> | >r does
@@ -243,17 +250,23 @@ $ assm     $;
 : ^.>
            1 opt-debug !
 	   0 opt-index !
+	   0 opt-index-word !
            cr %.S
 	   ' regalloc
 	   ['] exit %.debug %.S %.uregs
-	   ;
+;
 
 : ^>
            0 opt-debug !
 	   0 opt-index !
-	   ' regalloc
+	   0 opt-index-word !
+	   ' | >r regalloc
+	   opt-index-word @  opt-index-last !
 	   fixup-branches
-	   ;
+	   \ 10 0 shift-label-offsets
+
+	   r> regalloc
+;
 
 								\\ Register allocation
 % |        1+ { | ∧ } %;					\ ( r # -- r r #+1 )	Duplicates register (creates an alias)
