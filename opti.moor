@@ -554,26 +554,56 @@ $ ?branch  { opt-branch @ opt-index @ +
 	   	0 .z lj, branch-mark
 	   else
 	   | OPT-PASS-BRANCHLEN = if _
-	   	red ." BRANCH1 " norm | label-offset@ ??
-		ofs-is-long if label-offset@ ." LONG" .z lj, 
+	   	| label-offset@
+		ofs-is-long if label-offset@ .z lj, 
 		else
-		opt-index-word @ branch-is-short@ if else yellow ." SHORTEN " norm -4 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
+		opt-index-word @ branch-is-short@ if else -4 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
 		label-offset@
-		here 2 + start-adr @ - - ." SHORT" .z j, 
+		here 2 + start-adr @ - - .z j, 
 		then
 	   then 
 	   then 
 	   ))
 	   } $;
+
 $ -?branch { opt-branch @ opt-index @ +
            .(( " jnz" .inst .label
 	   ).(
-	   0 .nz lj, branch-mark 
+	   opt-pass @
+	   | OPT-PASS-INITCODEGEN = if _
+	   	0 .nz lj, branch-mark
+	   else
+	   | OPT-PASS-BRANCHLEN = if _
+	   	| label-offset@
+		ofs-is-long if label-offset@ .nz lj, 
+		else
+		opt-index-word @ branch-is-short@ if else -4 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
+		label-offset@
+		here 2 + start-adr @ - - .nz j, 
+		then
+	   then 
+	   then 
 	   ))
 	   } $;
+
 $ branch   { opt-branch @ opt-index @ +
            .(( " jmp" .inst .label
-	   ).( 0 ljmp, branch-mark ))
+	   ).(
+	   opt-pass @
+	   | OPT-PASS-INITCODEGEN = if _
+	   	0 ljmp, branch-mark
+	   else
+	   | OPT-PASS-BRANCHLEN = if _
+	   	| label-offset@
+		ofs-is-long if label-offset@ ljmp, 
+		else
+		opt-index-word @ branch-is-short@ if else -3 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
+		label-offset@
+		here 2 + start-adr @ - - sjmp, 
+		then
+	   then 
+	   then 
+	   ))
 	   } $;
 
 
@@ -595,12 +625,12 @@ $ (over)
 	   	0 .z lj, branch-mark
 	   else
 	   | OPT-PASS-BRANCHLEN = if _
-	   	red ." BRANCH2 " norm | label-offset@ ??
-		ofs-is-long if label-offset@ ." LONG" .z lj, 
+	   	| label-offset@
+		ofs-is-long if label-offset@ .z lj, 
 		else
-		opt-index-word @ branch-is-short@ if else yellow ." SHORTEN " norm -4 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
+		opt-index-word @ branch-is-short@ if else -4 opt-index-word @ 1+ shift-label-offsets opt-index-word @ branch-is-short! then
 		label-offset@
-		here 2 + start-adr @ - - ." SHORT" .z j, 
+		here 2 + start-adr @ - - .z j, 
 		then
 	   then
 	   then
@@ -616,12 +646,16 @@ $ (over)
 	   	0 ljmp, branch-mark
 	   else
 	   | OPT-PASS-BRANCHLEN = if _
-	   	red ." BRANCH3 " norm | label-offset@ ??
-		ofs-is-long if label-offset@ ." LONG" ljmp, 
+	   	| label-offset@
+		ofs-is-long if label-offset@ ljmp, 
 		else
-		opt-index-word @ 1+ branch-is-short@ if else yellow ." SHORTEN " norm -3 opt-index-word @ 1+ shift-label-offsets opt-index-word @ 1+ branch-is-short! then
+		\ A dirty hack here. Since we have two jumps at one index, second jump adds 1 to word index to store short/long branch flag
+		\ Thankfully, (over) occupies two indexes because it also stores branch offset
+		\ TODO: Think how to do it properly. This might not work well for ELSE
+		\ -3 is the difference between long and short jump instruction sizes
+		opt-index-word @ 1+ branch-is-short@ if else -3 opt-index-word @ 1+ 1+ shift-label-offsets opt-index-word @ 1+ branch-is-short! then
 		label-offset@
-		here 2 + start-adr @ - - ." SHORT" sjmp, 
+		here 2 + start-adr @ - - sjmp, 
 		then
 	   then
 	   then
