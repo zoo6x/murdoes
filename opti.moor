@@ -492,7 +492,7 @@ $ emit     { |
 			   then
 		   over else _ then
 		   opt-phi-dest-reg @ 1+ if
-		   	   opt-phi-dest-reg @  opt-phi-temp-reg @
+		   	   opt-phi-temp-reg @ opt-phi-dest-reg @
 			   .(( .movrr .--- ).( ¦ mov, ))
 		   then
 		   opt-phi-move @ if else opt-phi-temp-reg @ ∨ then

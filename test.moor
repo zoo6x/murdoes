@@ -31,15 +31,32 @@ cold
 7 fib ..  
 8 fib ..  
 9 fib ..  
+9 fib ..  
+7a fib ..  
+7b fib ..  
 
 see fib
 
 cold
 :^ ?^ 1 ^.> fib 
 cold
+:: fibo code
 :^ ?^ 1 ^> fib 
 .( φ *** NOOP is added because EXIT is not compiled yet. This will be solved later )
 .( φ *** Temporary register should be allocated only if swap is to be performed. How to detect it? )
+
+0 fibo ..  
+1 fibo ..  
+2 fibo ..  
+3 fibo ..  
+4 fibo ..  
+5 fibo ..  
+6 fibo ..  
+7 fibo ..  
+8 fibo ..  
+9 fibo ..  
+7a fibo ..  
+7b fibo ..  
 
 c0de f1b .abort
 
