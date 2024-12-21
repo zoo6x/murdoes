@@ -111,6 +111,7 @@
 :: #labels 1000 val						\ TODO: Check if running out of label space. Need '>' to be implemented			
 :: label-offset adr #labels cells allot	
 :: branch-size adr #labels allot
+:: start-adr-prologue 0 var					\ Address of the prologue, which is compiled before the word
 :: start-adr 0 var						\ Address of the beginning of compiled word (16-bytes aligned preferably)
 : opt-index-word!  opt-index @ opt-index-word ! ;
 : label-offset@ cells label-offset + @ ; 			\ ( index -- ofs )
@@ -169,9 +170,9 @@
 	   cf emit 86 emit 3a emit bl emit phi-stack .stack
            1b emit 5b emit 31 emit 30 emit 39 emit 47 emit
 	   54 emit 3a emit bl emit tmp-stack .stack
+           1b emit 5b emit 31 emit 32 emit 36 emit 47 emit
+           ." ¦ "
            1b emit 5b emit 31 emit 32 emit 38 emit 47 emit
-           ." | "
-           1b emit 5b emit 31 emit 33 emit 30 emit 47 emit
 	   .(( ).( label-offset opt-index-word @ cells + @ .0 here .. ))
 	   \ )) 
 	   ;
@@ -363,11 +364,13 @@ $ assm     $;
 	  	" push" .inst | used-regs - | .r push,
 		cr { %.S }
 	  then 1+ over _					
+
           | if for						\			Load input parameters from Forth stack into registers
 	  	" load" .inst | .r
-		#0 >< load, off,
+		#1 >< load, off,
 		cr %.S
 	  over else _ then
+	  cr %.S
 ;
 
 : epilogue,
@@ -376,14 +379,16 @@ $ assm     $;
 		| #0 >< store, on, ∨ 
 		cr %.S 
           over else _ then								
-	  " _," .inst _, cr %.S
+
           used-regs #regs + 1- #regs for | c@ if		\			Push all pushed registers (not parameters and outputs)
 	  	" pop" .inst | used-regs - | .r pop,
 		cr { %.S }
 	  then 1- over _					
 
+	  " _," .inst _, cr %.S					\			Move TOS into rtop, if needed
+
 	  " ret" .inst ret, cr %.S
-								\			Move TOS into rtop, if needed
+								
 ;
 
 $ noop     .(( " nop" .inst ).( nop, )) $;
@@ -638,6 +643,7 @@ $ (repeat-post) $;
            regs #regs 0 fill
 	   label-offset #labels cells -1 fill
 	   branch-size #labels 0 fill
+	   here start-adr-prologue !
 	   here start-adr !
 	   tmp-stack empty
 	   ret-stack empty
@@ -666,6 +672,7 @@ $ (repeat-post) $;
 : ^>
            0 opt-debug !
 
+	   cr white ." PASS=0 Register allocation" norm
 	   OPT-PASS-INITCODEGEN opt-pass !
 	   0 opt-index !
 	   0 opt-index-word !
@@ -678,6 +685,20 @@ $ (repeat-post) $;
 	   ['] exit %.debug %.S cr %.used-regs
 	   cr .dump
 
+	   cr white ." PASS=1 Initial code generation" norm
+	   OPT-PASS-BRANCHLEN opt-pass !
+	   0 opt-index !
+	   0 opt-index-word !
+	   offload
+	   tmp-stack download
+	   tmp-stack dirupload
+	   cr %.S
+	   start-adr @ here!
+	   r> | >r regalloc
+	   ['] exit %.debug %.S %.used-regs
+	   cr .dump
+
+	   cr white ." PASS=2 Final code generation" norm
 	   OPT-PASS-BRANCHLEN opt-pass !
 	   0 opt-index !
 	   0 opt-index-word !
@@ -688,23 +709,16 @@ $ (repeat-post) $;
 	   cr %.S
 	   start-adr @ here!
 	   tmp-stack onload
-	   tmp-stack dirupload
 	   cr %.S
 	   prologue,
-	   r> | >r regalloc
+	   cr %.S
+
+	   here  start-adr @ - 0 shift-label-offsets
+	   r> regalloc
 	   cr %.S
 	   epilogue,
 	   ['] exit %.debug %.S %.used-regs
 	   cr .dump
 
-	   OPT-PASS-BRANCHLEN opt-pass !
-	   0 opt-index !
-	   0 opt-index-word !
-	   tmp-stack download
-	   cr %.S
-	   start-adr @ here!
-	   r> regalloc
-	   ['] exit %.debug %.S %.used-regs
-	   cr .dump
 ;
 

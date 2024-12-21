@@ -18,147 +18,6 @@ ff ofs-is-long ..
 								\\ Simpler examples, w/o Phi junctions
 
 
-: q  1 3 | <<< >| - ;
-q ..
-cold
-:^ 0 ^.> q
-#_
-cold
-:^ 0 ^> q
-#_
-
-
-: q  - + | { - } - ;
-1 2 3 4 q ..
-: qq 1 2 3 4 q ;
-qq ..
-cold
-:^ ?^ ?^ ?^ ?^ 4 ^.> q 
-cold
-:^ ?^ ?^ ?^ ?^ 4 ^> q 
-#_
-
-1017 c0de .abort
-
-: q 1 | | | 1+ + >< 1+ + >< 1+ 1+ 1+ + 1+ 1+ ;
-q ..
-:^ 0 ^> q
-#_
-
-:^ 0 ^> qq 
-#_
-: q >| { + + } + ;
-:^ ?^ ?^ ?^ 3 ^> q 
-#_
-: q >|>| { { + + } } + >< + ;
-:^ ?^ ?^ ?^ 3 ^> q 
-#_
-: q >|>| { { - + } } - >< - ;
-:^ ?^ ?^ ?^ 3 ^> q 
-#_
-
-: cs-for0 0 >< for I + over ;
-1 cs-for0 .. 
-2 cs-for0 .. 
-ff cs-for0 .. 
-
-cold
-:^ ?^ 1 ^.> cs-for0 
-cold
-:^ ?^ 1 ^> cs-for0 
-#_
-
-
-: cs-for00 for over ;
-1 cs-for00 .S 
-2 cs-for00 .S 
-
-cold
-:^ ?^ 1 ^> cs-for00
-#_
-
-: cs-for1 for I ?? | 1- 1- -leave yellow . norm over 2a emit | then 2b emit _ ;
-1 cs-for1 .S 
-2 cs-for1 .S 
-3 cs-for1 .S 
-4 cs-for1 .S 
-
-see cs-for1
-cold
-:^ ?^ 1 ^.> cs-for1 
-cold
-:^ ?^ 1 ^> cs-for1 
-#_
-
-: cs-for2 cr | for I >< | for >| I + .. over >< _ cr over _ ;
-1 cs-for2 cr 
-2 cs-for2 cr 
-3 cs-for2 cr 
-4 cs-for2 cr 
-
-cold
-:^ ?^ 1 ^.> cs-for2 
-cold
-:^ ?^ 1 ^> cs-for2 
-#_
-
-cold
-: cs-if0 1 >< | if + else - then noop ;
-: cs-if1 1 >< | if 11 + else - 55 then + ;
-: cs-if2 1 >< | if >< then noop - ;
-0 cs-if0 .. 
-1 cs-if0 .. 
-2 cs-if0 .. 
-0 cs-if1 .. 
-1 cs-if1 .. 
-2 cs-if1 .. 
-0 cs-if2 .. 
-1 cs-if2 .. 
-2 cs-if2 .. 
-cold
-:^ ?^ 1 ^.> cs-if0 
-cold
-:^ ?^ 1 ^> cs-if0 
-#_
-
-cold
-:^ ?^ 1 ^.> cs-if2 
-cold
-:^ ?^ 1 ^> cs-if2 
-#_
-cold
-:^ ?^ 1 ^> cs-if0 
-#_
-
-cold
-:^ ?^ 1 ^> cs-if1 
-#_
-
-: cs-if3 2 >< | | if 1 >< - then - - ;
-cold 0 cs-if3 .S 
-cold 1 cs-if3 .S 
-cold 2 cs-if3 .S 
-cold 3 cs-if3 .S 
-cold
-:^ ?^ 1 ^> cs-if3 
-#_
-.( φ *** FALSE branch has two copies of a value [ 1 0 0 ], while TRUE branch produces different values [ 1 0 2 ]. How to merge these?  )
-
-: cs-for1 { 0 1 2 } for I + <<< over - + ;
-1 cs-for1 ..
-2 cs-for1 ..
-3 cs-for1 ..
-4 cs-for1 ..
-5 cs-for1 ..
-ff cs-for1 ..
-cr
-cold
-:^ ?^ 1 ^.> cs-for1 
-cold
-:^ ?^ 1 ^> cs-for1 
-#_
-
-
 cold
 : fib      | if 0 1 >>> for >| + >< over _ then noop ;
 cold
@@ -179,16 +38,138 @@ cold
 :^ ?^ 1 ^.> fib 
 cold
 :^ ?^ 1 ^> fib 
-#_  
 .( φ *** NOOP is added because EXIT is not compiled yet. This will be solved later )
 .( φ *** Temporary register should be allocated only if swap is to be performed. How to detect it? )
+
+c0de f1b .abort
+
+
+: q  1 3 | <<< >| - ;
+q ..
+cold
+:^ 0 ^.> q
+#_
+cold
+:^ 0 ^> q
+
+
+: q  - + | { - } - ;
+1 2 3 4 q ..
+: qq 1 2 3 4 q ;
+qq ..
+cold
+:^ ?^ ?^ ?^ ?^ 4 ^.> q 
+cold
+:^ ?^ ?^ ?^ ?^ 4 ^> q 
+
+: q 1 | | | 1+ + >< 1+ + >< 1+ 1+ 1+ + 1+ 1+ ;
+q ..
+:^ 0 ^> q
+
+:^ 0 ^> qq 
+: q >| { + + } + ;
+:^ ?^ ?^ ?^ 3 ^> q 
+: q >|>| { { + + } } + >< + ;
+:^ ?^ ?^ ?^ 3 ^> q 
+: q >|>| { { - + } } - >< - ;
+:^ ?^ ?^ ?^ 3 ^> q 
+
+: cs-for0 0 >< for I + over ;
+1 cs-for0 .. 
+2 cs-for0 .. 
+ff cs-for0 .. 
+
+cold
+:^ ?^ 1 ^.> cs-for0 
+cold
+:^ ?^ 1 ^> cs-for0 
+
+
+: cs-for00 for over ;
+1 cs-for00 .S 
+2 cs-for00 .S 
+
+cold
+:^ ?^ 1 ^> cs-for00
+
+: cs-for1 for I ?? | 1- 1- -leave yellow . norm over 2a emit | then 2b emit _ ;
+1 cs-for1 .S 
+2 cs-for1 .S 
+3 cs-for1 .S 
+4 cs-for1 .S 
+
+see cs-for1
+cold
+:^ ?^ 1 ^.> cs-for1 
+cold
+:^ ?^ 1 ^> cs-for1 
+
+: cs-for2 cr | for I >< | for >| I + .. over >< _ cr over _ ;
+1 cs-for2 cr 
+2 cs-for2 cr 
+3 cs-for2 cr 
+4 cs-for2 cr 
+
+cold
+:^ ?^ 1 ^.> cs-for2 
+cold
+:^ ?^ 1 ^> cs-for2 
+
+cold
+: cs-if0 1 >< | if + else - then noop ;
+: cs-if1 1 >< | if 11 + else - 55 then + ;
+: cs-if2 1 >< | if >< then noop - ;
+0 cs-if0 .. 
+1 cs-if0 .. 
+2 cs-if0 .. 
+0 cs-if1 .. 
+1 cs-if1 .. 
+2 cs-if1 .. 
+0 cs-if2 .. 
+1 cs-if2 .. 
+2 cs-if2 .. 
+cold
+:^ ?^ 1 ^.> cs-if0 
+cold
+:^ ?^ 1 ^> cs-if0 
+
+cold
+:^ ?^ 1 ^.> cs-if2 
+cold
+:^ ?^ 1 ^> cs-if2 
+cold
+:^ ?^ 1 ^> cs-if0 
+
+cold
+:^ ?^ 1 ^> cs-if1 
+
+: cs-if3 2 >< | | if 1 >< - then - - ;
+cold 0 cs-if3 .S 
+cold 1 cs-if3 .S 
+cold 2 cs-if3 .S 
+cold 3 cs-if3 .S 
+cold
+:^ ?^ 1 ^> cs-if3 
+.( φ *** FALSE branch has two copies of a value [ 1 0 0 ], while TRUE branch produces different values [ 1 0 2 ]. How to merge these?  )
+
+: cs-for1 { 0 1 2 } for I + <<< over - + ;
+1 cs-for1 ..
+2 cs-for1 ..
+3 cs-for1 ..
+4 cs-for1 ..
+5 cs-for1 ..
+ff cs-for1 ..
+cr
+cold
+:^ ?^ 1 ^.> cs-for1 
+cold
+:^ ?^ 1 ^> cs-for1 
 
 cold
 : cs-if3 { 11 22 33 } if <<< then - + noop ;
 0 cs-if3 ..
 1 cs-if3 ..
 :^ ?^ 1 ^> cs-if3
-#_
 
 : <<<< \ a b c d -- d a b c
   >< >r <<< r> ;
@@ -198,7 +179,6 @@ cold 11 22 33 44 <<<< .S
 1 cs-if4 ..
 cold
 :^ ?^ 1 ^> cs-if4
-#_
 
 : fib3     | if { 0 1 2 } for >>> >>| >>| + + over <<< _ _ then noop ;
 cold
@@ -217,7 +197,6 @@ cold
 :^ ?^ 1 ^.> fib3
 cold
 :^ ?^ 1 ^> fib3
-#_
 
 .(  φ Fib3 WORKS!!! Well, mov r0, r0... But this is another problem. Let's look for more serious ones first )
 
@@ -233,7 +212,6 @@ cold
 4 cs-2 .. 
 cold
 :^ ?^ 1 ^> cs-2  
-#_
 
 c0de 42 .abort
 
