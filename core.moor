@@ -313,7 +313,12 @@
 :: push,   50 instpp						\ ( rs -- )		push	rs
 :: pop,    58 instpp						\ ( rd -- )		pop	rd
 
+: nop,     90 ` ;
+
 : setnz0,  r0 .nz setf,    48 ` 0f ` b6 ` c9 ` ;		\ 			setnz	cl ; movzx rcx, cl
+: setz0,   r0 .z setf,     48 ` 0f ` b6 ` c9 ` ;		\ 			setz	cl ; movzx rcx, cl
+
+:: =       code #1 r1 load, r0 r1 cmp, setz0, off, ret,		\ ( a b -- a=b )	Compare two top elements, return 1 if equal and 0 otherwise
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
 : skip,    48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
