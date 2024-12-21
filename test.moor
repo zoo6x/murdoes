@@ -63,6 +63,7 @@ cold
 :^ ?^ 1 ^> cs-for0 
 #_
 
+
 : cs-for00 for over ;
 1 cs-for00 .S 
 2 cs-for00 .S 
@@ -91,6 +92,8 @@ cold
 4 cs-for2 cr 
 
 cold
+:^ ?^ 1 ^.> cs-for2 
+cold
 :^ ?^ 1 ^> cs-for2 
 #_
 
@@ -108,7 +111,12 @@ cold
 1 cs-if2 .. 
 2 cs-if2 .. 
 cold
+:^ ?^ 1 ^.> cs-if2 
+.( φ IF should jump to the word after (THEN) 
+cold
 :^ ?^ 1 ^> cs-if2 
+#_
+1 1 .abort
 cold
 :^ ?^ 1 ^> cs-if0 
 #_
