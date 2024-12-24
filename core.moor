@@ -15,6 +15,10 @@
 \\ _return_stack
 \\ _loops
 \\ _stack
+								\\ Vocabularies
+
+: vocabulary current @ , does> context ! ;
+: definitions context @ current ! ;
 
 								\\ Comments and debug output
 : norm     1b emit 5b emit 30 emit 6d emit ;
