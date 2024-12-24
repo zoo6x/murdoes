@@ -4,6 +4,7 @@
 # https://github.com/chip-red-pill/uCodeDisasm
 # https://stackoverflow.com/questions/48046814/what-methods-can-be-used-to-efficiently-extend-instruction-length-on-modern-x86
 # https://stackoverflow.com/questions/36510095/inc-instruction-vs-add-1-does-it-matter
+# https://groups.google.com/g/llvm-dev/c/xwcJKiLcgnU?pli=1 Spilling to vector registers for LLVM
 # https://www.forwardcom.info/
 # https://jacobfilipp.com/DrDobbs/articles/DDJ/1988/8810/8810b/8810b.htm
 # https://www.complang.tuwien.ac.at/forth/fth79std/FORTH-79.TXT
@@ -15,6 +16,9 @@
 # https://github.com/quepas/Compiler-benchmark-suites
 # https://github.com/embench/embench-iot/
 # https://gist.github.com/FredEckert/3425429  Writing to framebuffer directly
+# http://liujunming.top/2019/10/22/libdrm-samples/
+# https://dvdhrm.wordpress.com/2012/09/13/linux-drm-mode-setting-api/
+# https://gist.github.com/uobikiemukot/c2be4d7515e977fd9e85
 	.globl _start
 
 .text
@@ -37,14 +41,18 @@
 				/* R11 is clobbered by syscalls ix x64 Linux ABI */
 	.equ	rend, r12
 	.equ	rnext, r13
-	.equ	rlatest, r14
+	/* .equ	rlatest, r14 */
 	.equ	rstack0, r15
 
 # Initialization
 
 .p2align	16, 0x90
 _start:
-	lea	rlatest, last
+	lea	rwork, last
+	mov	[forth_], rwork
+	lea	rwork, [forth_]
+	mov	[_current], rwork
+	mov	[_context], rwork
 	lea	rhere, here0
 _abort:
 _cold:
@@ -147,6 +155,10 @@ _interp:
 	.p2align	3, 0x90
 _state:
 	.quad	INTERPRETING
+_current:
+	.quad	0
+_context:
+	.quad	0
 _trace:
 	.quad	0
 
@@ -291,10 +303,40 @@ _tib:
 # Words
 .p2align	4, 0x90
 
+# FORTH
+# The root vocabulary
+word	forth_, "forth", immediate, code, _forth_
+	.quad	last
+_forth_:
+	mov	[_context], rwork
+	ret
+
 # DUMMY
 # For breakpoints
 word	dummy
 _dummy:
+	ret
+
+# CURRENT ( -- v )
+# Returns current vocabulary
+word	current
+	call	_dup
+	lea	rtop, [_current]
+	ret
+
+# CONTEXT ( -- v )
+# Returns context vocabulary
+word	context
+	call	_dup
+	lea	rtop, [_context]
+	ret
+
+# LATEST ( -- xt )
+# Returns XT of the latest defined word in current vocabulary
+word	latest
+	call	current
+	mov	rtop, [rtop]
+	mov	rtop, [rtop]
 	ret
 
 # TRACE
@@ -635,7 +677,9 @@ _words:
 	push	rsi
 	push	rdi
 
-	mov	rtmp, rlatest
+	call	latest
+	mov	rtmp, rtop
+	call	_drop
 
 	1:
 	test	rtmp, rtmp
@@ -926,15 +970,22 @@ _header:
 	add	rhere, rtmp
 	call	_align
 
+	call	latest
+	mov	rtmp, rtop
+	call	_drop
+
 	mov	qword ptr [rhere], rwork	# NFA
 	add	rhere, 8
-	mov	qword ptr [rhere], rlatest	# LFA
+	mov	qword ptr [rhere], rtmp		# LFA
 	add	rhere, 8
 
 	call	_cfa_allot
 	call	_drop
 
-	mov	rlatest, rhere	# XT
+	call	current
+	mov	rtop, [rtop]
+	mov	[rtop], rhere	# XT
+	call	_drop
 
 	jmp	9f
 
@@ -957,15 +1008,6 @@ _header_errm:
 	.byte _header_errm$ - _header_errm - 1
 	.ascii	"\r\n\x1b[31mERROR! \x1b[0m\x1b[7m\x1b[1m\x1b[33m Refusing to create word header with empty name \x1b[0m\r\n"
 _header_errm$:
-
-
-# LATEST ( -- xt )
-# Returns the latest defined word
-word	latest
-_latest:
-	call	_dup
-	mov	rtop, rlatest
-	ret
 
 # HERE ( -- a )
 # Returns address of the first available byte of the code space
@@ -1023,7 +1065,10 @@ _does1:
 # Sets latest ord's compilation semantics to execution semantics
 word	immediate
 _immediate:
-	mov	rwork, rlatest
+	call	latest
+	mov	rwork, rtop
+	call	_drop
+
 	lea	rtmp, _run
 	mov	[rwork + COMPILING * 8 - 16], rtmp
 	mov	rtmp, [rwork + INTERPRETING * 8 - 16 + 8]
@@ -1194,7 +1239,11 @@ _find:
 	push	rdi
 	push	rbx
 
-	mov	rtmp, rlatest
+	call	context
+	mov	rtop, [rtop]
+	mov	rtmp, [rtop]
+	call	_drop
+
 	mov	rbx, qword ptr [_tib]
 
 	1:
