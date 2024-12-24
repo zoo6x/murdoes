@@ -36,12 +36,10 @@
 	.equ	rpc, rsi	/* Do not change! LODSx instructions are used */
 	.equ	rstack, rbp
 	.equ	rhere, rdi	/* Do not change! STOSx instructions are used */
-	/* .equ	rstack2, r8	/* Stack 2, grows from rstack0 upwards. >S S> and S@ for access */
 	.equ	rindex, r10	/* Loop end and index values */
 				/* R11 is clobbered by syscalls ix x64 Linux ABI */
 	.equ	rend, r12
 	.equ	rnext, r13
-	/* .equ	rlatest, r14 */
 	.equ	rstack0, r15
 
 # Initialization
@@ -64,7 +62,6 @@ _cold:
 	/* TODO: In "hardened" version map stacks to separate pages, with gaps between them */
 	lea	rstack0, [rsp - 0x1000]
 	xor	rstack, rstack
-	/* xor	rstack2, rstack2 */
 	lea	rwork, [rsp - 0x2000]
 	mov	qword ptr [_tib], rwork
 	xor	rwork, rwork
@@ -410,31 +407,6 @@ word	pick
 	mov	rtop, [rstack0 + rtop * 8]
 	ret
 
-/*
-# >S ( a -- ) (S2: -- a )
-# Pushes top element onto stack 2
-word	to_s, ">s"
-	inc	rstack2
-	mov	[rstack0 + rstack2 * 8], rtop
-	call	_drop
-	ret
-
-# S> ( -- a ) (S2: a -- )
-# Pops element off stack 2
-word	s_from, "s>"
-	call	_dup
-	mov	rtop, [rstack0 + rstack2 * 8]
-	dec	rstack2
-	ret
-
-# S@ ( -- a ) (S2: a -- a )
-# Pops element off stack 2
-word	s_fetch, "s@"
-	call	_dup
-	mov	rtop, [rstack0 + rstack2 * 8]
-	ret
-*/
-
 # LIT ( -- n )
 # Pushes compiled literal onto data stack
 word	lit,,,,, _lit_decomp, 0
@@ -673,15 +645,50 @@ _type:
 # Prints all defined words to stdout
 word	words
 _words:
+	call	context
+	mov	rtop, [rtop]
+	mov	rtop, [rtop]
+	call	_words_
+
+	call	current
+	mov	rtop, [rtop]
+	cmp	rtop, [_context]
+	je	2f
+	mov	rtop, [rtop]
+	call	_dup
+	mov	rtop, 0xa
+	call	_emit
+	call	_words_
+	jmp	3f
+	2:
+	call	_drop
+	3:
+	call	_dup
+	lea	rtop, [forth_]
+	cmp	rtop, [_context]
+	je	4f
+	cmp	rtop, [_current]
+	je	4f
+	mov	rtop, [rtop]
+	call	_dup
+	mov	rtop, 0xa
+	call	_emit
+	call	_words_
+	jmp	5f
+	4:
+	call	_drop
+	5:
+	ret
+
+_words_:
 	push	rtop
 	push	rsi
 	push	rdi
 
-	call	latest
 	mov	rtmp, rtop
 	call	_drop
 
-	1:
+	7:
 	test	rtmp, rtmp
 	jz	9f
 
@@ -700,7 +707,7 @@ _words:
 
 	pop	rtmp
 	mov	rtmp, [rtmp - STATES * 16 - 8]		# LFA
-	jmp	1b
+	jmp	7b
 
 	9:
 	pop	rdi
@@ -804,6 +811,20 @@ _bl_:
 # Reserves n bytes in data space
 word	allot
 	add	rhere, rtop
+	call	_drop
+	ret
+# @ ( a -- n )
+# FETCH
+word	fetch, "@"
+	mov	rtop, [rtop]
+	ret
+
+# ! ( n a -- )
+# STORE
+word	store, "\!"
+	mov	rtmp, rtop
+	call	_drop
+	mov	[rtmp], rtop
 	call	_drop
 	ret
 
@@ -1062,7 +1083,7 @@ _does1:
 	ret
 
 # IMMEDIATE ( -- )
-# Sets latest ord's compilation semantics to execution semantics
+# Sets latest word's compilation semantics to execution semantics
 word	immediate
 _immediate:
 	call	latest
@@ -1230,23 +1251,48 @@ _semicolon:
 	.quad	exit
 
 # FIND ( -- xt | 0 )
-# Searches for word name, placed at TIB, in the vocabulary
+# Searches for word name, placed at TIB, in the vocabularies CONTEXT, CURRENT and FORTH
 word	find
 _find:
 	call	_dup
+	mov	rtop, [_context]
+	call	_find_
+	test	rtop, rtop
+	jnz	3f
 
+	mov	rtop, [_current]
+	cmp	rtop, [_context]
+	je	1f
+	call	_find_
+	test	rtop, rtop
+	jnz	3f
+
+	1:
+	lea	rtop, [forth_]
+	cmp	rtop, [_current]
+	je	2f
+	cmp	rtop, [_context]
+	je	2f
+	call	_find_
+	test	rtop, rtop
+	jnz	3f
+
+	2:
+	xor	rtop, rtop
+
+	3:
+	ret
+
+_find_:
 	push	rsi
 	push	rdi
 	push	rbx
 
-	call	context
-	mov	rtop, [rtop]
 	mov	rtmp, [rtop]
-	call	_drop
 
 	mov	rbx, qword ptr [_tib]
 
-	1:
+	5:
 	test	rtmp, rtmp
 	jz	6f
 
@@ -1261,7 +1307,7 @@ _find:
 	je	9f
 
 	mov	rtmp, [rtmp - STATES * 16 - 8]		# LFA
-	jmp	1b
+	jmp	5b
 
 	6:
 	mov	rtop, 0
@@ -1449,9 +1495,11 @@ _quit_:
 	jz	7f
 	call	_drop
 	call	_drop
+
 	call	_find
 	test	rtop, rtop
 	jz	2f
+
 	mov	rwork, rtop
 	call	_drop
 
@@ -1526,8 +1574,6 @@ word	qcsp, "?csp"
 _qcsp:
 	cmp	rstack, 0
 	jnle	6f
-	/* cmp	rstack2, 0
-	jl	6f */
 	jmp	9f
 
 	6:
