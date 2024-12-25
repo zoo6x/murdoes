@@ -387,54 +387,49 @@
 :: not     code r0 not, ret,
 :: negate  code r0 neg, ret,
 								\\ Memory									_memory
-: fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )	Fill N bytes from address A with character C
+: fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )		Fill N bytes from address A with character C
 : 1+!      | @ 1+ >< ! ;				 	\ ( a -- )		Increment variable at A
-: #aligned | negate >< 1- >>> + and ;				\ ( a # -- a' )	Aligns A to # bytes. # must be a power of 2
+: >2^	   1-							\ ( n -- n' )		Align N up to nearest power of 2
+           | 1 sar or | 2 sar or | 4 sar or
+	   | 8 sar or | 10 sar or | 20 sar or
+	   1+ ;
+: #aligned >2^ | negate >< 1- >>> + and ;			\ ( a # -- a' )		Align A to #'s nearest power of 2 bytes
 
 								\\ Stack									_stack
 								\ Structure: pointer limit data...
-: stack   0 , | , cells allot does> ;				\ ( n -- ) ( -- stack )	Stack N cells size
-: empty   0 >< ! ;							\ ( s -- )		Empty stack
-: stack@  | @ >| cell+ @ ;					\ ( stack -- stack pointer limit )	Extracts stack parameters onto data stack
-: .stack  | @ | if >< cell+ cell+ >< for | @ . cell+ over _	\ ( stack -- )
-          else _ _ then ;
+: stack    0 , | , cells allot does> ;				\ ( n -- ) ( -- stack )	Stack N cells size
+: empty    0 >< ! ;							\ ( s -- )		Empty stack
+: stack@   | @ >| cell+ @ ;					\ ( stack -- stack pointer limit )	Extracts stack parameters onto data stack
+: .stack   | @ | if >< cell+ cell+ >< for | @ . cell+ over _	\ ( stack -- )
+           else _ _ then ;
 
-: >s      | @ >| cell+ @					\ ( a stack -- | E )    Pushes element onto stack or aborts on overflow
-	  >| - if						\ ( a stack sp limit )	Check if stack about to overflow
-	  >|>| 1+ >< !						\ ( a stack sp )	Increment stack pointer
-          cells + cell+ cell+ !					\ ( a stack sp )	Store element
-	  else _ >name count type bl emit
-	  0add bad57ac .abort then ;				\ 			Stack overflow
+: >s       | @ >| cell+ @					\ ( a stack -- | E )    Pushes element onto stack or aborts on overflow
+	   >| - if						\ ( a stack sp limit )	Check if stack about to overflow
+	   >|>| 1+ >< !						\ ( a stack sp )	Increment stack pointer
+           cells + cell+ cell+ !				\ ( a stack sp )	Store element
+	   else _ >name count type bl emit
+	   0add bad57ac .abort then ;				\ 			Stack overflow
 
-: s>      | @ | if						\ ( stack -- a | E )	Pops element off stack or aborts on underflow
-          1- >|>| >< !						\ ( stack sp )		Decrement stack pointer
-          cells + cell+ cell+ @					\ ( stack sp )		Fetch element
-	  else _ >name count type bl emit
-	  05bb bad57ac .abort then ;				\			Stack underflow
+: s>       | @ | if						\ ( stack -- a | E )	Pops element off stack or aborts on underflow
+           1- >|>| >< !						\ ( stack sp )		Decrement stack pointer
+           cells + cell+ cell+ @				\ ( stack sp )		Fetch element
+	   else _ >name count type bl emit
+	   05bb bad57ac .abort then ;				\			Stack underflow
 
 								\\ Structures
 
-: struct  create 				                \ ( "<name>" -- xt )	Structure is a vocabulary, also holding previous context and size
-          here current @ | , , 0 , 0 ,				\ 			latest, parent, size, packed,
-	  latest context !
-          does> context ! ;					\ ( -- xt )		Address of the size field
+: struct   create 				                \ ( "<name>" -- xt )	Structure is a vocabulary, also holding previous context and size
+           here current @ | , , 0 , 0 ,				\ 			latest, parent, size, packed,
+	   latest context !
+           does> context ! ;					\ ( -- xt )		Address of the size field
 
-: packed  1 context @ cell+ cell+ cell+ ! ;			\ ( -- )		Marks structure as packed
+: packed   1 context @ cell+ cell+ cell+ ! ;			\ ( -- )		Marks structure as packed
 
-: field	  >< | context ! definitions create			\ ( a field-size -- )	Defines a field in current structure (sets context to strucuture vocabulary)
-          | cell+ cell+ | cell+ @ >< | >r @ ><
-	  cr yellow .S norm 
-	  if else >>| #aligned then
-	  | ,
-	  cr red .S norm 
-
-	  >>> | 
-	  cr green .S norm 
-	  ,
-	  + r>
-	  cr purple .S norm 
-	  !
-	  does> @ ;						\ ( a -- )		Returns address relative to structure start
+: field	   >< | context ! definitions create			\ ( a field-size -- )	Defines a field in current structure (sets context to strucuture vocabulary)
+           | cell+ cell+ | cell+ @ >< | >r @ ><
+	   if else >>| >2^ #aligned then
+	   | ,  >>> | , + r> !
+	   does> @ ;						\ ( a -- )		Returns address relative to structure start
 
 : ;struct _ current @ cell+ @ context ! definitions ;		\ ( a -- ) 		Restores context to the parent vocabulary
 
@@ -473,6 +468,16 @@ cr cr yellow
 7 4 #aligned . 7 1 #aligned . 7 8 #aligned . cr
 7 100 #aligned . 7 100 #aligned . 7 100 #aligned . cr
 
+0 >2^ .. cr
+1 >2^ .. cr
+2 >2^ .. cr
+3 >2^ .. cr
+4 >2^ .. cr
+5 >2^ .. cr
+6 >2^ .. cr
+7 >2^ .. cr
+8 >2^ .. cr
+9 >2^ .. cr
 
 
 
