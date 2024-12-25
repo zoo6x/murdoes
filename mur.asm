@@ -837,12 +837,21 @@ _comma:
 	call	_drop
 	ret
 
-# , ( v -- )
+# 4, ( v -- )
 # Reserve space for 4 bytes in the data space and store value in the pace
 word	four_comma, "4,"
 _four_comma:
 	mov	rax, rtop
 	stosd
+	call	_drop
+	ret
+
+# 2, ( v -- )
+# Reserve space for 2 bytes in the data space and store value in the pace
+word	two_comma, "2,"
+_two_comma:
+	mov	rax, rtop
+	stosw
 	call	_drop
 	ret
 
