@@ -17,7 +17,7 @@
 \\ _stack
 								\\ Vocabularies
 
-: vocabulary current @ , does> context ! ;
+: vocabulary create current @ , does> context ! ;
 : definitions context @ current ! ;
 
 								\\ Comments and debug output
@@ -36,6 +36,7 @@
 : .abort   red . . norm cr abort ;				\ ( code message -- )	Prints code and message as hexadecimal numbers and aborts
 : ..       blue . norm ;
 : ??       dup .. ;
+.( Moore Forth System ) cr
 
 								\\ Register assignment. Should be changed if register aliases are changed
 : r0       01 ;							\ rcx = rtop
@@ -88,7 +89,7 @@
 : or01,    (or), d1 ` ;						\ ( -- )		or	r0, r1
 :: or01    code or01, ret,
 
-: modrm,   c0 load1 shl1#3 or01 off load1 or01 ` ;		\ ( rd rs -- ) Compiles ModR/M byte
+: modrm,   c0 load1 shl1#3 or01 off load1 or01 ` drop ;		\ ( rd rs -- )		Compiles ModR/M byte
 
 : or,	   (or), modrm, ;					\ ( rd rs -- )		or	Rd, Rs
 :: or	   code load1, r0 r1 or, off, ret,
@@ -409,4 +410,46 @@
           cells + cell+ cell+ @					\ ( stack sp )		Fetch element
 	  else _ >name count type bl emit
 	  05bb bad57ac .abort then ;				\			Stack underflow
+
+								\\ Structures
+
+: struct  create 				                \ ( "<name>" -- xt )	Structure is a vocabulary, also holding previous context and size
+          here current @ | , , 0 , 
+	  latest context !
+          does> context ! ;					\ ( -- xt )		Address of the size field
+
+: field	  >< | context ! definitions create			\ ( a field-size -- )	Defines a field in current structure (sets context to strucuture vocabulary)
+          | cell+ cell+ >>> >< | @ | , >>> + >< !
+	  does> @ ;						\ ( a -- )		Returns address relative to structure start
+
+: ;struct _ current @ cell+ @ context ! definitions ;		\ ( a -- ) 		Restores context to the parent vocabulary
+
+: struct: create context @ , here context @ cell+ cell+ @ 
+          0 fill
+          does> | @ context ! cell+ ;
+
+: .@      cr .S >| + @ >< ;
+: .!      cr .S { >| } + ! ;
+
+struct q1
+   cell field .a1
+   cell field .a3
+   cell field .a4
+   cell field .acell
+;struct
+
+norm words
+
+q1 struct: mystruct
+mystruct
+cr 10		 .a1	.! 
+cr 20 		 .a3	.! 
+cr 11223344 	 .a4	.! 
+cr 123456789abcd .acell	.! 
+_
+
+green words norm
+mystruct .a1 .@ .a3 .@ .a4 .@ .acell .@ _ .S
+
+
 
