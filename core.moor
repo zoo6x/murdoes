@@ -149,14 +149,18 @@
 : >>|      2 pick ;
 
 								\\ Memory access words
+:: c@      code rex, 0f ` b6 ` 09 ` ret,			\ ( a -- [a] )		movzx	r0, byte ptr [r0]
+:: 2@      code rex, 0f ` b7 ` 09 ` ret,			\ ( a -- [a] )		movzx	r0, word ptr [r0]
+:: 4@      code 8b ` 09 ` ret,					\ ( a -- [a] )		mov	r0d, dword ptr [r0]
 :: @       code rex, 8b ` 09 ` ret,				\ ( a -- [a] )		mov	r0, [r0]
-:: c@      code rex, 0f ` b6 ` 09 ` ret,			\ ( a -- byte [a] )	movzx	r0, byte ptr [r0]
 
-:: !       code #1 r1 load, rex, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
-           #0 r0 load, ret,					\			mov	r0, [S+8]
-:: 4!       code #1 r1 load, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
-           #0 r0 load, ret,					\			mov	r0, [S+8]
 :: c!      code #1 r1 load, rex, 88 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
+           #0 r0 load, ret,					\			mov	r0, [S+8]
+:: 2!      code #1 r1 load, 66 ` 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
+           #0 r0 load, ret,					\			mov	r0, [S+8]
+:: 4!      code #1 r1 load, 89 ` 11 ` off, off,			\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
+           #0 r0 load, ret,					\			mov	r0, [S+8]
+:: !       code #1 r1 load, rex, 89 ` 11 ` off, off,		\ ( n a -- )		mov	r1, [S+8] ; mov [r0], r1 ; inc rstack ; inc rstack 
            #0 r0 load, ret,					\			mov	r0, [S+8]
 
 								\\ Variables and constants							_var_val
@@ -429,7 +433,7 @@
            | cell+ cell+ | cell+ @ >< | >r @ ><
 	   if else >>| >2^ #aligned then
 	   | ,  >>> | , + r> !
-	   does> @ ;						\ ( a -- )		Returns address relative to structure start
+	   does> | @ >< cell+ @ ;				\ ( a -- a' size )	Returns address relative to structure start and field size
 
 : ;struct _ current @ cell+ @ context ! definitions ;		\ ( a -- ) 		Restores context to the parent vocabulary
 
@@ -437,48 +441,26 @@
           0 fill
           does> | @ context ! cell+ ;
 
-: .@      cr .S >| + @ >< ;
-: .!      cr .S { >| } + ! ;
+: #@      \ ( a # -- v )
+	  | 1 = if _ c@ else
+	  | 2 = if _ 2@ else
+	  | 3 = if _ | 2@ >< 2 + c@ 10 shl + else
+	  | 4 = if _ 4@ else
+	  | 5 = if _ | 4@ >< 4 + c@ 20 shl + else
+	  | 6 = if _ | 4@ >< 4 + 2@ 20 shl + else
+	  | 7 = if _ | 4@ >< 4 + | { 2@ 20 shl + } 1+ c@ 30 shl + else
+	  | 8 = if _ @ else bad515e01 574c7 .abort
+	  then then then then then then then then ;
 
-cr .( struct q1)
-struct q1
-   cr .S cell field .a1
-   cr .S cell field .a3
-   cell field .a4
-   cell field .acell
-;struct
-cr
-
-norm words
-
-q1 struct: mystruct
-mystruct
-cr 10		 .a1	.! 
-cr 20 		 .a3	.! 
-cr 11223344 	 .a4	.! 
-cr 123456789abcd .acell	.! 
-_
-
-green words norm
-mystruct .a1 .@ .a3 .@ .a4 .@ .acell .@ _ cr .S
-
-cr cr yellow
-0 4 #aligned . 0 1 #aligned . 0 8 #aligned . cr
-1 4 #aligned . 1 1 #aligned . 1 8 #aligned . cr
-7 4 #aligned . 7 1 #aligned . 7 8 #aligned . cr
-7 100 #aligned . 7 100 #aligned . 7 100 #aligned . cr
-
-0 >2^ .. cr
-1 >2^ .. cr
-2 >2^ .. cr
-3 >2^ .. cr
-4 >2^ .. cr
-5 >2^ .. cr
-6 >2^ .. cr
-7 >2^ .. cr
-8 >2^ .. cr
-9 >2^ .. cr
-
-
-
-
+: #!      \ ( v a # -- )
+	  | 1 = if _ c! else
+	  | 2 = if _ 2! else
+	  | 3 = if _ >|>| 2! >< 10 sar >< 2 + c! else
+	  | 4 = if _ 4! else
+	  | 5 = if _ >|>| 4! >< 20 sar >< 4 + c! else
+	  | 6 = if _ >|>| 4! >< 20 sar >< 4 + 2! else
+	  | 7 = if _ >|>| 4! >< 20 sar >< 4 + >|>| 2! >< 30 sar >< 1+ c! else
+	  | 8 = if _ ! else .. bad515e01 574c7 .abort
+	  then then then then then then then then ;
+: .@      { >| + } #@ >< ;
+: .!      { >>| + } #! ;
