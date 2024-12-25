@@ -1,0 +1,90 @@
+vocabulary xwin
+xwin definitions
+
+vocabulary internal
+internal definitions
+								\\ Syscalls
+: read		0 syscall3 ;
+: write		1 syscall3 ;
+:: SYSCALL_POLL		 7 val
+: socket	29 syscall3 ;
+: connect	2a syscall3 ;
+:: SYSCALL_FCNTL	48 val
+
+:: AF_UNIX		 1 val
+:: SOCK_STREAM		 1 val
+								\\ X Protocol Definitions
+: uint8_t	1 field ;
+: xcb_keycode_t	1 field ;
+: uint16_t	2 field ;
+: uint32_t	4 field ;
+
+struct xcb_setup_request internal
+    uint8_t	byte_order
+    uint8_t	pad0
+    uint16_t	protocol_major_version
+    uint16_t	protocol_minor_version
+    uint16_t	authorization_protocol_name_len
+    uint16_t	authorization_protocol_data_len
+    uint8_t	pad1_1
+    uint8_t	pad1_2
+;struct
+
+struct xcb_setup_response internal
+    uint8_t	status
+    uint8_t	pad0
+    uint16_t	protocol_major_version
+    uint16_t	protocol_minor_version
+    uint16_t	length
+    uint32_t	release_number
+    uint32_t	resource_id_base
+    uint32_t	resource_id_mask
+    uint32_t	motion_buffer_size
+    uint16_t	vendor_len
+    uint16_t	maximum_request_length
+    uint8_t	roots_len
+    uint8_t	pixmap_formats_len
+    uint8_t	image_byte_order
+    uint8_t	bitmap_format_bit_order
+    uint8_t	bitmap_format_scanline_unit
+    uint8_t	bitmap_format_scanline_pad
+    xcb_keycode_t	min_keycode
+    xcb_keycode_t	max_keycode
+    uint8_t	pad1_1
+    uint8_t	pad1_2
+    uint8_t	pad1_3
+    uint8_t	pad1_4
+;struct    
+
+								\\ Variables and Buffers
+:: xsocket -1 var 
+
+:: #sockaddr_un 6c val
+:: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
+
+xcb_setup_request struct: xsetup
+xsetup
+char l	byte_order .!
+0b	protocol_major_version .!
+_
+
+xsetup protocol_major_version .@  pad1_1 .@  pad1_2 .@  _ .S
+
+
+:: xsetup_response adr 4000 allot
+
+
+
+xwin definitions internal
+
+: XConnect
+	0 SOCK_STREAM AF_UNIX socket				?? | 0 < ?? if abort" Failed to create socket" then
+	xsocket !
+        #sockaddr_un xsockaddr xsocket @ connect 		?? | 0 < ?? if abort" Failed to connect" then _
+	xcb_setup_request #struct xsetup xsocket @ write	?? | 0 < ?? if abort" Failed to write setup request" then _
+	4000 xsetup_response xsocket @ red ." A" .S dummy read ." B"			?? | 0 < ?? if abort" Failed to read setup response" then _
+	
+;	
+
+XConnect
+
