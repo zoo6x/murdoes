@@ -36,6 +36,7 @@
 : .abort   red . . norm cr abort ;				\ ( code message -- )	Prints code and message as hexadecimal numbers and aborts
 : ..       blue . norm ;
 : ??       dup .. ;
+
 .( Moore Forth System ) cr
 
 								\\ Register assignment. Should be changed if register aliases are changed
@@ -43,14 +44,21 @@
 : rtop     01 ;
 : r1       02 ;							\ rdx = rtmp
 : rtmp     02 ;
+: rdx      02 ;
 : r2       00 ;							\ rax = rwork
 : rwork    00 ;
+: rax      00 ;
 : rstate   03 ;							\ rbx = rstate
 : rsp      04 ;							\ rsp
 : rstack   05 ;							\ rbp = rstack
+: rsi      06 ;							\ rsi = rpc
 : rpc      06 ;							\ rsi = rpc
+: rdi      07 ;							\ rdi = rhere
 : rhere    07 ;							\ rdi = rhere
+: r8       08 ;
+: r9       09 ;
 : rindex   0a ;							\ r10 = rindex
+: r10      0a ;							\ r10 = rindex
 : rend     0c ;							\ r12 = rend
 : rnext    0d ;							\ r13 = rnext
 : rstack0  0f ;							\ r15 = rstack0
@@ -326,10 +334,59 @@
 
 : nop,     90 ` ;
 
-: setnz0,  r0 .nz setf,    48 ` 0f ` b6 ` c9 ` ;		\ 			setnz	cl ; movzx rcx, cl
-: setz0,   r0 .z setf,     48 ` 0f ` b6 ` c9 ` ;		\ 			setz	cl ; movzx rcx, cl
 
-:: =       code #1 r1 load, r0 r1 cmp, setz0, off, ret,		\ ( a b -- a=b )	Compare two top elements, return 1 if equal and 0 otherwise
+
+								\ Parameters: rax rdi rsi rdx r10 r8 r9
+: syscall, 0f ` 05 ` ;
+:: syscall code rax rtop mov, syscall, rtop rax mov, ret,
+:: syscall1 code rdi push,
+            rax rtop mov, _, rdi rtop mov,
+            syscall,
+            rtop rax mov,
+	    rdi pop, ret,
+:: syscall2 code rdi push, rsi push,
+            rax rtop mov, _, rdi rtop mov,
+            syscall,
+	    rtop rax mov,
+	    rsi pop, rdi pop,
+	    ret,
+:: syscall3 code rdi push, rsi push,
+            rax rtop mov, _, rdi rtop mov, _, rsi rtop mov, _,
+	    rdx rtop mov,
+            syscall,
+	    rtop rax mov,
+	    rsi pop, rdi pop,
+	    ret,
+:: syscall4 code rdi push, rsi push, r10 push,
+            rax rtop mov, _, rdi rtop mov, _, rsi rtop mov, _,
+	    rdx rtop mov, _, r10 rtop mov,
+            syscall,
+	    rtop rax mov,
+	    r10 pop, rsi pop, rdi pop,
+	    ret,
+:: syscall5 code rdi push, rsi push, r10 push,
+            rax rtop mov, _, rdi rtop mov, _, rsi rtop mov, _,
+	    rdx rtop mov, _, r10 rtop mov, _, r8 rtop mov,
+            syscall,
+	    rtop rax mov,
+	    r10 pop, rsi pop, rdi pop,
+	    ret,
+:: syscall6 code rdi push, rsi push, r10 push,
+            rax rtop mov, _, rdi rtop mov, _, rsi rtop mov, _,
+	    rdx rtop mov, _, r10 rtop mov, _, r8 rtop mov, _, r9 rtop mov,
+            syscall,
+	    rtop rax mov,
+	    r10 pop, rsi pop, rdi pop,
+	    ret,
+
+
+: movzxc,  48 ` 0f ` b6 ` c9 ` ;						\			movzx	rcx, cl
+: setnz0,  r0 .nz setf, movzxc, ;						\ 			setnz	cl ; movzx rcx, cl
+: setz0,   r0 .z setf,  movzxc, ;						\ 			setz	cl ; movzx rcx, cl
+: setl0,   r0 .l setf,  movzxc, ;						\ 			setl	cl ; movzx rcx, cl
+
+:: =       code #1 r1 load, r1 r0 cmp, setz0, off, ret,		\ ( a b -- a=b )	Compare two top elements, return 1 if equal and 0 otherwise
+:: <       code #1 r1 load, r1 r0 cmp, setl0, off, ret,		\ ( a b -- a<b )	
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
 : skip,    48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
@@ -399,6 +456,14 @@
 	   1+ ;
 : #aligned >2^ | negate >< 1- >>> + and ;			\ ( a # -- a' )		Align A to #'s nearest power of 2 bytes
 
+: char     bl word count _ c@ ;
+: [char]   char [compile] literal ; immediate
+
+: ,"       [char] " word count 1+ >< 1- >< here >< | 		\ ( "ccc" -- )		Compiles byte-counted string at HERE
+           allot cmove ; 
+: ,0"      [char] " word count here >< |			\ ( "ccc" -- )		Compiles zero-terminated string at HERE
+           allot cmove 0 c, ;
+
 								\\ Stack									_stack
 								\ Structure: pointer limit data...
 : stack    0 , | , cells allot does> ;				\ ( n -- ) ( -- stack )	Stack N cells size
@@ -425,42 +490,45 @@
 : struct   create 				                \ ( "<name>" -- xt )	Structure is a vocabulary, also holding previous context and size
            here current @ | , , 0 , 0 ,				\ 			latest, parent, size, packed,
 	   latest context !
-           does> context ! ;					\ ( -- xt )		Address of the size field
+           does> context ! ;
 
 : packed   1 context @ cell+ cell+ cell+ ! ;			\ ( -- )		Marks structure as packed
 
-: field	   >< | context ! definitions create			\ ( a field-size -- )	Defines a field in current structure (sets context to strucuture vocabulary)
+: field	   >< | current ! create				\ ( a field-size -- )	Defines a field in current structure (sets context to strucuture vocabulary)
            | cell+ cell+ | cell+ @ >< | >r @ ><
 	   if else >>| >2^ #aligned then
 	   | ,  >>> | , + r> !
 	   does> | @ >< cell+ @ ;				\ ( a -- a' size )	Returns address relative to structure start and field size
 
-: ;struct _ current @ cell+ @ context ! definitions ;		\ ( a -- ) 		Restores context to the parent vocabulary
+: ;struct  _ current @ cell+ @ context ! definitions ;		\ ( a -- ) 		Restores context to the parent vocabulary
 
-: struct: create context @ , here context @ cell+ cell+ @ 
-          0 fill
-          does> | @ context ! cell+ ;
+: #struct  context @ cell+ cell+ @ ;				\ ( a -- # )		Returns structure size
 
-: #@      \ ( a # -- v )
-	  | 1 = if _ c@ else
-	  | 2 = if _ 2@ else
-	  | 3 = if _ | 2@ >< 2 + c@ 10 shl + else
-	  | 4 = if _ 4@ else
-	  | 5 = if _ | 4@ >< 4 + c@ 20 shl + else
-	  | 6 = if _ | 4@ >< 4 + 2@ 20 shl + else
-	  | 7 = if _ | 4@ >< 4 + | { 2@ 20 shl + } 1+ c@ 30 shl + else
-	  | 8 = if _ @ else bad515e01 574c7 .abort
-	  then then then then then then then then ;
+: struct:  create context @ , here context @ cell+ cell+ @ 
+           | allot
+           0 fill
+           does> | @ context ! cell+ ;
 
-: #!      \ ( v a # -- )
-	  | 1 = if _ c! else
-	  | 2 = if _ 2! else
-	  | 3 = if _ >|>| 2! >< 10 sar >< 2 + c! else
-	  | 4 = if _ 4! else
-	  | 5 = if _ >|>| 4! >< 20 sar >< 4 + c! else
-	  | 6 = if _ >|>| 4! >< 20 sar >< 4 + 2! else
-	  | 7 = if _ >|>| 4! >< 20 sar >< 4 + >|>| 2! >< 30 sar >< 1+ c! else
-	  | 8 = if _ ! else .. bad515e01 574c7 .abort
-	  then then then then then then then then ;
-: .@      { >| + } #@ >< ;
-: .!      { >>| + } #! ;
+: #@       \ ( a # -- v )
+	   | 1 = if _ c@ else
+	   | 2 = if _ 2@ else
+	   | 3 = if _ | 2@ >< 2 + c@ 10 shl + else
+	   | 4 = if _ 4@ else
+	   | 5 = if _ | 4@ >< 4 + c@ 20 shl + else
+	   | 6 = if _ | 4@ >< 4 + 2@ 20 shl + else
+	   | 7 = if _ | 4@ >< 4 + | { 2@ 20 shl + } 1+ c@ 30 shl + else
+	   | 8 = if _ @ else bad515e01 574c7 .abort
+	   then then then then then then then then ;
+         
+: #!       \ ( v a # -- )
+	   | 1 = if _ c! else
+	   | 2 = if _ 2! else
+	   | 3 = if _ >|>| 2! >< 10 sar >< 2 + c! else
+	   | 4 = if _ 4! else
+	   | 5 = if _ >|>| 4! >< 20 sar >< 4 + c! else
+	   | 6 = if _ >|>| 4! >< 20 sar >< 4 + 2! else
+	   | 7 = if _ >|>| 4! >< 20 sar >< 4 + >|>| 2! >< 30 sar >< 1+ c! else
+	   | 8 = if _ ! else .. bad515e01 574c7 .abort
+	   then then then then then then then then ;
+: .@       { >| + } #@ >< ;
+: .!       { >>| + } #! ;
