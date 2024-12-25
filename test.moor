@@ -14,6 +14,39 @@ ff ofs-is-long ..
 -80 ofs-is-long .. 
 -81 ofs-is-long .. 
 
+struct q1 packed
+   1 field .a1
+   7 field .a3
+   4 field .a4
+   cell field .acell
+;struct
+
+q1 struct: mystruct
+mystruct
+10		 .a1	.! 
+-1	 	 .a3	.! 
+11223344 	 .a4	.! 
+123456789abcd .acell	.! 
+_
+
+mystruct .a1 .@ .a3 .@ .a4 .@ .acell .@ _
+
+0 4 #aligned . 0 1 #aligned . 0 8 #aligned . cr
+1 4 #aligned . 1 1 #aligned . 1 8 #aligned . cr
+7 4 #aligned . 7 1 #aligned . 7 8 #aligned . cr
+7 100 #aligned . 7 100 #aligned . 7 100 #aligned . cr
+
+0 >2^ .. cr
+1 >2^ .. cr
+2 >2^ .. cr
+3 >2^ .. cr
+4 >2^ .. cr
+5 >2^ .. cr
+6 >2^ .. cr
+7 >2^ .. cr
+8 >2^ .. cr
+9 >2^ .. cr
+
 
 								\\ Simpler examples, w/o Phi junctions
 
