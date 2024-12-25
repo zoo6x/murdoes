@@ -3,6 +3,9 @@ xwin definitions
 
 vocabulary internal
 internal definitions
+green words norm 
+: loc. [ current @  compile, ] ; immediate
+	cr white .S norm
 								\\ Syscalls
 : read		0 syscall3 ;
 : write		1 syscall3 ;
@@ -55,9 +58,12 @@ struct xcb_setup_response internal
     uint8_t	pad1_3
     uint8_t	pad1_4
 ;struct    
-
 								\\ Variables and Buffers
-:: xsocket -1 var 
+:: xsocket	-1 var 
+:: id_base	 0 var
+:: id_mask	 0 var
+:: window_root_id -1 var
+:: root_visual_id -1 var
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -68,21 +74,32 @@ char l	byte_order .!
 0b	protocol_major_version .!
 _
 
-xsetup protocol_major_version .@  pad1_1 .@  pad1_2 .@  _ .S
-
-
-:: xsetup_response adr 4000 allot
+xcb_setup_response struct: xsetup_response adr 4000 xcb_setup_response #struct - allot
 
 
 
 xwin definitions internal
 
+: req. xcb_setup_request ; immediate
+: res. xcb_setup_response ; immediate
+
+
 : XConnect
+	cr white .S norm
 	0 SOCK_STREAM AF_UNIX socket				?? | 0 < ?? if abort" Failed to create socket" then
 	xsocket !
         #sockaddr_un xsockaddr xsocket @ connect 		?? | 0 < ?? if abort" Failed to connect" then _
 	xcb_setup_request #struct xsetup xsocket @ write	?? | 0 < ?? if abort" Failed to write setup request" then _
-	4000 xsetup_response xsocket @ red ." A" .S dummy read ." B"			?? | 0 < ?? if abort" Failed to read setup response" then _
+	4000 xsetup_response xsocket @ read 			?? | 0 < ?? if abort" Failed to read setup response" then _
+	cr white .S norm
+	xsetup_response res. status .@ ><	?? 0 = if abort" Setup response status 'Failed'" then
+
+	res. resource_id_base .@ >< ?? [ internal ] id_base !
+	res. resource_id_mask .@ >< ?? [ internal ] id_mask !
+	res. vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl >< cr blue .S norm 
+	[ internal ] xcb_setup_response #struct green .S norm + + + | ?? 4@ ?? window_root_id ! 20 + 4@ ?? root_visual_id !
+
+
 	
 ;	
 
