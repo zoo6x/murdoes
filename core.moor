@@ -389,6 +389,7 @@
 								\\ Memory									_memory
 : fill     <<< for >|>| c! 1+ over _ _ ;			\ ( a n c -- )	Fill N bytes from address A with character C
 : 1+!      | @ 1+ >< ! ;				 	\ ( a -- )		Increment variable at A
+: #aligned | negate >< 1- >>> + and ;				\ ( a # -- a' )	Aligns A to # bytes. # must be a power of 2
 
 								\\ Stack									_stack
 								\ Structure: pointer limit data...
@@ -414,12 +415,25 @@
 								\\ Structures
 
 : struct  create 				                \ ( "<name>" -- xt )	Structure is a vocabulary, also holding previous context and size
-          here current @ | , , 0 , 
+          here current @ | , , 0 , 0 ,				\ 			latest, parent, size, packed,
 	  latest context !
           does> context ! ;					\ ( -- xt )		Address of the size field
 
+: packed  1 context @ cell+ cell+ cell+ ! ;			\ ( -- )		Marks structure as packed
+
 : field	  >< | context ! definitions create			\ ( a field-size -- )	Defines a field in current structure (sets context to strucuture vocabulary)
-          | cell+ cell+ >>> >< | @ | , >>> + >< !
+          | cell+ cell+ | cell+ @ >< | >r @ ><
+	  cr yellow .S norm 
+	  if else >>| #aligned then
+	  | ,
+	  cr red .S norm 
+
+	  >>> | 
+	  cr green .S norm 
+	  ,
+	  + r>
+	  cr purple .S norm 
+	  !
 	  does> @ ;						\ ( a -- )		Returns address relative to structure start
 
 : ;struct _ current @ cell+ @ context ! definitions ;		\ ( a -- ) 		Restores context to the parent vocabulary
@@ -431,12 +445,14 @@
 : .@      cr .S >| + @ >< ;
 : .!      cr .S { >| } + ! ;
 
+cr .( struct q1)
 struct q1
-   cell field .a1
-   cell field .a3
+   cr .S cell field .a1
+   cr .S cell field .a3
    cell field .a4
    cell field .acell
 ;struct
+cr
 
 norm words
 
@@ -449,7 +465,15 @@ cr 123456789abcd .acell	.!
 _
 
 green words norm
-mystruct .a1 .@ .a3 .@ .a4 .@ .acell .@ _ .S
+mystruct .a1 .@ .a3 .@ .a4 .@ .acell .@ _ cr .S
+
+cr cr yellow
+0 4 #aligned . 0 1 #aligned . 0 8 #aligned . cr
+1 4 #aligned . 1 1 #aligned . 1 8 #aligned . cr
+7 4 #aligned . 7 1 #aligned . 7 8 #aligned . cr
+7 100 #aligned . 7 100 #aligned . 7 100 #aligned . cr
+
+
 
 
 
