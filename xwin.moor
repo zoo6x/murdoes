@@ -70,7 +70,6 @@ struct xcb_create_gc_request internal
     uint32_t       value_mask
     uint32_t       value1
     uint32_t       value2
-    uint32_t       value3
 :: XCB_CREATE_GC 37 val
 :: BG 4 val
 :: FG 8 val
@@ -102,9 +101,6 @@ xcb_create_gc_request struct: xcreategc_request
 
 xwin definitions internal
 
-: setup_req. xcb_setup_request ; immediate
-: setup_res. xcb_setup_response ; immediate
-
 : XNextId
         id @ | id_mask @ and id_base @ or >< 1+ id ! ;
 : XSocket
@@ -119,18 +115,18 @@ xwin definitions internal
 
 	xcb_setup_request #struct xsetup XWrite			?? | 0 < ?? if abort" Failed to write setup request" then _
 	4000 xsetup_response XRead	 			?? | 0 < ?? if abort" Failed to read setup response" then _
-	xsetup_response setup_res. status .@ ><			??   0 =    if abort" Setup response status 'Failed'" then
+	xsetup_response [ xcb_setup_response ] status .@ ><	??   0 =    if abort" Setup response status 'Failed'" then
 
-	setup_res. resource_id_base .@ >< ?? [ internal ] id_base !
-	setup_res. resource_id_mask .@ >< ?? [ internal ] id_mask !
-	setup_res. vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl ><
+	[ internal xcb_setup_response ] resource_id_base .@ >< ?? [ internal ] id_base !
+	[ internal xcb_setup_response ] resource_id_mask .@ >< ?? [ internal ] id_mask !
+	[ internal xcb_setup_response ] vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl ><
 	[ internal ] xcb_setup_response #struct + + + | ?? 4@ ?? window_root_id ! 20 + 4@ ?? root_visual_id !
 
 	XNextId | gc_id ! XNextId | drawable_id ! ><
 
 	xcreategc_request [ xcb_create_gc_request ] cr yellow ." xcb_create_gc_request " norm
 	XCB_CREATE_GC ?? major_opcode .! 0 pad0 .! #struct ?? 2/ 2/ ?? length .!
-	>< ?? cid .! >< ?? drawable .! BG FG or FONT or ?? value_mask .! 00ffff value1 .! 0 value2 .! XNextId value3 .!
+	>< ?? cid .! >< ?? drawable .! BG FG or ?? value_mask .! 00ffff value1 .! ff0000 value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create GC request" then
 
 
