@@ -3,25 +3,39 @@ xwin definitions
 
 vocabulary internal
 internal definitions
-green words norm 
-: loc. [ current @  compile, ] ; immediate
-	cr white .S norm
 								\\ Syscalls
+								\ https://syscalls.mebeim.net/?table=x86/64/x64/latest
 : read		0 syscall3 ;
 : write		1 syscall3 ;
-:: SYSCALL_POLL		 7 val
+: poll		7 syscall3 ;
 : socket	29 syscall3 ;
 : connect	2a syscall3 ;
-:: SYSCALL_FCNTL	48 val
+: fcntl		48 syscall3 ;
 
 :: AF_UNIX		 1 val
 :: SOCK_STREAM		 1 val
+:: F_GETFL 		 3 val
+:: F_SETFL		 4 val
+:: O_NONBLOCK          800 val
+
+: int           4 field ;
+: short         2 field ;
+struct pollfd internal
+    int		fd
+    short	events
+    short	revents
+
+    :: POLLIN	 1 val    
+    :: POLLERR   8 val
+    :: POLLHUP  10 val
+;struct
+
 								\\ X Protocol Definitions
 : uint8_t	1 field ;
-: xcb_keycode_t	1 field ;
 : uint16_t	2 field ;
 : int16_t	2 field ;
 : uint32_t	4 field ;
+: xcb_keycode_t	uint8_t ;
 : xcb_gcontext_t uint32_t ;
 : xcb_drawable_t uint32_t ;
 : xcb_window_t uint32_t ;
@@ -137,11 +151,11 @@ char l	byte_order .!
 _
 
 xcb_setup_response struct: xsetup_response adr 4000 xcb_setup_response #struct - allot
-
 xcb_create_gc_request struct: xcreategc_request
 xcb_create_window_request struct: xcreatewindow_request
 xcb_map_window_request struct: xmapwindow_request
-
+pollfd struct: xpoll
+:: xreply adr 20 allot
 
 xwin definitions internal
 
@@ -152,8 +166,23 @@ xwin definitions internal
 	xsocket ! ;
 : XConnect
         #sockaddr_un xsockaddr xsocket @ connect 		?? | 0 < ?? if abort" Failed to connect" then _ ;
-: XWrite xsocket @ cr white .S norm write ;
+: XWrite xsocket @ write ;
 : XRead  xsocket @ read ;
+: XNonBlock
+	yellow cr ." non-blocking socket " norm
+	0 F_GETFL xsocket @ fcntl				?? | 0 <    if abort" Failed to fcntl F_GET" then
+	O_NONBLOCK or F_SETFL xsocket @ fcntl			?? | 0 <    if abort" Failed to fcntl F_SET" then _ ; 
+: XPollInit
+	xpoll xsocket @ [ pollfd ] fd .! POLLIN events .! _
+	[ internal ]
+;
+: XPoll -1 1 xpoll poll 					| 0 <=   if abort" Failed to poll" then _ 
+        xpoll [ pollfd ] revents .@ _				| POLLERR = if abort" POLLERR" then
+								     POLLHUP = if abort" POLLHUP" then
+	[ internal ]
+	20 xreply XRead						|  0 <   if abort" Failed to read event reply" then
+	0 = if 0 0 else xreply c@ 1 then
+;
 : XSetup
 	xcb_setup_request #struct xsetup XWrite			?? | 0 < ?? if abort" Failed to write setup request" then _
 	4000 xsetup_response XRead	 			?? | 0 < ?? if abort" Failed to read setup response" then _
@@ -189,18 +218,24 @@ xwin definitions internal
 	#struct >< XWrite					?? #struct <> if abort" Failed to write map window request" then
 	[ internal ]
 ;
-: XInit
+: XPollEvents
+	XNonBlock
+	XPollInit
+	yellow cr ." Polling events... " norm cr
+	begin 
+		XPoll 
+	while
+		purple | . norm	
+	repeat
+;
+: XRun
         XSocket XConnect XSetup
-
 	XNextId | gc_id ! XNextId | drawable_id ! ><
-	
 	XCreateGC
-
 	XNextId | window_id !
-
-	XCreateWindow
-	XMapWindow
+	XCreateWindow XMapWindow
+	XPollEvents
 ; 	
 
-XInit
+XRun
 
