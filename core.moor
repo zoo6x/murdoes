@@ -386,6 +386,7 @@
 : setl0,   r0 .l setf,  movzxc, ;						\ 			setl	cl ; movzx rcx, cl
 
 :: =       code #1 r1 load, r1 r0 cmp, setz0, off, ret,		\ ( a b -- a=b )	Compare two top elements, return 1 if equal and 0 otherwise
+:: <>      code #1 r1 load, r1 r0 cmp, setnz0, off, ret,	\ ( a b -- a<>b )	Compare two top elements, return 1 if not equal and 0 otherwise
 :: <       code #1 r1 load, r1 r0 cmp, setl0, off, ret,		\ ( a b -- a<b )	
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
