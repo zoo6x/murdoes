@@ -20,9 +20,12 @@ green words norm
 : uint8_t	1 field ;
 : xcb_keycode_t	1 field ;
 : uint16_t	2 field ;
+: int16_t	2 field ;
 : uint32_t	4 field ;
 : xcb_gcontext_t uint32_t ;
 : xcb_drawable_t uint32_t ;
+: xcb_window_t uint32_t ;
+: xcb_visualid_t uint32_t ;
 
 struct xcb_setup_request internal
     uint8_t	byte_order
@@ -70,11 +73,49 @@ struct xcb_create_gc_request internal
     uint32_t       value_mask
     uint32_t       value1
     uint32_t       value2
-:: XCB_CREATE_GC 37 val
-:: BG 4 val
-:: FG 8 val
-:: FONT 4000 val
+
+    :: XCB_CREATE_GC 37 val
+    :: BG 4 val
+    :: FG 8 val
+    :: FONT 4000 val
+;struct
+
+struct xcb_create_window_request internal
+    uint8_t        major_opcode
+    uint8_t        depth
+    uint16_t       length
+    xcb_window_t   wid
+    xcb_window_t   parent
+    int16_t        x
+    int16_t        y
+    uint16_t       width
+    uint16_t       height
+    uint16_t       border_width
+    uint16_t       _class
+    xcb_visualid_t visual
+    uint32_t       value_mask
+    uint32_t       value1
+    uint32_t       value2
+
+    :: XCB_CREATE_WINDOW 1 val
+    
+    :: FLAG_WIN_BG_COLOR 2 val
+    :: FLAG_WIN_EVENT  800 val
+
+    :: EVENT_KEY_RELEASE       2 val
+    :: EVENT_EXPOSURE       8000 val
+;struct
+
+
+struct xcb_map_window_request internal
+    uint8_t      major_opcode
+    uint8_t      pad0
+    uint16_t     length
+    xcb_window_t window
+
+    :: XCB_MAP_WINDOW 8 val
 ;struct    
+
 								\\ Variables and Buffers
 :: xsocket	  -1 var 
 :: id_base	   0 var
@@ -84,6 +125,7 @@ struct xcb_create_gc_request internal
 :: id		   0 var
 :: gc_id	   0 var
 :: drawable_id     0 var
+:: window_id     0 var
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -97,6 +139,8 @@ _
 xcb_setup_response struct: xsetup_response adr 4000 xcb_setup_response #struct - allot
 
 xcb_create_gc_request struct: xcreategc_request
+xcb_create_window_request struct: xcreatewindow_request
+xcb_map_window_request struct: xmapwindow_request
 
 
 xwin definitions internal
@@ -108,11 +152,9 @@ xwin definitions internal
 	xsocket ! ;
 : XConnect
         #sockaddr_un xsockaddr xsocket @ connect 		?? | 0 < ?? if abort" Failed to connect" then _ ;
-: XWrite xsocket @ cr white .S norm write ;	
-: XRead  xsocket @ read ;	
-: XInit
-        XSocket XConnect
-
+: XWrite xsocket @ cr white .S norm write ;
+: XRead  xsocket @ read ;
+: XSetup
 	xcb_setup_request #struct xsetup XWrite			?? | 0 < ?? if abort" Failed to write setup request" then _
 	4000 xsetup_response XRead	 			?? | 0 < ?? if abort" Failed to read setup response" then _
 	xsetup_response [ xcb_setup_response ] status .@ ><	??   0 =    if abort" Setup response status 'Failed'" then
@@ -121,18 +163,44 @@ xwin definitions internal
 	[ internal xcb_setup_response ] resource_id_mask .@ >< ?? [ internal ] id_mask !
 	[ internal xcb_setup_response ] vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl ><
 	[ internal ] xcb_setup_response #struct + + + | ?? 4@ ?? window_root_id ! 20 + 4@ ?? root_visual_id !
-
-	XNextId | gc_id ! XNextId | drawable_id ! ><
-
-	xcreategc_request [ xcb_create_gc_request ] cr yellow ." xcb_create_gc_request " norm
-	XCB_CREATE_GC ?? major_opcode .! 0 pad0 .! #struct ?? 2/ 2/ ?? length .!
+;
+: XCreateGC
+	xcreategc_request [ xcb_create_gc_request ]		cr yellow ." xcb_create_gc_request " norm
+	XCB_CREATE_GC ?? major_opcode .! #struct ?? 2/ 2/ ?? length .!
 	>< ?? cid .! >< ?? drawable .! BG FG or ?? value_mask .! 00ffff value1 .! ff0000 value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create GC request" then
+	[ internal ]
+;
+: XCreateWindow
+	xcreatewindow_request [ xcb_create_window_request ]	cr yellow ." xcb_create_window_request " norm
+	XCB_CREATE_WINDOW major_opcode .! 0 depth .! #struct 2/ 2/ length .!
+	>< wid .! 
+	[ internal ] window_root_id @ [ xcb_create_window_request ] parent .!
+	100 x .! 100 y .! 300 width .! 200 height .! 1 border_width .! 1 _class .!
+	[ internal ] root_visual_id @ [ xcb_create_window_request ] visual .!
+	FLAG_WIN_BG_COLOR FLAG_WIN_EVENT or value_mask .! ff0000 value1 .! EVENT_KEY_RELEASE EVENT_EXPOSURE or value2 .!
+	#struct >< XWrite					?? #struct <> if abort" Failed to write create window request" then
+	[ internal ]
+;
+: XMapWindow
+	xmapwindow_request [ xcb_map_window_request ]
+	XCB_MAP_WINDOW major_opcode .! #struct 2/ 2/ length .!
+	[ internal ] window_id @ [ xcb_map_window_request ] window .!
+	#struct >< XWrite					?? #struct <> if abort" Failed to write map window request" then
+	[ internal ]
+;
+: XInit
+        XSocket XConnect XSetup
 
-
-
+	XNextId | gc_id ! XNextId | drawable_id ! ><
 	
-;	
+	XCreateGC
+
+	XNextId | window_id !
+
+	XCreateWindow
+	XMapWindow
+; 	
 
 XInit
 
