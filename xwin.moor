@@ -40,6 +40,7 @@ struct pollfd internal
 : xcb_drawable_t uint32_t ;
 : xcb_window_t uint32_t ;
 : xcb_visualid_t uint32_t ;
+: xcb_timestamp_t uint32_t ;
 
 struct xcb_setup_request internal
     uint8_t	byte_order
@@ -116,10 +117,14 @@ struct xcb_create_window_request internal
     :: FLAG_WIN_BG_COLOR 2 val
     :: FLAG_WIN_EVENT  800 val
 
+    :: EVENT_KEY_PRESS         1 val
     :: EVENT_KEY_RELEASE       2 val
+    :: EVENT_BUTTON_PRESS      4 val
+    :: EVENT_BUTTON_RELEASE    8 val
+    :: EVENT_POINTER_MOTION   40 val
     :: EVENT_EXPOSURE       8000 val
+    :: EVENT_RESIZE        40000 val
 ;struct
-
 
 struct xcb_map_window_request internal
     uint8_t      major_opcode
@@ -130,6 +135,22 @@ struct xcb_map_window_request internal
     :: XCB_MAP_WINDOW 8 val
 ;struct    
 
+struct xcb_event internal
+    uint8_t         response_type
+    xcb_keycode_t   detail
+    uint16_t        sequence
+    xcb_timestamp_t time
+    xcb_window_t    root
+    xcb_window_t    event
+    xcb_window_t    child
+    int16_t         root_x
+    int16_t         root_y
+    int16_t         event_x
+    int16_t         event_y
+    uint16_t        state
+    uint8_t         same_screen
+    uint8_t         pad0
+;struct
 								\\ Variables and Buffers
 :: xsocket	  -1 var 
 :: id_base	   0 var
@@ -139,7 +160,12 @@ struct xcb_map_window_request internal
 :: id		   0 var
 :: gc_id	   0 var
 :: drawable_id     0 var
-:: window_id     0 var
+:: window_id       0 var
+
+:: event	   0 var
+:: detail          0 var
+:: x		   0 var
+:: y		   0 var
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -155,7 +181,7 @@ xcb_create_gc_request struct: xcreategc_request
 xcb_create_window_request struct: xcreatewindow_request
 xcb_map_window_request struct: xmapwindow_request
 pollfd struct: xpoll
-:: xreply adr 20 allot
+xcb_event struct: xevent
 
 xwin definitions internal
 
@@ -178,10 +204,19 @@ xwin definitions internal
 ;
 : XPoll -1 1 xpoll poll 					| 0 <=   if abort" Failed to poll" then _ 
         xpoll [ pollfd ] revents .@ _				| POLLERR = if abort" POLLERR" then
-								     POLLHUP = if abort" POLLHUP" then
+							          POLLHUP = if abort" POLLHUP" then
 	[ internal ]
-	20 xreply XRead						|  0 <   if abort" Failed to read event reply" then
-	0 = if 0 0 else xreply c@ 1 then
+	20 xevent XRead						|  0 <   if abort" Failed to read event reply" then
+	0 = if
+		0 0
+	else 
+		xevent
+		[ xcb_event ] response_type .@ >< [ internal ] event !
+		[ xcb_event ] detail .@ >< [ internal ] detail !
+		[ xcb_event ] event_x .@ >< [ internal ] x !
+		[ xcb_event ] event_y .@ >< [ internal ] y !
+		event @ 1
+	then
 ;
 : XSetup
 	xcb_setup_request #struct xsetup XWrite			?? | 0 < ?? if abort" Failed to write setup request" then _
@@ -207,7 +242,10 @@ xwin definitions internal
 	[ internal ] window_root_id @ [ xcb_create_window_request ] parent .!
 	100 x .! 100 y .! 300 width .! 200 height .! 1 border_width .! 1 _class .!
 	[ internal ] root_visual_id @ [ xcb_create_window_request ] visual .!
-	FLAG_WIN_BG_COLOR FLAG_WIN_EVENT or value_mask .! ff0000 value1 .! EVENT_KEY_RELEASE EVENT_EXPOSURE or value2 .!
+	FLAG_WIN_BG_COLOR FLAG_WIN_EVENT or value_mask .! ff0000 value1 .!
+	EVENT_KEY_PRESS EVENT_KEY_RELEASE or EVENT_EXPOSURE or EVENT_BUTTON_PRESS or EVENT_BUTTON_RELEASE or EVENT_POINTER_MOTION or
+	\ EVENT_RESIZE or
+	value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create window request" then
 	[ internal ]
 ;
@@ -225,7 +263,8 @@ xwin definitions internal
 	begin 
 		XPoll 
 	while
-		purple | . norm	
+		_
+		cr purple event @ . white detail @ . tab green x @ . yellow ." , " green y @ . norm
 	repeat
 ;
 : XRun
