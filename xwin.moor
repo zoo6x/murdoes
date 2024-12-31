@@ -21,6 +21,8 @@ green words norm
 : xcb_keycode_t	1 field ;
 : uint16_t	2 field ;
 : uint32_t	4 field ;
+: xcb_gcontext_t uint32_t ;
+: xcb_drawable_t uint32_t ;
 
 struct xcb_setup_request internal
     uint8_t	byte_order
@@ -57,13 +59,32 @@ struct xcb_setup_response internal
     uint8_t	pad1_2
     uint8_t	pad1_3
     uint8_t	pad1_4
+;struct
+
+struct xcb_create_gc_request internal
+    uint8_t        major_opcode
+    uint8_t        pad0
+    uint16_t       length
+    xcb_gcontext_t cid
+    xcb_drawable_t drawable
+    uint32_t       value_mask
+    uint32_t       value1
+    uint32_t       value2
+    uint32_t       value3
+:: XCB_CREATE_GC 37 val
+:: BG 4 val
+:: FG 8 val
+:: FONT 4000 val
 ;struct    
 								\\ Variables and Buffers
-:: xsocket	-1 var 
-:: id_base	 0 var
-:: id_mask	 0 var
+:: xsocket	  -1 var 
+:: id_base	   0 var
+:: id_mask	   0 var
 :: window_root_id -1 var
 :: root_visual_id -1 var
+:: id		   0 var
+:: gc_id	   0 var
+:: drawable_id     0 var
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -76,32 +97,46 @@ _
 
 xcb_setup_response struct: xsetup_response adr 4000 xcb_setup_response #struct - allot
 
+xcb_create_gc_request struct: xcreategc_request
 
 
 xwin definitions internal
 
-: req. xcb_setup_request ; immediate
-: res. xcb_setup_response ; immediate
+: setup_req. xcb_setup_request ; immediate
+: setup_res. xcb_setup_response ; immediate
 
-
-: XConnect
-	cr white .S norm
+: XNextId
+        id @ | id_mask @ and id_base @ or >< 1+ id ! ;
+: XSocket
 	0 SOCK_STREAM AF_UNIX socket				?? | 0 < ?? if abort" Failed to create socket" then
-	xsocket !
-        #sockaddr_un xsockaddr xsocket @ connect 		?? | 0 < ?? if abort" Failed to connect" then _
-	xcb_setup_request #struct xsetup xsocket @ write	?? | 0 < ?? if abort" Failed to write setup request" then _
-	4000 xsetup_response xsocket @ read 			?? | 0 < ?? if abort" Failed to read setup response" then _
-	cr white .S norm
-	xsetup_response res. status .@ ><	?? 0 = if abort" Setup response status 'Failed'" then
+	xsocket ! ;
+: XConnect
+        #sockaddr_un xsockaddr xsocket @ connect 		?? | 0 < ?? if abort" Failed to connect" then _ ;
+: XWrite xsocket @ cr white .S norm write ;	
+: XRead  xsocket @ read ;	
+: XInit
+        XSocket XConnect
 
-	res. resource_id_base .@ >< ?? [ internal ] id_base !
-	res. resource_id_mask .@ >< ?? [ internal ] id_mask !
-	res. vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl >< cr blue .S norm 
-	[ internal ] xcb_setup_response #struct green .S norm + + + | ?? 4@ ?? window_root_id ! 20 + 4@ ?? root_visual_id !
+	xcb_setup_request #struct xsetup XWrite			?? | 0 < ?? if abort" Failed to write setup request" then _
+	4000 xsetup_response XRead	 			?? | 0 < ?? if abort" Failed to read setup response" then _
+	xsetup_response setup_res. status .@ ><			??   0 =    if abort" Setup response status 'Failed'" then
+
+	setup_res. resource_id_base .@ >< ?? [ internal ] id_base !
+	setup_res. resource_id_mask .@ >< ?? [ internal ] id_mask !
+	setup_res. vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl ><
+	[ internal ] xcb_setup_response #struct + + + | ?? 4@ ?? window_root_id ! 20 + 4@ ?? root_visual_id !
+
+	XNextId | gc_id ! XNextId | drawable_id ! ><
+
+	xcreategc_request [ xcb_create_gc_request ] cr yellow ." xcb_create_gc_request " norm
+	XCB_CREATE_GC ?? major_opcode .! 0 pad0 .! #struct ?? 2/ 2/ ?? length .!
+	>< ?? cid .! >< ?? drawable .! BG FG or FONT or ?? value_mask .! 00ffff value1 .! 0 value2 .! XNextId value3 .!
+	#struct >< XWrite					?? #struct <> if abort" Failed to write create GC request" then
+
 
 
 	
 ;	
 
-XConnect
+XInit
 
