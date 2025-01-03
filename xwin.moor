@@ -1,4 +1,7 @@
+forth definitions
+
 vocabulary xwin
+
 xwin definitions
 
 vocabulary internal
@@ -334,7 +337,7 @@ xcb_poly_line_request struct: xpolyline_request
 	0 border_width .! 1 _class .!
 	root_visual_id @ visual .!
 	WIN_BG_COLOR \ WIN_OVERRIDE_REDIRECT or 
-	WIN_EVENT or value_mask .! 000000 value1 .!
+	WIN_EVENT or value_mask .! 002b36 value1 .!
 	\ 1 value2 .!
 	EVENT_KEY_PRESS EVENT_KEY_RELEASE or EVENT_EXPOSURE or EVENT_BUTTON_PRESS or EVENT_BUTTON_RELEASE or EVENT_POINTER_MOTION or
 	EVENT_RESIZE or
@@ -403,7 +406,11 @@ xcb_poly_line_request struct: xpolyline_request
 			| KEY_LEFT  = if im_x | @ 10 - >< ! else
 			then then then then then
 			XChangeColors
-			100 im_x @ + 200 im_y @ + 10 10 xputimage_request #struct + XDrawImage
+			\ 100 im_x @ + 200 im_y @ + 10 10 xputimage_request #struct + XDrawImage
+			[ fonts ] 002b36 font-bg-color ! 
+			100 im_x @ + 200 im_y @ + 10 10 ff0000 font-fg-color ! [char] A glyph XDrawImage
+			110 im_x @ + 200 im_y @ + 10 10 ffff00 font-fg-color ! [char] B glyph XDrawImage
+			120 im_x @ + 200 im_y @ + 10 10 00ffff font-fg-color ! [char] C glyph XDrawImage
 			_
 		then
 		| Expose   = if
