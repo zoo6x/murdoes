@@ -207,6 +207,13 @@ struct xcb_expose_event internal
 :: ButtonRelease 5 val
 :: Expose	c val
 :: Resize	19 val
+
+:: KEY_ESC	9 val
+:: KEY_UP	6f val
+:: KEY_DOWN	74 val
+:: KEY_LEFT	71 val
+:: KEY_RIGHT	72 val
+
 								\\ Variables and Buffers
 
 
@@ -266,10 +273,10 @@ xcb_poly_line_request struct: xpolyline_request
 : XPollInit
 	xpoll xsocket @ [ pollfd ] fd .! POLLIN events .! _
 ;
-: XPoll -1 1 xpoll poll 					| 0 <=   if abort" Failed to poll" then _ 
+: XPoll -1 1 xpoll poll 					|      0 <= if abort" Failed to poll" then _ 
         xpoll [ pollfd ] revents .@ _				| POLLERR = if abort" POLLERR" then
 							          POLLHUP = if abort" POLLHUP" then
-	20 xevent XRead						|  0 <   if abort" Failed to read event reply" then
+	20 xevent XRead						|       0 < if abort" Failed to read event reply" then
 	0 = if
 		0 0
 	else 
@@ -284,8 +291,8 @@ xcb_poly_line_request struct: xpolyline_request
 		| Resize = if _
 			0 _detail !
 			[ xcb_expose_event ]
-			width .@ >< _event_x !
-			height .@ >< _event_y !
+			x .@ >< _event_x !
+			y .@ >< _event_y !
 		else _
 			[ xcb_event ]
 			detail .@ >< _detail !
@@ -311,7 +318,7 @@ xcb_poly_line_request struct: xpolyline_request
 : XCreateGC
 	xcreategc_request [ xcb_create_gc_request ]		cr yellow ." xcb_create_gc_request " norm
 	XCB_CREATE_GC ?? major_opcode .! #struct ?? 2/ 2/ ?? length .!
-	>< ?? cid .! >< ?? drawable .! BG FG or ?? value_mask .! 00ffff value1 .! ff0000 value2 .!
+	>< ?? cid .! >< ?? drawable .! BG FG or ?? value_mask .! ff0000 value1 .! ff0000 value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create GC request" then
 ;
 : XCreateWindow
@@ -321,10 +328,10 @@ xcb_poly_line_request struct: xpolyline_request
 	window_root_id @ parent .!
 	\ 100 x .! 100 y .! 300 width .! 300 height .!
 	0 x .! 0 y .! WIDTH width .! HEIGHT height .!
-	1 border_width .! 1 _class .!
+	0 border_width .! 1 _class .!
 	root_visual_id @ visual .!
 	WIN_BG_COLOR \ WIN_OVERRIDE_REDIRECT or 
-	WIN_EVENT or value_mask .! ff7f00 value1 .!
+	WIN_EVENT or value_mask .! 000000 value1 .!
 	\ 1 value2 .!
 	EVENT_KEY_PRESS EVENT_KEY_RELEASE or EVENT_EXPOSURE or EVENT_BUTTON_PRESS or EVENT_BUTTON_RELEASE or EVENT_POINTER_MOTION or
 	EVENT_RESIZE or
@@ -337,26 +344,36 @@ xcb_poly_line_request struct: xpolyline_request
 	window_id @ window .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write map window request" then
 ;
+
+:: im_x 0 var
+:: im_y 0 var
+
+
 : XDrawImage
 	xputimage_request [ xcb_put_image_request ]		cr yellow ." xcb_put_image_request " norm
 	XCB_PUT_IMAGE major_opcode .! 2 format .! #struct 2/ 2/ 4000 + ?? length .!
 	drawable_id @ ?? drawable .!
 	gc_id @ ?? gc .!
-	200 width .!
-	20 height .!
-	0 dst_x .! 100 dst_y .! 0 left_pad .! 18 depth .!
-	cr green | 100 dump cr
+	80 width .!
+	80 height .!
+	0 im_x @ + dst_x .! 100 im_y @ + dst_y .! 0 left_pad .! 18 depth .!
 	\ #struct 10000 + ?? >< XWrite				 ?? #struct 10000 + <> if abort" Failed to write put image request" then
-	| #struct >< .S XWrite					 ?? #struct <> if abort" Failed to write put image request header" then
-	#struct + 10000 .S >< XWrite 				 ?? 10000   <> if abort" Failed to write put image request body" then
+	| #struct >< XWrite					 ?? #struct <> if abort" Failed to write put image request header" then
+	#struct + 10000 >< XWrite 				 ?? 10000   <> if abort" Failed to write put image request body" then
 ;
 : XPolyLine
 	xpolyline_request [ xcb_poly_line_request ]		cr yellow ." xcb_poly_line_request " norm
 	XCB_POLY_LINE major_opcode .! 0 coordinate_mode .! #struct 2/ 2/ length .!
-	drawable_id @ ?? drawable .!
-	gc_id @ ?? gc .!
+	drawable_id @ drawable .!  gc_id @ gc .!
 	50 x0 .! 50 y0 .! 250 x1 .! 250 y1 .!
 	#struct >< XWrite				 	?? #struct <> if abort" Failed to write poly line request" then
+;
+
+:: im_color 0 var
+
+: XChangeColors
+	xputimage_request #struct + | 8000 im_color @ fill 8000 + 8000 im_color @ 10 + fill
+	im_color | @ 8 + >< !
 ;
 : XPollEvents
 	\ XNonBlock
@@ -368,15 +385,23 @@ xcb_poly_line_request struct: xpolyline_request
 		_
 		cr purple _event @ . white _detail @ . tab green _event_x @ . bs yellow ." , " green _event_y @ . norm .S
 		_event @
-		| KeyPress = if _detail @ 9 = if exit then then	\ ESC
-		| Expose   = if XDrawImage XPolyLine then
+		| KeyPress = if _detail @ 
+			| KEY_ESC   = if [ here .. ]  _ exit else
+			| KEY_DOWN  = if im_y | @ 10 + >< ! else
+			| KEY_UP    = if im_y | @ 10 - >< ! else
+			| KEY_RIGHT = if im_x | @ 10 + >< ! else
+			| KEY_LEFT  = if im_x | @ 10 - >< ! else
+			then then then then then
+			XChangeColors
+			XDrawImage
+			_
+		then
+		| Expose   = if XPolyLine XDrawImage then
 		| Resize   = if then
 		_
 
 	repeat
 ;
-
-xwin definitions internal
 
 : XRun
         XSocket XConnect XSetup
@@ -387,7 +412,9 @@ xwin definitions internal
 	XPollEvents
 ; 	
 
-cr words
+xwin definitions internal
+
+: XRun XRun ;
 
 XRun
 
