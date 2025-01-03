@@ -372,8 +372,12 @@ xcb_poly_line_request struct: xpolyline_request
 :: im_color 0 var
 
 : XChangeColors
-	xputimage_request #struct + | 8000 im_color @ fill 8000 + 8000 im_color @ 10 + fill
+	xputimage_request #struct + | 8000 im_color @ fill 8000 + 8000 im_color @ 0 + fill
 	im_color | @ 8 + >< !
+
+	xputimage_request #struct +
+	   8000 2/ 2/ for | ff >< c! | 1+ ff >< c! 4 + over
+	   8000 2/ 2/ for | 1+ ff >< c! | 1+ 1+ ff >< c! 4 + over _
 ;
 : XPollEvents
 	\ XNonBlock
