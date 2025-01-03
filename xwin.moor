@@ -240,7 +240,7 @@ xcb_map_window_request struct: xmapwindow_request
 pollfd struct: xpoll
 xcb_event struct: xevent
 
-xcb_put_image_request struct: xputimage_request here 10000 allot 10000 55 fill
+xcb_put_image_request struct: xputimage_request here 10000 allot | 8000 55 fill 8000 + 8000 99 fill
 xcb_poly_line_request struct: xpolyline_request
 
 xwin definitions internal
@@ -287,6 +287,7 @@ xwin definitions internal
 ;
 : XSetup
 	xcb_setup_request #struct xsetup XWrite			?? | 0 < ?? if abort" Failed to write setup request" then _
+	purple cr ." Reading setup response..." norm
 	4000 xsetup_response XRead	 			?? | 0 < ?? if abort" Failed to read setup response" then _
 	xsetup_response [ xcb_setup_response ] status .@ ><	??   0 =    if abort" Setup response status 'Failed'" then
 
@@ -333,7 +334,9 @@ xwin definitions internal
 	[ internal ] 20 [ xcb_put_image_request ] height .!
 	0 dst_x .! 100 dst_y .! 0 left_pad .! 18 depth .!
 	cr green | 100 dump cr
-	#struct 10000 + ?? >< XWrite				 ?? #struct 10000 + <> if abort" Failed to write put image request" then
+	\ #struct 10000 + ?? >< XWrite				 ?? #struct 10000 + <> if abort" Failed to write put image request" then
+	| #struct >< .S XWrite					 ?? #struct <> if abort" Failed to write put image request header" then
+	#struct + 10000 .S >< XWrite 				 ?? 10000   <> if abort" Failed to write put image request body" then
 	[ internal ]
 ;
 : XPolyLine
