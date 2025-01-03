@@ -132,6 +132,12 @@ _exec:
 	push	rpc
 	mov	rpc, [rwork + rstate * 8 - 16 + 8]
 	jmp	rnext
+_thread:
+	push	rpc
+	mov	rpc, rtop
+	inc	rstack
+	mov	rtop, [rstack0 + rstack * 8]
+	jmp	rnext
 _does:
 	mov	qword ptr [rstack0 + rstack * 8], rtop
 	dec	rstack
@@ -357,6 +363,12 @@ word	execute
 	mov	rstate, [_state]
 
 	jmp	_doxt
+
+# THREAD ( pc -- )
+# Executes Forth word thread, specified by thread address. EXIT returns
+word	thread,,, thread, thread
+	jmp	_thread
+
 
 # EXIT
 # Exit current Forth word and return the the caller
