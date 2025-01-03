@@ -135,6 +135,38 @@ struct xcb_map_window_request internal
     :: XCB_MAP_WINDOW 8 val
 ;struct    
 
+struct xcb_put_image_request internal
+    uint8_t        major_opcode
+    uint8_t        format
+    uint16_t       length
+    xcb_drawable_t drawable
+    xcb_gcontext_t gc
+    uint16_t       width
+    uint16_t       height
+    int16_t        dst_x
+    int16_t        dst_y
+    uint8_t        left_pad
+    uint8_t        depth
+    uint8_t        pad0
+    uint8_t        pad1
+
+    :: XCB_PUT_IMAGE 48 val
+;struct
+
+struct xcb_poly_line_request internal
+    uint8_t        major_opcode
+    uint8_t        coordinate_mode
+    uint16_t       length
+    xcb_drawable_t drawable
+    xcb_gcontext_t gc
+    uint16_t	   x0
+    uint16_t	   y0
+    uint16_t	   x1
+    uint16_t	   y1
+
+    :: XCB_POLY_LINE 41 val
+;struct
+
 struct xcb_event internal
     uint8_t         response_type
     xcb_keycode_t   detail
@@ -151,7 +183,29 @@ struct xcb_event internal
     uint8_t         same_screen
     uint8_t         pad0
 ;struct
+
+struct xcb_expose_event internal
+    uint8_t      response_type
+    uint8_t      pad0
+    uint16_t     sequence
+    xcb_window_t window
+    uint16_t     x
+    uint16_t     y
+    uint16_t     width
+    uint16_t     height
+    uint16_t     count
+    uint8_t      pad1
+    uint8_t      pad2
+;struct
+
+:: KeyPress	2 val
+:: KeyRelease	3 val
+:: ButtonPress	4 val
+:: ButtonRelease 5 val
+:: Expose	c val
 								\\ Variables and Buffers
+
+
 :: xsocket	  -1 var 
 :: id_base	   0 var
 :: id_mask	   0 var
@@ -164,8 +218,11 @@ struct xcb_event internal
 
 :: event	   0 var
 :: detail          0 var
-:: x		   0 var
-:: y		   0 var
+:: event_x	   0 var
+:: event_y	   0 var
+
+:: WIDTH	 780 val	\ 1920
+:: HEIGHT	 438 val	\ 1080
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -182,6 +239,9 @@ xcb_create_window_request struct: xcreatewindow_request
 xcb_map_window_request struct: xmapwindow_request
 pollfd struct: xpoll
 xcb_event struct: xevent
+
+xcb_put_image_request struct: xputimage_request here 10000 allot 10000 55 fill
+xcb_poly_line_request struct: xpolyline_request
 
 xwin definitions internal
 
@@ -211,10 +271,17 @@ xwin definitions internal
 		0 0
 	else 
 		xevent
-		[ xcb_event ] response_type .@ >< [ internal ] event !
-		[ xcb_event ] detail .@ >< [ internal ] detail !
-		[ xcb_event ] event_x .@ >< [ internal ] x !
-		[ xcb_event ] event_y .@ >< [ internal ] y !
+		[ xcb_event ] response_type .@ >< [ internal ] | event !
+		Expose = if
+			[ internal ] 0 detail !
+			[ xcb_expose_event ] width .@ >< [ internal ] event_x !
+			[ xcb_expose_event ] height .@ >< [ internal ] event_y !
+		else
+			[ xcb_event ] detail .@ >< [ internal ] detail !
+			[ xcb_event ] event_x .@ >< [ internal ] event_x !
+			[ xcb_event ] event_y .@ >< [ internal ] event_y !
+		then
+		_
 		event @ 1
 	then
 ;
@@ -223,6 +290,7 @@ xwin definitions internal
 	4000 xsetup_response XRead	 			?? | 0 < ?? if abort" Failed to read setup response" then _
 	xsetup_response [ xcb_setup_response ] status .@ ><	??   0 =    if abort" Setup response status 'Failed'" then
 
+	maximum_request_length .@ cr red ." Max request length = " >< ?? _ cr
 	[ internal xcb_setup_response ] resource_id_base .@ >< ?? [ internal ] id_base !
 	[ internal xcb_setup_response ] resource_id_mask .@ >< ?? [ internal ] id_mask !
 	[ internal xcb_setup_response ] vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl ><
@@ -240,11 +308,11 @@ xwin definitions internal
 	XCB_CREATE_WINDOW major_opcode .! 0 depth .! #struct 2/ 2/ length .!
 	>< wid .! 
 	[ internal ] window_root_id @ [ xcb_create_window_request ] parent .!
-	100 x .! 100 y .! 300 width .! 200 height .! 1 border_width .! 1 _class .!
+	100 x .! 100 y .! 200 width .! 200 height .! 1 border_width .! 1 _class .!
 	[ internal ] root_visual_id @ [ xcb_create_window_request ] visual .!
-	FLAG_WIN_BG_COLOR FLAG_WIN_EVENT or value_mask .! ff0000 value1 .!
+	FLAG_WIN_BG_COLOR FLAG_WIN_EVENT or value_mask .! ff7f00 value1 .!
 	EVENT_KEY_PRESS EVENT_KEY_RELEASE or EVENT_EXPOSURE or EVENT_BUTTON_PRESS or EVENT_BUTTON_RELEASE or EVENT_POINTER_MOTION or
-	\ EVENT_RESIZE or
+	EVENT_RESIZE or
 	value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create window request" then
 	[ internal ]
@@ -256,22 +324,49 @@ xwin definitions internal
 	#struct >< XWrite					?? #struct <> if abort" Failed to write map window request" then
 	[ internal ]
 ;
+: XDrawImage
+	xputimage_request [ xcb_put_image_request ]		cr yellow ." xcb_put_image_request " norm
+	XCB_PUT_IMAGE major_opcode .! 2 format .! #struct 2/ 2/ 4000 + ?? length .!
+	[ internal ] drawable_id @ ?? [ xcb_put_image_request ] drawable .!
+	[ internal ] gc_id @ ?? [ xcb_put_image_request ] gc .!
+	[ internal ] 200 [ xcb_put_image_request ] width .!
+	[ internal ] 20 [ xcb_put_image_request ] height .!
+	0 dst_x .! 100 dst_y .! 0 left_pad .! 18 depth .!
+	cr green | 100 dump cr
+	#struct 10000 + ?? >< XWrite				 ?? #struct 10000 + <> if abort" Failed to write put image request" then
+	[ internal ]
+;
+: XPolyLine
+	xputimage_request [ xcb_poly_line_request ]		cr yellow ." xcb_poly_line_request " norm
+	XCB_POLY_LINE major_opcode .! 0 coordinate_mode .! #struct 2/ 2/ length .!
+	[ internal ] drawable_id @ ?? [ xcb_poly_line_request ] drawable .!
+	[ internal ] gc_id @ ?? [ xcb_poly_line_request ] gc .!
+	50 x0 .! 50 y0 .! 250 x1 .! 250 y1 .!
+	#struct >< XWrite				 	?? #struct <> if abort" Failed to write poly line request" then
+	[ internal ]
+;
 : XPollEvents
-	XNonBlock
+	\ XNonBlock
 	XPollInit
 	yellow cr ." Polling events... " norm cr
 	begin 
 		XPoll 
 	while
 		_
-		cr purple event @ . white detail @ . tab green x @ . yellow ." , " green y @ . norm
+		cr purple event @ . white detail @ . tab green event_x @ . bs yellow ." , " green event_y @ . norm .S
+		event @
+		| KeyPress = if detail @ 9 = if exit then then	\ ESC
+		| Expose   = if XDrawImage XPolyLine then
+		| 19       = if then
+		_
+
 	repeat
 ;
 : XRun
         XSocket XConnect XSetup
-	XNextId | gc_id ! XNextId | drawable_id ! ><
+	XNextId | gc_id ! XNextId drawable_id ! window_root_id @ ><
 	XCreateGC
-	XNextId | window_id !
+	drawable_id @ | window_id !
 	XCreateWindow XMapWindow
 	XPollEvents
 ; 	
