@@ -352,17 +352,20 @@ xcb_poly_line_request struct: xpolyline_request
 :: im_y 0 var
 
 
-: XDrawImage
+: XDrawImage							\ ( x y w h a -- )
+	{ >|>| * | { {
 	xputimage_request [ xcb_put_image_request ]		cr yellow ." xcb_put_image_request " norm
-	XCB_PUT_IMAGE major_opcode .! 2 format .! #struct 2/ 2/ 4000 + ?? length .!
-	drawable_id @ ?? drawable .!
-	gc_id @ ?? gc .!
-	80 width .!
-	80 height .!
-	0 im_x @ + dst_x .! 100 im_y @ + dst_y .! 0 left_pad .! 18 depth .!
-	\ #struct 10000 + ?? >< XWrite				 ?? #struct 10000 + <> if abort" Failed to write put image request" then
-	| #struct >< XWrite					 ?? #struct <> if abort" Failed to write put image request header" then
-	#struct + 10000 >< XWrite 				 ?? 10000   <> if abort" Failed to write put image request body" then
+	XCB_PUT_IMAGE major_opcode .! 2 format .!
+	#struct 2/ 2/ } + length .!
+	drawable_id @ drawable .!
+	gc_id @ gc .!
+	0 left_pad .! 18 depth .!
+	>< height .!
+	>< width .!
+	>< dst_y .!
+	>< dst_x .!
+	#struct >< XWrite					 ?? #struct <> if abort" Failed to write put image request header" then
+	} 2 shl | } XWrite	 				 ??         <> if abort" Failed to write put image request body" then
 ;
 : XPolyLine
 	xpolyline_request [ xcb_poly_line_request ]		cr yellow ." xcb_poly_line_request " norm
@@ -400,11 +403,15 @@ xcb_poly_line_request struct: xpolyline_request
 			| KEY_LEFT  = if im_x | @ 10 - >< ! else
 			then then then then then
 			XChangeColors
-			XDrawImage
+			100 im_x @ + 200 im_y @ + 10 10 xputimage_request #struct + XDrawImage
 			_
 		then
-		| Expose   = if XPolyLine XDrawImage then
-		| Resize   = if then
+		| Expose   = if
+			XPolyLine
+			100 200 80 80 xputimage_request #struct + XDrawImage
+		then
+		| Resize   = if
+		then
 		_
 
 	repeat

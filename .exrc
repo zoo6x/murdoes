@@ -15,4 +15,5 @@ iabbrev down <C-v>u2228
 iabbrev down2 <C-v>u22bb
 iabbrev phii <C-v>u03c6
 iabbrev bar <C-v>u0a6
+iabbrev bb <C-v>u2588
 
