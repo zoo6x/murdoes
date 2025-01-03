@@ -257,11 +257,13 @@
 : modrr    rs >< rd or rr or ;					\ ( rd rs -- modrm )	Returns ModR/M byte for Rd and Rs
 : modro    >< rd or rr or ;					\ ( rd op -- modrm )	Returns ModR/M byte for Rd and opcode
 : instrr   c, does> <<< >|>| rexrr.q ` >>> c@ ` modrr ` ;	\ ( op -- ) ( rd rs a -- )
+: instrr2  c, c, does> <<< >|>| >< rexrr.q ` >>> | c@ `		\ ( op1 op2 -- ) ( rd rs a -- )
+           1+ c@ ` >< modrr ` ;
 : instro   c, c, does> >< | rexrd.q ` >< | c@ `			\ ( op1 op2 -- ) ( rd a -- )
            1+ c@  modro ` ;
-: instroi4 c, c, does> >< <<< >< | rexrd.q ` >< | c@ `		 \ ( op1 op2 -- ) ( rd imm32 a  -- )
-           1+ c@  modro ` 4, ;
-: instroi1 c, c, does> >< <<< >< | rexrd.q ` >< | c@ `		 \ ( op1 op2 -- ) ( rd imm8 a  -- )
+: instroi4 c, c, does> >< <<< >< | rexrd.q ` >< | c@ `		\ ( op1 op2 -- ) ( rd imm32 a  -- )
+		   1+ c@  modro ` 4, ;
+: instroi1 c, c, does> >< <<< >< | rexrd.q ` >< | c@ `		\ ( op1 op2 -- ) ( rd imm8 a  -- )
            1+ c@  modro ` c, ;
 : instpp   c, does> c@ >< | rex? if 41 ` then 7 and or ` ; 	\ ( op -- ) ( rd a -- )	Push/pop instruction
 
@@ -325,6 +327,8 @@
 :: neg,    d8 f7 instro						\ ( rd -- )		neg	rd
 :: not,    d0 f7 instro						\ ( rd -- )		not	rd
 
+:: imul,   af 0f instrr2					\ ( rd rs -- )		imul	rd, rs
+
 :: mov.i,  00 c7 instroi4					\ ( rd imm32 -- )	mov	rd, imm32
 :: add.i,  c0 83 instroi1
 :: sub.i,  e8 83 instroi1
@@ -334,6 +338,7 @@
 
 : nop,     90 ` ;
 
+:: *       code rtmp rtop mov, _, rtop rtmp imul, ret,		\ ( a b -- a*b )
 
 
 								\ Parameters: rax rdi rsi rdx r10 r8 r9
