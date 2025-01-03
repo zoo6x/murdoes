@@ -2,6 +2,7 @@ vocabulary xwin
 xwin definitions
 
 vocabulary internal
+
 internal definitions
 								\\ Syscalls
 								\ https://syscalls.mebeim.net/?table=x86/64/x64/latest
@@ -219,10 +220,10 @@ struct xcb_expose_event internal
 :: drawable_id     0 var
 :: window_id       0 var
 
-:: event	   0 var
-:: detail          0 var
-:: event_x	   0 var
-:: event_y	   0 var
+:: _event	   0 var
+:: _detail         0 var
+:: _event_x	   0 var
+:: _event_y	   0 var
 
 :: WIDTH	 780 val	\ 1920
 :: HEIGHT	 438 val	\ 1080
@@ -246,8 +247,6 @@ xcb_event struct: xevent
 xcb_put_image_request struct: xputimage_request here 10000 allot | 8000 55 fill 8000 + 8000 99 fill
 xcb_poly_line_request struct: xpolyline_request
 
-xwin definitions internal
-
 : XNextId
         id @ | id_mask @ and id_base @ or >< 1+ id ! ;
 : XSocket
@@ -255,42 +254,46 @@ xwin definitions internal
 	xsocket ! ;
 : XConnect
         #sockaddr_un xsockaddr xsocket @ connect 		?? | 0 < ?? if abort" Failed to connect" then _ ;
+
+
 : XWrite xsocket @ write ;
 : XRead  xsocket @ read ;
+
 : XNonBlock
 	yellow cr ." non-blocking socket " norm
 	0 F_GETFL xsocket @ fcntl				?? | 0 <    if abort" Failed to fcntl F_GET" then
 	O_NONBLOCK or F_SETFL xsocket @ fcntl			?? | 0 <    if abort" Failed to fcntl F_SET" then _ ; 
 : XPollInit
 	xpoll xsocket @ [ pollfd ] fd .! POLLIN events .! _
-	[ internal ]
 ;
 : XPoll -1 1 xpoll poll 					| 0 <=   if abort" Failed to poll" then _ 
         xpoll [ pollfd ] revents .@ _				| POLLERR = if abort" POLLERR" then
 							          POLLHUP = if abort" POLLHUP" then
-	[ internal ]
 	20 xevent XRead						|  0 <   if abort" Failed to read event reply" then
 	0 = if
 		0 0
 	else 
 		xevent
-		[ xcb_event ] response_type .@ >< [ internal ] | event !
+		[ xcb_event ] response_type .@ >< | _event !
 		| Expose = if _
-			[ internal ] 0 detail !
-			[ xcb_expose_event ] width .@ >< [ internal ] event_x !
-			[ xcb_expose_event ] height .@ >< [ internal ] event_y !
+			0 _detail !
+			[ xcb_expose_event ]
+			width .@ >< _event_x !
+			height .@ >< _event_y !
 		else
 		| Resize = if _
-			[ internal ] 0 detail !
-			[ xcb_expose_event ] width .@ >< [ internal ] event_x !
-			[ xcb_expose_event ] height .@ >< [ internal ] event_y !
+			0 _detail !
+			[ xcb_expose_event ]
+			width .@ >< _event_x !
+			height .@ >< _event_y !
 		else _
-			[ xcb_event ] detail .@ >< [ internal ] detail !
-			[ xcb_event ] event_x .@ >< [ internal ] event_x !
-			[ xcb_event ] event_y .@ >< [ internal ] event_y !
+			[ xcb_event ]
+			detail .@ >< _detail !
+			event_x .@ >< _event_x !
+			event_y .@ >< _event_y !
 		then then
 		_
-		event @ 1
+		_event @ 1
 	then
 ;
 : XSetup
@@ -300,27 +303,26 @@ xwin definitions internal
 	xsetup_response [ xcb_setup_response ] status .@ ><	??   0 =    if abort" Setup response status 'Failed'" then
 
 	maximum_request_length .@ cr red ." Max request length = " >< ?? _ cr
-	[ internal xcb_setup_response ] resource_id_base .@ >< ?? [ internal ] id_base !
-	[ internal xcb_setup_response ] resource_id_mask .@ >< ?? [ internal ] id_mask !
-	[ internal xcb_setup_response ] vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl ><
-	[ internal ] xcb_setup_response #struct + + + | ?? 4@ ?? window_root_id ! 20 + 4@ ?? root_visual_id !
+	resource_id_base .@ >< ?? id_base !
+	resource_id_mask .@ >< ?? id_mask !
+	vendor_len .@ >< ?? >< pixmap_formats_len .@ >< ?? 3 shl ><
+	xcb_setup_response #struct + + + | ?? 4@ ?? window_root_id ! 20 + 4@ ?? root_visual_id !
 ;
 : XCreateGC
 	xcreategc_request [ xcb_create_gc_request ]		cr yellow ." xcb_create_gc_request " norm
 	XCB_CREATE_GC ?? major_opcode .! #struct ?? 2/ 2/ ?? length .!
 	>< ?? cid .! >< ?? drawable .! BG FG or ?? value_mask .! 00ffff value1 .! ff0000 value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create GC request" then
-	[ internal ]
 ;
 : XCreateWindow
 	xcreatewindow_request [ xcb_create_window_request ]	cr yellow ." xcb_create_window_request " norm
 	XCB_CREATE_WINDOW major_opcode .! 0 depth .! #struct 2/ 2/ length .!
 	>< wid .! 
-	[ internal ] window_root_id @ [ xcb_create_window_request ] parent .!
+	window_root_id @ parent .!
 	\ 100 x .! 100 y .! 300 width .! 300 height .!
-	0 x .! 0 y .! [ internal ] WIDTH [ xcb_create_window_request ] width .! [ internal ] HEIGHT [ xcb_create_window_request ] height .!
+	0 x .! 0 y .! WIDTH width .! HEIGHT height .!
 	1 border_width .! 1 _class .!
-	[ internal ] root_visual_id @ [ xcb_create_window_request ] visual .!
+	root_visual_id @ visual .!
 	WIN_BG_COLOR \ WIN_OVERRIDE_REDIRECT or 
 	WIN_EVENT or value_mask .! ff7f00 value1 .!
 	\ 1 value2 .!
@@ -328,37 +330,33 @@ xwin definitions internal
 	EVENT_RESIZE or
 	value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create window request" then
-	[ internal ]
 ;
 : XMapWindow
 	xmapwindow_request [ xcb_map_window_request ]
 	XCB_MAP_WINDOW major_opcode .! #struct 2/ 2/ length .!
-	[ internal ] window_id @ [ xcb_map_window_request ] window .!
+	window_id @ window .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write map window request" then
-	[ internal ]
 ;
 : XDrawImage
 	xputimage_request [ xcb_put_image_request ]		cr yellow ." xcb_put_image_request " norm
 	XCB_PUT_IMAGE major_opcode .! 2 format .! #struct 2/ 2/ 4000 + ?? length .!
-	[ internal ] drawable_id @ ?? [ xcb_put_image_request ] drawable .!
-	[ internal ] gc_id @ ?? [ xcb_put_image_request ] gc .!
-	[ internal ] 200 [ xcb_put_image_request ] width .!
-	[ internal ] 20 [ xcb_put_image_request ] height .!
+	drawable_id @ ?? drawable .!
+	gc_id @ ?? gc .!
+	200 width .!
+	20 height .!
 	0 dst_x .! 100 dst_y .! 0 left_pad .! 18 depth .!
 	cr green | 100 dump cr
 	\ #struct 10000 + ?? >< XWrite				 ?? #struct 10000 + <> if abort" Failed to write put image request" then
 	| #struct >< .S XWrite					 ?? #struct <> if abort" Failed to write put image request header" then
 	#struct + 10000 .S >< XWrite 				 ?? 10000   <> if abort" Failed to write put image request body" then
-	[ internal ]
 ;
 : XPolyLine
 	xpolyline_request [ xcb_poly_line_request ]		cr yellow ." xcb_poly_line_request " norm
 	XCB_POLY_LINE major_opcode .! 0 coordinate_mode .! #struct 2/ 2/ length .!
-	[ internal ] drawable_id @ ?? [ xcb_poly_line_request ] drawable .!
-	[ internal cr green words norm ] gc_id @ ?? [ xcb_poly_line_request cr yellow words norm ] gc .!
+	drawable_id @ ?? drawable .!
+	gc_id @ ?? gc .!
 	50 x0 .! 50 y0 .! 250 x1 .! 250 y1 .!
 	#struct >< XWrite				 	?? #struct <> if abort" Failed to write poly line request" then
-	[ internal ]
 ;
 : XPollEvents
 	\ XNonBlock
@@ -368,15 +366,18 @@ xwin definitions internal
 		XPoll 
 	while
 		_
-		cr purple event @ . white detail @ . tab green event_x @ . bs yellow ." , " green event_y @ . norm .S
-		event @
-		| KeyPress = if detail @ 9 = if exit then then	\ ESC
+		cr purple _event @ . white _detail @ . tab green _event_x @ . bs yellow ." , " green _event_y @ . norm .S
+		_event @
+		| KeyPress = if _detail @ 9 = if exit then then	\ ESC
 		| Expose   = if XDrawImage XPolyLine then
-		| 19       = if then
+		| Resize   = if then
 		_
 
 	repeat
 ;
+
+xwin definitions internal
+
 : XRun
         XSocket XConnect XSetup
 	XNextId | gc_id ! XNextId drawable_id ! window_root_id @ ><
@@ -385,6 +386,8 @@ xwin definitions internal
 	XCreateWindow XMapWindow
 	XPollEvents
 ; 	
+
+cr words
 
 XRun
 
