@@ -1,0 +1,95 @@
+forth definitions
+
+vocabulary fonts
+
+fonts definitions
+
+:: #font-glyph 10 10 * 4 * val
+:: font-buffer adr #font-glyph allot
+
+:: font-fg-color ffffff var
+:: font-bg-color 000000 var
+
+: L	@ >< >|>| 4! 4 + | { 4! } 4 + ;
+: X	font-fg-color L ;
+: .	font-bg-color L ;
+
+:: current-font 0 var
+
+: glyph		\ ( c -- )
+	cells current-font @ + @ |
+	0 <> if
+		thread 
+	else
+		_ font-buffer #font-glyph 0 fill
+	then 
+	font-buffer
+;
+
+: font	create here 100 cells | allot 0 fill does> current-font ! ;
+
+: letter	\ ( c -- ) 	Places address of the letter defined next at the character location in current font
+	cells current-font @ + here >< ! ] compile font-buffer ;
+: ;letter compile _ [compile] ; ; immediate
+
+font default
+
+default
+
+char A letter
+	. . X X X X X . 
+	. . X X X X X . 
+	. . X . . . X .
+	. . X . . . X .
+	. . X . . . X .
+	. . X . . . X .
+	. . X . . . X .
+	. X X X X X X X
+	. X X X X X X X
+	. X X . . . . X
+	. X X . . . . X
+	. X X . . . . X
+	. X X . . . . X
+	. X X . . . . X
+	. . . . . . . .
+	. . . . . . . .
+;letter	
+
+char B letter
+	. X X X X X X . 
+	. X X X X X X . 
+	. X . . . . X .
+	. X . . . . X .
+	. X . . . . X .
+	. X . . . . X .
+	. X X X X X X .
+	. X X X X X X X
+	. X X . . . . X
+	. X X . . . . X
+	. X X . . . . X
+	. X X . . . . X
+	. X X X X X X X
+	. X X X X X X X
+	. . . . . . . .
+	. . . . . . . .
+;letter	
+
+char C letter
+	. X X X X X X X 
+	. X X X X X X X 
+	. X . . . . . X
+	. X . . . . . X
+	. X . . . . . .
+	. X . . . . . .
+	. X . . . . . .
+	. X . . . . . .
+	. X X . . . . .
+	. X X . . . . .
+	. X X . . . . X
+	. X X . . . . X
+	. X X X X X X X
+	. X X X X X X X
+	. . . . . . . .
+	. . . . . . . .
+;letter	
+
