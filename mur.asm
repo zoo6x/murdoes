@@ -1693,6 +1693,6 @@ _warm:
 	.equ	last, latest_word
 .align	16
 here0:
-	.rep	0x8000
+	.rep	0x10000
 	.quad	0
 	.endr
