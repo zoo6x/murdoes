@@ -306,8 +306,11 @@ xcb_poly_line_request struct: xpolyline_request
 : XSetup
 	xcb_setup_request #struct xsetup XWrite			?? | 0 < ?? if abort" Failed to write setup request" then _
 	purple cr ." Reading setup response..." norm
-	4000 xsetup_response XRead	 			?? | 0 < ?? if abort" Failed to read setup response" then _
-	xsetup_response [ xcb_setup_response ] status .@ ><	??   0 =    if abort" Setup response status 'Failed'" then
+	8 xsetup_response XRead	 				?? | 8 <>   if abort" Failed to read setup response header " then _
+	xsetup_response [ xcb_setup_response ]
+	4000 xsetup_response 8 + XRead				?? | 0 <    if abort" Failed to read setup response body " then _
+	status .@ ><						??   0 =    if abort" Setup response status 'Failed'" then
+	length .@ ><						?? 2 shl .. 
 
 	maximum_request_length .@ cr red ." Max request length = " >< ?? _ cr
 	resource_id_base .@ >< ?? id_base !
