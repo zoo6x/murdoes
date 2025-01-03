@@ -111,11 +111,13 @@ struct xcb_create_window_request internal
     uint32_t       value_mask
     uint32_t       value1
     uint32_t       value2
+    \ uint32_t       value3
 
     :: XCB_CREATE_WINDOW 1 val
     
-    :: FLAG_WIN_BG_COLOR 2 val
-    :: FLAG_WIN_EVENT  800 val
+    :: WIN_BG_COLOR 2 val
+    :: WIN_OVERRIDE_REDIRECT  200 val
+    :: WIN_EVENT  800 val
 
     :: EVENT_KEY_PRESS         1 val
     :: EVENT_KEY_RELEASE       2 val
@@ -203,6 +205,7 @@ struct xcb_expose_event internal
 :: ButtonPress	4 val
 :: ButtonRelease 5 val
 :: Expose	c val
+:: Resize	19 val
 								\\ Variables and Buffers
 
 
@@ -272,15 +275,20 @@ xwin definitions internal
 	else 
 		xevent
 		[ xcb_event ] response_type .@ >< [ internal ] | event !
-		Expose = if
+		| Expose = if _
 			[ internal ] 0 detail !
 			[ xcb_expose_event ] width .@ >< [ internal ] event_x !
 			[ xcb_expose_event ] height .@ >< [ internal ] event_y !
 		else
+		| Resize = if _
+			[ internal ] 0 detail !
+			[ xcb_expose_event ] width .@ >< [ internal ] event_x !
+			[ xcb_expose_event ] height .@ >< [ internal ] event_y !
+		else _
 			[ xcb_event ] detail .@ >< [ internal ] detail !
 			[ xcb_event ] event_x .@ >< [ internal ] event_x !
 			[ xcb_event ] event_y .@ >< [ internal ] event_y !
-		then
+		then then
 		_
 		event @ 1
 	then
@@ -309,9 +317,13 @@ xwin definitions internal
 	XCB_CREATE_WINDOW major_opcode .! 0 depth .! #struct 2/ 2/ length .!
 	>< wid .! 
 	[ internal ] window_root_id @ [ xcb_create_window_request ] parent .!
-	100 x .! 100 y .! 200 width .! 200 height .! 1 border_width .! 1 _class .!
+	\ 100 x .! 100 y .! 300 width .! 300 height .!
+	0 x .! 0 y .! [ internal ] WIDTH [ xcb_create_window_request ] width .! [ internal ] HEIGHT [ xcb_create_window_request ] height .!
+	1 border_width .! 1 _class .!
 	[ internal ] root_visual_id @ [ xcb_create_window_request ] visual .!
-	FLAG_WIN_BG_COLOR FLAG_WIN_EVENT or value_mask .! ff7f00 value1 .!
+	WIN_BG_COLOR \ WIN_OVERRIDE_REDIRECT or 
+	WIN_EVENT or value_mask .! ff7f00 value1 .!
+	\ 1 value2 .!
 	EVENT_KEY_PRESS EVENT_KEY_RELEASE or EVENT_EXPOSURE or EVENT_BUTTON_PRESS or EVENT_BUTTON_RELEASE or EVENT_POINTER_MOTION or
 	EVENT_RESIZE or
 	value2 .!
@@ -340,10 +352,10 @@ xwin definitions internal
 	[ internal ]
 ;
 : XPolyLine
-	xputimage_request [ xcb_poly_line_request ]		cr yellow ." xcb_poly_line_request " norm
+	xpolyline_request [ xcb_poly_line_request ]		cr yellow ." xcb_poly_line_request " norm
 	XCB_POLY_LINE major_opcode .! 0 coordinate_mode .! #struct 2/ 2/ length .!
 	[ internal ] drawable_id @ ?? [ xcb_poly_line_request ] drawable .!
-	[ internal ] gc_id @ ?? [ xcb_poly_line_request ] gc .!
+	[ internal cr green words norm ] gc_id @ ?? [ xcb_poly_line_request cr yellow words norm ] gc .!
 	50 x0 .! 50 y0 .! 250 x1 .! 250 y1 .!
 	#struct >< XWrite				 	?? #struct <> if abort" Failed to write poly line request" then
 	[ internal ]
