@@ -982,5 +982,356 @@ char Z letter
 	. . . . . . . .
 ;letter	
 
+char 0 letter
+	. . . . . . . .
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . . Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . . .
+;letter	
+
+char 1 letter
+	. . . . . . . .
+	. . . . Z . . . 
+	. . . . Z . . . 
+	. . . . Z . . . 
+	. . . . Z . . . 
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . . Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . Z Z . . .
+	. . . . . . . .
+;letter	
+
+char 2 letter
+	. . . . . . . .
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z . . . . Z 
+	. Z Z . . . . Z 
+	. . . . . . . Z 
+	. . . . . . . Z 
+	. . . . . . . Z 
+	. . . . . . . Z 
+	. . . . . . . Z 
+	. . . . . . . Z 
+	. . . . . . . Z 
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z . . . . .
+	. Z Z . . . . .
+	. Z Z . . . . .
+	. Z Z . . . . .
+	. Z Z . . . . .
+	. Z Z . . . . .
+	. Z Z . . . . .
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . . .
+;letter	
+
+char 3 letter
+	. . . . . . . .
+	. Z Z Z Z Z Z . 
+	. Z Z Z Z Z Z . 
+	. Z Z Z Z Z Z . 
+	. Z Z Z Z Z Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. . . . . . Z . 
+	. . . . . . Z . 
+	. . . . . . Z . 
+	. . . . . . Z . 
+	. . . . . . Z . 
+	. . . . . . Z . 
+	. . . . . . Z . 
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . . .
+;letter	
+
+char 4 letter
+	. . . . . . . .
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z . . . Z . 
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . . .
+;letter	
+
+char 5 letter
+	. . . . . . . .
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . . .
+;letter	
+
+
+char 6 letter
+	. . . . . . . .
+	. Z Z Z Z Z Z . 
+	. Z Z Z Z Z Z . 
+	. Z Z Z Z Z Z . 
+	. Z Z Z Z Z Z . 
+	. Z . . . Z Z . 
+	. Z . . . Z Z . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z . . . . . . 
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z . . . . Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . . .
+;letter	
+
+char 7 letter
+	. . . . . . . .
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z . . . . Z
+	. Z Z . . . . Z
+	. . . . . . . Z
+	. . . . . . . Z
+	. . . . . . . Z
+	. . . . . . . Z
+	. . . . . . . Z
+	. . . . . . . Z
+	. . . . . . . Z
+	. . . . . . . Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . . .
+;letter	
+
+char 8 letter
+	. . . . . . . .
+	. . Z Z Z Z Z . 
+	. . Z Z Z Z Z . 
+	. . Z Z Z Z Z . 
+	. . Z Z Z Z Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. . Z . . . Z . 
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . . .
+;letter	
+
+char 9 letter
+	. . . . . . . .
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z Z Z Z Z Z Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z . . . . . Z 
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. . . . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z . . . Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. Z Z Z Z Z Z Z
+	. . . . . . . .
+;letter	
+
 
 
