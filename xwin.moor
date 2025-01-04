@@ -380,6 +380,19 @@ xcb_poly_line_request struct: xpolyline_request
 
 :: im_color 0 var
 
+: XLocate							\ ( x y -- )
+	im_y !  im_x !
+;
+: XPrint							\ ( a count -- )
+	for
+		| c@ [ fonts ] glyph { im_x @ im_y @ 20 20 } XDrawImage
+		im_x @ 20 + im_x !
+		1+
+	over
+	_
+	[ forth ]
+;
+
 : XChangeColors
 	xputimage_request #struct + | 8000 im_color @ fill 8000 + 8000 im_color @ 0 + fill
 	im_color | @ 8 + >< !
@@ -400,22 +413,40 @@ xcb_poly_line_request struct: xpolyline_request
 		_event @
 		| KeyPress = if _detail @ 
 			| KEY_ESC   = if [ here .. ]  _ exit else
-			| KEY_DOWN  = if im_y | @ 10 + >< ! else
-			| KEY_UP    = if im_y | @ 10 - >< ! else
-			| KEY_RIGHT = if im_x | @ 10 + >< ! else
-			| KEY_LEFT  = if im_x | @ 10 - >< ! else
+			| KEY_DOWN  = if im_y | @ 20 + >< ! else
+			| KEY_UP    = if im_y | @ 20 - >< ! else
+			| KEY_RIGHT = if im_x | @ 20 + >< ! else
+			| KEY_LEFT  = if im_x | @ 20 - >< ! else
 			then then then then then
 			XChangeColors
 			\ 100 im_x @ + 200 im_y @ + 10 10 xputimage_request #struct + XDrawImage
-			[ fonts ] 002b36 font-bg-color ! 
-			100 im_x @ + 200 im_y @ + 10 10 ff0000 font-fg-color ! [char] A glyph XDrawImage
-			110 im_x @ + 200 im_y @ + 10 10 ffff00 font-fg-color ! [char] B glyph XDrawImage
-			120 im_x @ + 200 im_y @ + 10 10 00ffff font-fg-color ! [char] C glyph XDrawImage
+			[ fonts ] 00af00 font-fg-color ! 002b36 font-bg-color ! 
+			100 im_x @ + 200 im_y @ + 20 20 [char] A glyph XDrawImage
+			120 im_x @ + 200 im_y @ + 20 20 [char] B glyph XDrawImage
+			140 im_x @ + 200 im_y @ + 20 20 [char] E glyph XDrawImage
+			160 im_x @ + 200 im_y @ + 20 20 [char] F glyph XDrawImage
+			180 im_x @ + 200 im_y @ + 20 20 [char] D glyph XDrawImage
+			1a0 im_x @ + 200 im_y @ + 20 20 [char] C glyph XDrawImage
+
 			_
 		then
 		| Expose   = if
 			XPolyLine
 			100 200 80 80 xputimage_request #struct + XDrawImage
+			50 50 XLocate
+			" BAD COFES JAIL KILL MAN QATAR UVWXYZ  " count
+			002b36 font-bg-color ! 00cf00 font-fg-color !
+			>|>| XPrint
+			00ff00 font-bg-color ! 000000 font-fg-color !
+			>|>| XPrint
+			150 150 XLocate
+			002b36 font-bg-color !
+			00ffff font-fg-color !
+			" SCORCHED " count XPrint 
+			ffff00 font-fg-color !
+			" EARTH " count XPrint
+			_ _ 
+
 		then
 		| Resize   = if
 		then
