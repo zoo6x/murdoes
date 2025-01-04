@@ -383,6 +383,10 @@ xcb_poly_line_request struct: xpolyline_request
 : XLocate							\ ( x y -- )
 	im_y !  im_x !
 ;
+: XHome		0 0 XLocate ;
+: XCr		im_y @ 20 + im_y ! 0 im_x ! ;
+: XTab		im_x @ 80 + -7f and im_x ! ;
+: XColor	[ fonts ] font-fg-color ! [ forth ] ;
 : XPrint							\ ( a count -- )
 	for
 		| c@ [ fonts ] glyph { im_x @ im_y @ 20 20 } XDrawImage
@@ -392,6 +396,7 @@ xcb_poly_line_request struct: xpolyline_request
 	_
 	[ forth ]
 ;
+: X."		[compile] " compile count compile XPrint ; immediate
 
 : XChangeColors
 	xputimage_request #struct + | 8000 im_color @ fill 8000 + 8000 im_color @ 0 + fill
@@ -433,18 +438,21 @@ xcb_poly_line_request struct: xpolyline_request
 		| Expose   = if
 			XPolyLine
 			100 200 80 80 xputimage_request #struct + XDrawImage
-			50 50 XLocate
-			" BAD COFES JAIL KILL MAN QATAR UVWXYZ  " count
-			002b36 font-bg-color ! 00cf00 font-fg-color !
+			50 150 XLocate
+			"   SPILL THE BLOOD OF MY ENEMIES  " count
+			002b36 font-bg-color ! ff0000 font-fg-color !
 			>|>| XPrint
 			00ff00 font-bg-color ! 000000 font-fg-color !
+			50 180 XLocate
 			>|>| XPrint
-			150 150 XLocate
+			150 50 XLocate
 			002b36 font-bg-color !
 			00ffff font-fg-color !
 			" SCORCHED " count XPrint 
 			ffff00 font-fg-color !
 			" EARTH " count XPrint
+			00ff00 font-fg-color !
+			XCr XTab X." HELLO " XTab XTab XTab X." WORLD " ff8888 XColor X."  1023456789"
 			_ _ 
 
 		then
