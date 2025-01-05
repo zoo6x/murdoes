@@ -204,6 +204,7 @@ struct xcb_expose_event internal
     uint8_t      pad2
 ;struct
 
+:: Timeout	-1 val
 :: KeyPress	2 val
 :: KeyRelease	3 val
 :: ButtonPress	4 val
@@ -212,6 +213,7 @@ struct xcb_expose_event internal
 :: Resize	19 val
 
 :: KEY_ESC	9 val
+:: KEY_ENTER	24 val
 :: KEY_UP	6f val
 :: KEY_DOWN	74 val
 :: KEY_LEFT	71 val
@@ -221,6 +223,7 @@ struct xcb_expose_event internal
 
 
 :: xsocket	  -1 var 
+:: xtimeout	  -1 var
 :: id_base	   0 var
 :: id_mask	   0 var
 :: window_root_id -1 var
@@ -235,8 +238,8 @@ struct xcb_expose_event internal
 :: _event_x	   0 var
 :: _event_y	   0 var
 
-:: WIDTH	 780 val	\ 1920
-:: HEIGHT	 438 val	\ 1080
+:: WIDTH	 600 val	\ 1920 = 0x780
+:: HEIGHT	 300 val	\ 1080 = 0x438
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -276,34 +279,40 @@ xcb_poly_line_request struct: xpolyline_request
 : XPollInit
 	xpoll xsocket @ [ pollfd ] fd .! POLLIN events .! _
 ;
-: XPoll -1 1 xpoll poll 					|      0 <= if abort" Failed to poll" then _ 
-        xpoll [ pollfd ] revents .@ _				| POLLERR = if abort" POLLERR" then
-							          POLLHUP = if abort" POLLHUP" then
-	20 xevent XRead						|       0 < if abort" Failed to read event reply" then
+: XPoll
+	xtimeout @ 1 xpoll poll 				|      0 <  if abort" Failed to poll" then
 	0 = if
-		0 0
-	else 
-		xevent
-		[ xcb_event ] response_type .@ >< | _event !
-		| Expose = if _
-			0 _detail !
-			[ xcb_expose_event ]
-			width .@ >< _event_x !
-			height .@ >< _event_y !
-		else
-		| Resize = if _
-			0 _detail !
-			[ xcb_expose_event ]
-			x .@ >< _event_x !
-			y .@ >< _event_y !
-		else _
-			[ xcb_event ]
-			detail .@ >< _detail !
-			event_x .@ >< _event_x !
-			event_y .@ >< _event_y !
-		then then
-		_
-		_event @ 1
+		-1 _event !
+		1
+	else
+		xpoll [ pollfd ] revents .@ _				| POLLERR = if abort" POLLERR" then
+									  POLLHUP = if abort" POLLHUP" then
+		20 xevent XRead						|       0 < if abort" Failed to read event reply" then
+		0 = if
+			0	
+		else 
+			xevent
+			[ xcb_event ] response_type .@ >< | _event !
+			| Expose = if _
+				0 _detail !
+				[ xcb_expose_event ]
+				width .@ >< _event_x !
+				height .@ >< _event_y !
+			else
+			| Resize = if _
+				0 _detail !
+				[ xcb_expose_event ]
+				x .@ >< _event_x !
+				y .@ >< _event_y !
+			else _
+				[ xcb_event ]
+				detail .@ >< _detail !
+				event_x .@ >< _event_x !
+				event_y .@ >< _event_y !
+			then then
+			_
+			1
+		then
 	then
 ;
 : XSetup
@@ -333,7 +342,7 @@ xcb_poly_line_request struct: xpolyline_request
 	>< wid .! 
 	window_root_id @ parent .!
 	\ 100 x .! 100 y .! 300 width .! 300 height .!
-	0 x .! 0 y .! WIDTH width .! HEIGHT height .!
+	400 x .! 200 y .! WIDTH width .! HEIGHT height .!
 	0 border_width .! 1 _class .!
 	root_visual_id @ visual .!
 	WIN_BG_COLOR \ WIN_OVERRIDE_REDIRECT or 
@@ -353,7 +362,6 @@ xcb_poly_line_request struct: xpolyline_request
 
 :: im_x 0 var
 :: im_y 0 var
-
 
 : XDrawImage							\ ( x y w h a -- )
 	{ >|>| * | { {
@@ -396,6 +404,8 @@ xcb_poly_line_request struct: xpolyline_request
 	_
 	[ forth ]
 ;
+: XFg		[ fonts ] font-fg-color ! [ forth ] ;
+: XBg		[ fonts ] font-bg-color ! [ forth ] ;
 : X."		[compile] " compile count compile XPrint ; immediate
 
 : XChangeColors
@@ -409,6 +419,8 @@ xcb_poly_line_request struct: xpolyline_request
 
 :: XHandler 0 var
 
+:: ticks 0 var
+
 : XPollEvents
 	\ XNonBlock
 	XPollInit
@@ -416,20 +428,25 @@ xcb_poly_line_request struct: xpolyline_request
 	begin 
 		XPoll 
 	while
-		_
 		XHandler @ | if
 			{ _event_y @ _event_x @ _detail @ _event @ } execute
 		else
 			_
 			cr purple _event @ . white _detail @ . tab green _event_x @ . bs yellow ." , " green _event_y @ . norm .S
 			_event @
+			| Timeout = if [char] . purple emit norm
+				ff4f00 XFg ticks @ 30 + [ fonts ] glyph { 10 10 20 20 } XDrawImage
+				ticks @ 1+ | 9 > if _ 0 then ticks !
+
+			then
 			| KeyPress = if _detail @ 
-				| KEY_ESC   = if [ here .. ]  _ exit else
+				| KEY_ESC   = if _ exit else
+				| KEY_ENTER = if -1 xtimeout ! else
 				| KEY_DOWN  = if im_y | @ 20 + >< ! else
 				| KEY_UP    = if im_y | @ 20 - >< ! else
 				| KEY_RIGHT = if im_x | @ 20 + >< ! else
 				| KEY_LEFT  = if im_x | @ 20 - >< ! else
-				then then then then then
+				then then then then then then
 				XChangeColors
 				\ 100 im_x @ + 200 im_y @ + 10 10 xputimage_request #struct + XDrawImage
 				[ fonts ] 00af00 font-fg-color ! 002b36 font-bg-color ! 
@@ -472,6 +489,7 @@ xcb_poly_line_request struct: xpolyline_request
 ;
 
 : XRun
+	100 xtimeout !
         XSocket XConnect XSetup
 	XNextId | gc_id ! XNextId drawable_id ! window_root_id @ ><
 	XCreateGC
@@ -495,7 +513,7 @@ xwin definitions internal
 	purple cr ." In My Handler !!!!"
 	_ _ _ _
 ;
-latest XHandler !
+\ latest XHandler !
 
 XRun
 
