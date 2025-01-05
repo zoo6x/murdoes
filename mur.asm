@@ -1705,6 +1705,6 @@ _warm:
 	.equ	last, latest_word
 .align	16
 here0:
-	.rep	0x10000
+	.rep	0x100000
 	.quad	0
 	.endr
