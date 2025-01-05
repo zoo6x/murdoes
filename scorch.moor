@@ -4,31 +4,102 @@ vocabulary scorch
 
 scorch definitions
 
+									\ Dimensions
+:: LEFT		10 val
+:: TOP		30 val
 :: WIDTH	600 val
 :: HEIGHT	380 val
 :: SIZE		WIDTH HEIGHT * val
 
-\ Arena contains logical values
-\ 0 = Nothing
-\ 1 = Earth/dirt
-:: arena adr SIZE allot arena SIZE 0 fill
+:: arena adr SIZE allot arena SIZE 0 fill				\ Arena contains logical objects
 
-\ Screen contains pixels; should correspond to arena
-:: screen adr SIZE 4 * allot 
+:: NOTHING	0 val
+:: EARTH	1 val
+:: WALL		2 val
+
+:: screen adr SIZE 4 * allot						\ Screen contains pixels; should correspond to arena roughly
 screen SIZE 4 * 0 .S fill
 
-:: border	-1 var
+:: FLYAWAY	0 val
+:: OTHERSIDE	1 val
+:: BOUNCE	2 val
+:: SPIN		3 val							\ Like a tennis racket... someday
+:: border	BOUNCE var
+:: border-color adr afafaf , afaf00 , 00afaf , af00af ,
+
+: at-screen	4* WIDTH * >< 4* + screen + ;				\ ( x y -- a )		Return screen address of a coordinate
+: at-arena	WIDTH * >< + arena + ;					\ ( x y -- a )		Return arena address of a coordinate
+: screen-hline	for >|>| 4! 4 + over _ ;				\ ( c a len -- c )	Draws a horizontal line on screen
+: screen-vline	WIDTH 4* >< for { >|>| 4! } >< >| + >< over _ _ ;	\ ( c a len -- c )	Draws a vertical line on screen
+: arena-hline	for >|>| c! 1+ over _ ;					\ ( c a len -- c )	Draws a horizontal line on arena
+: arena-vline	WIDTH >< for { >|>| c! } >< >| + >< over _ _ ;		\ ( c a len -- c )	Draws a vertical line on arena
+
+: draw-border
+	border @ cells border-color + @
+	0 0 at-screen WIDTH			screen-hline
+	0 1 at-screen WIDTH 			screen-hline
+	0 HEIGHT 1- at-screen WIDTH 		screen-hline
+	0 HEIGHT 1- 1- at-screen WIDTH 1- 	screen-hline
+	0 0 at-screen HEIGHT 			screen-vline
+	1 0 at-screen HEIGHT 			screen-vline
+	WIDTH 1- 0 at-screen HEIGHT 		screen-vline
+	WIDTH 1- 1- 0 at-screen HEIGHT 		screen-vline
+	_
+
+	WALL
+	1 1 at-arena WIDTH 1- 			arena-hline
+	1 HEIGHT 1- at-arena WIDTH 1- 		arena-hline
+	1 1 at-arena HEIGHT 1- 			arena-vline
+	WIDTH 1- 1 at-arena HEIGHT 1- 		arena-vline
+	_
+;
+
+: draw-mountains1
+	WIDTH 4 - for
+		00ff00 WIDTH I - 2 - HEIGHT 2 - random 1+ | { at-screen } HEIGHT >< - screen-vline _
+	over
+;
+: draw-mountains
+	HEIGHT 2 - random						\ start at this height
+	\ HEIGHT 2/
+	0								\ height change
+	1								\ steps left
+	WIDTH 4 -							\ total columns
+	for
+		1- 
+		| -if
+			_ _
+			0a random 5 - 80 random 1+
+		then
+
+		>>> | 50 < if <<< >< negate >< else <<< then
+		>>> | HEIGHT 4 - >= if <<< >< negate >< else <<< then
+		{ | {
+			+
+			| 0 < if _ 0 then
+			| HEIGHT 4 - >= if _ HEIGHT 4 - then
+			
+			| { 00ff00 WIDTH I - 2 - } | { at-screen } HEIGHT 2 - >< - screen-vline _
+		} }
+			
+		
+	over
+;
 
 xwin
 
-: draw-screen
+: display-screen
 	| purple cr . norm .S 
 	| Expose = if _
 		\ Draw border
 		\ 10 10 WIDTH 10 screen XDrawImage
-		red cr .S norm
-		10 10 WIDTH HEIGHT 1- screen 20 XDrawImageByLines
-		green cr .S norm
+		LEFT 0a XLocate 002b36 XBg
+		\ aa0000 XFg X." SCORCHED " ff0000 XFg X." EARTH"
+		ff0000 " SCORCHED EARTH" count cr .S for cr red .S norm
+			{ | XFg 180000 - | 0 < if _ 0 then } 
+			| c@ XEmit 1+
+		over _
+		LEFT TOP WIDTH HEIGHT screen 20 XDrawImageByLines
 	else
 	| KeyPress = if >|
 		| KEY_ESC   = if _ bye else
@@ -39,7 +110,12 @@ xwin
 	then then
 	_ _ _
 ;
-' draw-screen XHandler !
+' display-screen XHandler !
+
+randomize
+4 random border ! 
+draw-border
+draw-mountains
 
 XRun
 
