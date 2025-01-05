@@ -97,7 +97,7 @@ syn keyword forthAdrArith ADDRESS-UNIT-BITS CELL CFALIGN CFALIGNED FLOAT
 syn keyword forthAdrArith MAXALIGN MAXALIGNED
 
 " conditionals {{{2
-syn keyword forthCond ELSE IF THEN
+syn keyword forthCond ELSE IF -IF THEN
   " extension words
 syn keyword forthCond CASE ENDCASE ENDOF OF
 
