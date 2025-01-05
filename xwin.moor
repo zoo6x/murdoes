@@ -238,8 +238,8 @@ struct xcb_expose_event internal
 :: _event_x	   0 var
 :: _event_y	   0 var
 
-:: WIDTH	 600 val	\ 1920 = 0x780
-:: HEIGHT	 300 val	\ 1080 = 0x438
+:: WIDTH	 620 val	\ 1920 = 0x780
+:: HEIGHT	 3a0 val	\ 1080 = 0x438
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -349,7 +349,7 @@ xcb_poly_line_request struct: xpolyline_request
 	WIN_EVENT or value_mask .! 002b36 value1 .!
 	\ 1 value2 .!
 	EVENT_KEY_PRESS EVENT_KEY_RELEASE or EVENT_EXPOSURE or EVENT_BUTTON_PRESS or EVENT_BUTTON_RELEASE or EVENT_POINTER_MOTION or
-	EVENT_RESIZE or
+	\ EVENT_RESIZE or
 	value2 .!
 	#struct >< XWrite					?? #struct <> if abort" Failed to write create window request" then
 ;
@@ -377,6 +377,20 @@ xcb_poly_line_request struct: xpolyline_request
 	>< dst_x .!
 	#struct >< XWrite					 ?? #struct <> if abort" Failed to write put image request header" then
 	} 2 shl | } XWrite	 				 ??         <> if abort" Failed to write put image request body" then
+;
+: XDrawImageByLines						\ ( x y w h a l -- )	l = number of lines to draw per request
+	begin
+		>>| >| >					\ 			While there are more lines than we can draw in a batch
+	while
+		>>> >| - { ><
+		4 pick 4 pick 4 pick 4 pick 4 pick
+		XDrawImage
+		>< | { >>| * 4* + }
+		>< { | { >>> + >< } }
+		} <<< ><
+	repeat
+	_
+	XDrawImage
 ;
 : XPolyLine
 	xpolyline_request [ xcb_poly_line_request ]		cr yellow ." xcb_poly_line_request " norm
@@ -484,7 +498,6 @@ xcb_poly_line_request struct: xpolyline_request
 			then
 			_
 		then
-
 	repeat
 ;
 
@@ -504,10 +517,17 @@ xwin definitions internal
 : XRun XRun ;
 : XHandler XHandler ;
 : XDrawImage XDrawImage ;
+: XDrawImageByLines XDrawImageByLines ;
 : XLocate XLocate ;
 : XPrint XPrint ;
 : XCr XCr ;
 : XTab XTab ;
+
+: Expose Expose ;
+: KeyPress KeyPress ;
+: KeyRelease KeyRelease ;
+
+: KEY_ESC KEY_ESC ;
 
 : MyHandler
 	purple cr ." In My Handler !!!!"
@@ -515,5 +535,5 @@ xwin definitions internal
 ;
 \ latest XHandler !
 
-XRun
+\ XRun
 
