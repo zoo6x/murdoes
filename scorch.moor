@@ -1,0 +1,45 @@
+forth definitions
+
+vocabulary scorch
+
+scorch definitions
+
+:: WIDTH	600 val
+:: HEIGHT	380 val
+:: SIZE		WIDTH HEIGHT * val
+
+\ Arena contains logical values
+\ 0 = Nothing
+\ 1 = Earth/dirt
+:: arena adr SIZE allot arena SIZE 0 fill
+
+\ Screen contains pixels; should correspond to arena
+:: screen adr SIZE 4 * allot 
+screen SIZE 4 * 0 .S fill
+
+:: border	-1 var
+
+xwin
+
+: draw-screen
+	| purple cr . norm .S 
+	| Expose = if _
+		\ Draw border
+		\ 10 10 WIDTH 10 screen XDrawImage
+		red cr .S norm
+		10 10 WIDTH HEIGHT 1- screen 20 XDrawImageByLines
+		green cr .S norm
+	else
+	| KeyPress = if >|
+		| KEY_ESC   = if _ bye else
+			_ _
+		then
+	else
+		_
+	then then
+	_ _ _
+;
+' draw-screen XHandler !
+
+XRun
+
