@@ -406,6 +406,9 @@ xcb_poly_line_request struct: xpolyline_request
 	   8000 2/ 2/ for | ff >< c! | 1+ ff >< c! 4 + over
 	   8000 2/ 2/ for | 1+ ff >< c! | 1+ 1+ ff >< c! 4 + over _
 ;
+
+:: XHandler 0 var
+
 : XPollEvents
 	\ XNonBlock
 	XPollInit
@@ -414,51 +417,56 @@ xcb_poly_line_request struct: xpolyline_request
 		XPoll 
 	while
 		_
-		cr purple _event @ . white _detail @ . tab green _event_x @ . bs yellow ." , " green _event_y @ . norm .S
-		_event @
-		| KeyPress = if _detail @ 
-			| KEY_ESC   = if [ here .. ]  _ exit else
-			| KEY_DOWN  = if im_y | @ 20 + >< ! else
-			| KEY_UP    = if im_y | @ 20 - >< ! else
-			| KEY_RIGHT = if im_x | @ 20 + >< ! else
-			| KEY_LEFT  = if im_x | @ 20 - >< ! else
-			then then then then then
-			XChangeColors
-			\ 100 im_x @ + 200 im_y @ + 10 10 xputimage_request #struct + XDrawImage
-			[ fonts ] 00af00 font-fg-color ! 002b36 font-bg-color ! 
-			100 im_x @ + 200 im_y @ + 20 20 [char] A glyph XDrawImage
-			120 im_x @ + 200 im_y @ + 20 20 [char] B glyph XDrawImage
-			140 im_x @ + 200 im_y @ + 20 20 [char] E glyph XDrawImage
-			160 im_x @ + 200 im_y @ + 20 20 [char] F glyph XDrawImage
-			180 im_x @ + 200 im_y @ + 20 20 [char] D glyph XDrawImage
-			1a0 im_x @ + 200 im_y @ + 20 20 [char] C glyph XDrawImage
+		XHandler @ | if
+			{ _event_y @ _event_x @ _detail @ _event @ } execute
+		else
+			_
+			cr purple _event @ . white _detail @ . tab green _event_x @ . bs yellow ." , " green _event_y @ . norm .S
+			_event @
+			| KeyPress = if _detail @ 
+				| KEY_ESC   = if [ here .. ]  _ exit else
+				| KEY_DOWN  = if im_y | @ 20 + >< ! else
+				| KEY_UP    = if im_y | @ 20 - >< ! else
+				| KEY_RIGHT = if im_x | @ 20 + >< ! else
+				| KEY_LEFT  = if im_x | @ 20 - >< ! else
+				then then then then then
+				XChangeColors
+				\ 100 im_x @ + 200 im_y @ + 10 10 xputimage_request #struct + XDrawImage
+				[ fonts ] 00af00 font-fg-color ! 002b36 font-bg-color ! 
+				100 im_x @ + 200 im_y @ + 20 20 [char] A glyph XDrawImage
+				120 im_x @ + 200 im_y @ + 20 20 [char] B glyph XDrawImage
+				140 im_x @ + 200 im_y @ + 20 20 [char] E glyph XDrawImage
+				160 im_x @ + 200 im_y @ + 20 20 [char] F glyph XDrawImage
+				180 im_x @ + 200 im_y @ + 20 20 [char] D glyph XDrawImage
+				1a0 im_x @ + 200 im_y @ + 20 20 [char] C glyph XDrawImage
 
+				_
+			then
+			| Expose   = if
+				XPolyLine
+				100 200 80 80 xputimage_request #struct + XDrawImage
+				50 150 XLocate
+				"   SPILL THE BLOOD OF MY ENEMIES  " count
+				002b36 font-bg-color ! ff0000 font-fg-color !
+				>|>| XPrint
+				00ff00 font-bg-color ! 000000 font-fg-color !
+				50 180 XLocate
+				>|>| XPrint
+				150 50 XLocate
+				002b36 font-bg-color !
+				00ffff font-fg-color !
+				" SCORCHED " count XPrint 
+				ffff00 font-fg-color !
+				" EARTH " count XPrint
+				00ff00 font-fg-color !
+				XCr XTab X." HELLO " XTab XTab XTab X." WORLD " ff8888 XColor X."  1023456789"
+				_ _ 
+
+			then
+			| Resize   = if
+			then
 			_
 		then
-		| Expose   = if
-			XPolyLine
-			100 200 80 80 xputimage_request #struct + XDrawImage
-			50 150 XLocate
-			"   SPILL THE BLOOD OF MY ENEMIES  " count
-			002b36 font-bg-color ! ff0000 font-fg-color !
-			>|>| XPrint
-			00ff00 font-bg-color ! 000000 font-fg-color !
-			50 180 XLocate
-			>|>| XPrint
-			150 50 XLocate
-			002b36 font-bg-color !
-			00ffff font-fg-color !
-			" SCORCHED " count XPrint 
-			ffff00 font-fg-color !
-			" EARTH " count XPrint
-			00ff00 font-fg-color !
-			XCr XTab X." HELLO " XTab XTab XTab X." WORLD " ff8888 XColor X."  1023456789"
-			_ _ 
-
-		then
-		| Resize   = if
-		then
-		_
 
 	repeat
 ;
@@ -474,7 +482,20 @@ xcb_poly_line_request struct: xpolyline_request
 
 xwin definitions internal
 
+\ Export public definitions
 : XRun XRun ;
+: XHandler XHandler ;
+: XDrawImage XDrawImage ;
+: XLocate XLocate ;
+: XPrint XPrint ;
+: XCr XCr ;
+: XTab XTab ;
+
+: MyHandler
+	purple cr ." In My Handler !!!!"
+	_ _ _ _
+;
+latest XHandler !
 
 XRun
 
