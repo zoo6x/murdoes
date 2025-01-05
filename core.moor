@@ -221,6 +221,7 @@
 								\ TODO: Allow for multiple BREAKs, as with CONTINUE
 
 : if       compile (if) compile ?branch >mark ; immediate
+: -if       compile (if) compile -?branch >mark ; immediate
 : else     compile (else-pre) compile branch >mark compile (else-post) >< >resolve ; immediate
 : then     compile (then) >resolve ; immediate
 : begin    compile (begin) <mark ; immediate
@@ -493,6 +494,7 @@
     | 5  shl ffffffff and xor
     | randseed ! ;
 : random random32 * 20 sar ;					\ ( n -- )		Returns a random number in range 0..N-1
+: randomize timestamp ffffffff and randseed ! ;
 
 								\\ Stack									_stack
 								\ Structure: pointer limit data...
