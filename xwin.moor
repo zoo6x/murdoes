@@ -239,7 +239,7 @@ struct xcb_expose_event internal
 :: _event_y	   0 var
 
 :: WIDTH	 620 val	\ 1920 = 0x780
-:: HEIGHT	 3a0 val	\ 1080 = 0x438
+:: HEIGHT	 3c0 val	\ 1080 = 0x438
 
 :: #sockaddr_un 6c val
 :: xsockaddr adr 1 2, #sockaddr_un here ,0" /tmp/.X11-unix/X0" here >< - - allot
@@ -409,11 +409,13 @@ xcb_poly_line_request struct: xpolyline_request
 : XCr		im_y @ 20 + im_y ! 0 im_x ! ;
 : XTab		im_x @ 80 + -7f and im_x ! ;
 : XColor	[ fonts ] font-fg-color ! [ forth ] ;
+: XEmit
+		[ fonts ] glyph { im_x @ im_y @ 20 20 } XDrawImage
+		im_x @ 20 + im_x !
+;
 : XPrint							\ ( a count -- )
 	for
-		| c@ [ fonts ] glyph { im_x @ im_y @ 20 20 } XDrawImage
-		im_x @ 20 + im_x !
-		1+
+		| c@ XEmit 1+
 	over
 	_
 	[ forth ]
@@ -519,10 +521,13 @@ xwin definitions internal
 : XDrawImage XDrawImage ;
 : XDrawImageByLines XDrawImageByLines ;
 : XLocate XLocate ;
+: XEmit XEmit ;
 : XPrint XPrint ;
 : XCr XCr ;
+: XFg XFg ;
+: XBg XBg ;
 : XTab XTab ;
-
+: X." [compile] X." ; immediate
 : Expose Expose ;
 : KeyPress KeyPress ;
 : KeyRelease KeyRelease ;
