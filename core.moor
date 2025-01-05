@@ -390,11 +390,15 @@
 : setz0,   r0 .z setf,  movzxc, ;						\ 			setz	cl ; movzx rcx, cl
 : setl0,   r0 .l setf,  movzxc, ;						\ 			setl	cl ; movzx rcx, cl
 : setle0,  r0 .le setf, movzxc, ;						\ 			setle	cl ; movzx rcx, cl
+: setg0,   r0 .g setf,  movzxc, ;						\ 			setl	cl ; movzx rcx, cl
+: setge0,  r0 .ge setf, movzxc, ;						\ 			setle	cl ; movzx rcx, cl
 
 :: =       code #1 r1 load, r1 r0 cmp, setz0, off, ret,		\ ( a b -- a=b )	Compare two top elements, return 1 if equal and 0 otherwise
 :: <>      code #1 r1 load, r1 r0 cmp, setnz0, off, ret,	\ ( a b -- a<>b )	Compare two top elements, return 1 if not equal and 0 otherwise
 :: <       code #1 r1 load, r1 r0 cmp, setl0, off, ret,		\ ( a b -- a<b )	
 :: <=      code #1 r1 load, r1 r0 cmp, setle0, off, ret,	\ ( a b -- a<=b )	
+:: >       code #1 r1 load, r1 r0 cmp, setg0, off, ret,		\ ( a b -- a>b )	
+:: >=      code #1 r1 load, r1 r0 cmp, setge0, off, ret,	\ ( a b -- a>=b )	
 
 : lodsq,   48 ` ad ` ;						\			lodsq	rax, qword ptr [rsi]
 : skip,    48 ` 8d ` 34 ` c6 ` ;				\			lea	rsi, [rsi + rax*8]
